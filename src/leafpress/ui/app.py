@@ -75,6 +75,7 @@ class ConvertWorker(QThread):
         cover_page: bool,
         include_toc: bool,
         open_after: bool = False,
+        local_time: bool = False,
     ) -> None:
         super().__init__()
         self._source = source
@@ -84,6 +85,7 @@ class ConvertWorker(QThread):
         self._cover_page = cover_page
         self._include_toc = include_toc
         self._open_after = open_after
+        self._local_time = local_time
 
     def run(self) -> None:
         try:
@@ -97,6 +99,7 @@ class ConvertWorker(QThread):
                 config_path=self._config_path,
                 cover_page=self._cover_page,
                 include_toc=self._include_toc,
+                local_time=self._local_time,
             )
             names = "\n".join(str(f) for f in files)
             self.log.emit(f"Done!\n{names}")
@@ -148,7 +151,7 @@ class LeafpressWindow(QMainWindow):
 
         # Format
         self._format = QComboBox()
-        self._format.addItems(["pdf", "docx", "both"])
+        self._format.addItems(["pdf", "docx", "html", "odt", "both", "all"])
         form.addRow("Format:", self._format)
 
         # Branding config (optional)
@@ -169,9 +172,11 @@ class LeafpressWindow(QMainWindow):
         self._toc = QCheckBox("Table of contents")
         self._toc.setChecked(True)
         self._open_after = QCheckBox("Open after conversion")
+        self._local_time = QCheckBox("Use local timezone for dates")
         opts.addWidget(self._cover)
         opts.addWidget(self._toc)
         opts.addWidget(self._open_after)
+        opts.addWidget(self._local_time)
         opts.addStretch()
         root.addLayout(opts)
 
@@ -245,6 +250,7 @@ class LeafpressWindow(QMainWindow):
             cover_page=self._cover.isChecked(),
             include_toc=self._toc.isChecked(),
             open_after=self._open_after.isChecked(),
+            local_time=self._local_time.isChecked(),
         )
         self._worker.log.connect(self._log.append)
         self._worker.finished.connect(self._on_finished)

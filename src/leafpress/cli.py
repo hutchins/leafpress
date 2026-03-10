@@ -21,7 +21,7 @@ from leafpress.source import resolve_source
 
 cli = typer.Typer(
     name="leafpress",
-    help="Convert MkDocs sites to PDF and Word documents with branding.",
+    help="Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding.",
     epilog="For detailed usage instructions, see the documentation at https://leafpress.dev",
     rich_markup_mode="rich",
     no_args_is_help=True,
@@ -32,7 +32,10 @@ console = Console()
 class OutputFormat(str, Enum):
     pdf = "pdf"
     docx = "docx"
+    html = "html"
+    odt = "odt"
     both = "both"
+    all = "all"
 
 
 def version_callback(value: bool) -> None:
@@ -52,7 +55,7 @@ def main(
         help="Show version and exit.",
     ),
 ) -> None:
-    """leafpress - Convert MkDocs sites to PDF and Word documents."""
+    """leafpress - Convert MkDocs sites to PDF, Word, HTML, and ODT documents."""
 
 
 @cli.command()
@@ -70,7 +73,7 @@ def convert(
         OutputFormat.pdf,
         "--format",
         "-f",
-        help="Output format: pdf, docx, or both.",
+        help="Output format: pdf, docx, html, odt, both (pdf+docx), or all.",
     ),
     config: Path | None = typer.Option(
         None,
@@ -104,17 +107,22 @@ def convert(
         "--open",
         help="Open the generated file(s) after conversion.",
     ),
+    local_time: bool = typer.Option(
+        False,
+        "--local-time",
+        help="Use local timezone for dates instead of UTC.",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
         help="Enable verbose output.",
     ),
 ) -> None:
-    """Convert an MkDocs site to PDF and/or DOCX."""
+    """Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT."""
     console.print(
         Panel(
             f"[bold]leafpress[/bold] v{__version__}",
-            subtitle="MkDocs to PDF/DOCX converter",
+            subtitle="MkDocs to PDF/DOCX/HTML/ODT converter",
             style="blue",
         )
     )
@@ -131,6 +139,7 @@ def convert(
             branch=branch,
             cover_page=cover_page,
             include_toc=toc,
+            local_time=local_time,
         )
 
         if generated:
@@ -259,10 +268,18 @@ def ui(
     try:
         from leafpress.ui.app import run_ui
     except ImportError as e:
-        console.print("[bold red]PyQt6 is required for the UI.[/bold red]")
+        console.print()
         console.print(
-            r"Install it with: [cyan]uv add 'leafpress\[ui]'[/cyan]"
-            r"  or  [cyan]pip install 'leafpress\[ui]'[/cyan]"
+            Panel(
+                "[bold]PyQt6[/bold] is required for the desktop UI.\n\n"
+                "Install the UI extra with one of the following:\n\n"
+                "  [cyan]uv add 'leafpress\\[ui]'[/cyan]\n"
+                "  [cyan]pip install 'leafpress\\[ui]'[/cyan]\n"
+                "  [cyan]pipx inject leafpress 'leafpress\\[ui]'[/cyan]\n\n"
+                "Then run [bold]leafpress ui[/bold] again.",
+                title="[bold red]Missing dependency[/bold red]",
+                border_style="red",
+            )
         )
         raise typer.Exit(code=1) from e
     run_ui(show=show)

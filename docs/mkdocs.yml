@@ -1,5 +1,5 @@
 site_name: LeafPress
-site_description: Convert MkDocs sites to PDF and Word documents with branding
+site_description: Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding
 site_url: https://leafpress.dev/
 site_author: Shane Hutchins
 docs_dir: docs
@@ -14,6 +14,8 @@ nav:
   - Output Formats:
     - PDF Output: pdf.md
     - Word Output: docx.md
+    - HTML Output: html.md
+    - ODT Output: odt.md
   - Branding & Styling: branding.md
   - Git Integration: git-integration.md
   - Remote Sources: remote-sources.md
@@ -85,6 +87,8 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
