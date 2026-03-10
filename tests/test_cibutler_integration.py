@@ -113,7 +113,9 @@ class TestCibutlerParsing:
 
 class TestCibutlerMarkdown:
     def test_all_pages_render(self, cibutler_html_pages: list[tuple]) -> None:
-        content_pages = [(item, html) for item, html in cibutler_html_pages if item.path is not None]
+        content_pages = [
+            (item, html) for item, html in cibutler_html_pages if item.path is not None
+        ]
         assert len(content_pages) == 12
         for item, html in content_pages:
             assert len(html) > 0, f"Empty HTML for {item.path}"

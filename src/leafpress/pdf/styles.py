@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from importlib.resources import files
-from typing import Optional
 
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 
 
 def generate_pdf_css(
-    branding: Optional[BrandingConfig],
-    git_info: Optional[GitVersion],
+    branding: BrandingConfig | None,
+    git_info: GitVersion | None,
 ) -> str:
     """Generate complete CSS for PDF rendering via WeasyPrint.
 
@@ -31,8 +30,8 @@ def generate_pdf_css(
 
 
 def _build_page_rules(
-    branding: Optional[BrandingConfig],
-    git_info: Optional[GitVersion],
+    branding: BrandingConfig | None,
+    git_info: GitVersion | None,
 ) -> str:
     """Build CSS @page rules for headers, footers, and page setup."""
     # Page size and margins
@@ -126,7 +125,7 @@ def _build_page_rules(
 """
 
 
-def _build_color_overrides(branding: Optional[BrandingConfig]) -> str:
+def _build_color_overrides(branding: BrandingConfig | None) -> str:
     """Build CSS color overrides from branding config."""
     if not branding:
         return ""

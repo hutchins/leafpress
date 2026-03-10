@@ -69,7 +69,7 @@ def parse_mkdocs_config(config_path: Path) -> MkDocsConfig:
 
     try:
         with open(config_path) as f:
-            raw = yaml.load(f, Loader=_MkDocsLoader)  # noqa: S506
+            raw = yaml.load(f, Loader=_MkDocsLoader)
     except yaml.YAMLError as e:
         raise ConfigError(f"Invalid YAML in {config_path}: {e}") from e
 
@@ -85,10 +85,7 @@ def parse_mkdocs_config(config_path: Path) -> MkDocsConfig:
 
     # Parse navigation
     nav_raw = raw.get("nav")
-    if nav_raw:
-        nav_items = _parse_nav(nav_raw, docs_dir, level=0)
-    else:
-        nav_items = _auto_discover_nav(docs_dir)
+    nav_items = _parse_nav(nav_raw, docs_dir, level=0) if nav_raw else _auto_discover_nav(docs_dir)
 
     # Parse extensions
     extensions = raw.get("markdown_extensions", [])

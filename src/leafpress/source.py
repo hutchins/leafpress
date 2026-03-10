@@ -6,7 +6,6 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from git import Repo
 from rich.console import Console
@@ -38,7 +37,7 @@ class ResolvedSource:
 
 def resolve_source(
     source: str,
-    branch: Optional[str] = None,
+    branch: str | None = None,
 ) -> ResolvedSource:
     """Resolve the input source to a local directory path.
 
@@ -58,7 +57,7 @@ def resolve_source(
     return ResolvedSource(local_path, is_temporary=False)
 
 
-def _clone_repo(url: str, branch: Optional[str]) -> Path:
+def _clone_repo(url: str, branch: str | None) -> Path:
     """Clone a git repo to a temporary directory."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="leafpress_"))
     clone_kwargs: dict[str, object] = {"depth": 50}
