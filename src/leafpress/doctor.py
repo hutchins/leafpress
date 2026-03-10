@@ -106,6 +106,14 @@ def _check_weasyprint_package() -> CheckResult:
             message="Not installed (optional — needed for PDF output)",
             install_hint=_install_hint("pdf"),
         )
+    except OSError as e:
+        # Package is installed but system libs are broken/missing
+        return CheckResult(
+            name="WeasyPrint",
+            passed=False,
+            message=f"Installed but system libs failed: {e}",
+            install_hint=_weasyprint_syslib_hint(),
+        )
 
 
 def _check_weasyprint_system_libs() -> CheckResult | None:
@@ -115,6 +123,14 @@ def _check_weasyprint_system_libs() -> CheckResult | None:
     except ImportError:
         # Package not installed — skip system lib check
         return None
+    except OSError as e:
+        # Package installed but system libs fail at import time
+        return CheckResult(
+            name="WeasyPrint system libs",
+            passed=False,
+            message=str(e),
+            install_hint=_weasyprint_syslib_hint(),
+        )
 
     try:
         from weasyprint import HTML

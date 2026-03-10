@@ -110,6 +110,43 @@ def test_weasyprint_package_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "leafpress[pdf]" in result.install_hint
 
 
+def test_weasyprint_package_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fails with syslib hint when import weasyprint raises OSError."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "weasyprint":
+            raise OSError("cannot load library 'libgobject-2.0-0'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    result = _check_weasyprint_package()
+    assert result.passed is False
+    assert "libgobject" in result.message
+    assert "brew" in result.install_hint or "apt" in result.install_hint
+
+
+def test_weasyprint_syslibs_oserror_at_import(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fails with syslib hint when import weasyprint raises OSError."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "weasyprint":
+            raise OSError("cannot load library 'libcairo'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    result = _check_weasyprint_system_libs()
+    assert result is not None
+    assert result.passed is False
+    assert "libcairo" in result.message
+    assert "brew" in result.install_hint or "apt" in result.install_hint
+
+
 def test_weasyprint_package_present(monkeypatch: pytest.MonkeyPatch) -> None:
     """Passes when weasyprint is importable with __version__."""
     mock_wp = MagicMock()
