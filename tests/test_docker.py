@@ -63,7 +63,9 @@ def test_docker_build(docker_image):
 
 def test_docker_version(docker_image):
     """Container prints version."""
-    result = _docker_run(entrypoint_args=["--version"], image=docker_image, name="leafpress-version")
+    result = _docker_run(
+        entrypoint_args=["--version"], image=docker_image, name="leafpress-version"
+    )
     assert result.returncode == 0
     assert "leafpress version" in result.stdout
 

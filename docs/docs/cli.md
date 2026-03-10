@@ -11,6 +11,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 | [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
+| [`fetch-diagrams`](#fetch-diagrams) | Fetch diagrams from external sources (URLs, Lucidchart) |
 | [`ui`](#ui) | Launch the desktop menu bar / system tray app |
 
 ---
@@ -51,6 +52,7 @@ leafpress convert SOURCE [OPTIONS]
 | `--open` | `false` | Open the generated file(s) after conversion |
 | `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
 | `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) |
+| `--fetch-diagrams` | `false` | Fetch diagrams from external sources before converting |
 | `--verbose` | `false` | Show full traceback on error |
 
 **Examples**
@@ -81,6 +83,9 @@ leafpress convert . --local-time
 # Add a watermark overlay
 leafpress convert . -f pdf -w "DRAFT"
 leafpress convert . -f all --watermark "CONFIDENTIAL"
+
+# Fetch diagrams before converting
+leafpress convert . -c leafpress.yml --fetch-diagrams
 
 # No cover page, open after conversion
 leafpress convert . --no-cover-page --open
@@ -149,6 +154,39 @@ leafpress info SOURCE [OPTIONS]
 leafpress info /path/to/project
 leafpress info https://github.com/org/repo -b main
 ```
+
+---
+
+## `fetch-diagrams`
+
+Fetch diagrams from external sources (URLs, Lucidchart API) defined in your `leafpress.yml` config.
+
+```bash
+leafpress fetch-diagrams [OPTIONS]
+```
+
+**Options**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--config`, `-c` | _(auto-detect)_ | Path to `leafpress.yml` config file |
+| `--refresh` | `false` | Force re-download even if cached files exist |
+| `--verbose` | `false` | Show full traceback on error |
+
+**Examples**
+
+```bash
+# Fetch using auto-detected leafpress.yml
+leafpress fetch-diagrams
+
+# Specify a config file
+leafpress fetch-diagrams -c path/to/leafpress.yml
+
+# Force re-download, ignoring cache
+leafpress fetch-diagrams --refresh
+```
+
+See [Diagrams](diagrams.md) for full configuration and usage details.
 
 ---
 

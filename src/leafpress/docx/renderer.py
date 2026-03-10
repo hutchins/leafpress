@@ -13,14 +13,14 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import nsmap, qn
 from docx.shared import Inches, Pt, RGBColor
 
-# Register VML namespace for watermark support
-nsmap["v"] = "urn:schemas-microsoft-com:vml"
-
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter
 from leafpress.docx.styles import apply_branding_styles
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
+
+# Register VML namespace for watermark support (must be after docx imports)
+nsmap["v"] = "urn:schemas-microsoft-com:vml"
 
 
 class DocxRenderer:

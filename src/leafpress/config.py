@@ -48,6 +48,32 @@ class WatermarkConfig(BaseModel):
     angle: int = Field(default=-45, ge=-90, le=90)
 
 
+class DiagramSource(BaseModel):
+    """A single diagram source entry."""
+
+    url: str | None = None
+    lucidchart: str | None = None
+    dest: str = Field(description="Local destination path for the downloaded diagram")
+    page: int = Field(default=1, ge=1, description="Page number (Lucidchart only)")
+
+    @field_validator("dest")
+    @classmethod
+    def validate_dest_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Diagram dest path cannot be empty")
+        return v
+
+
+class DiagramsConfig(BaseModel):
+    """Diagrams fetch configuration."""
+
+    lucidchart_token: str | None = None
+    cache_max_age: int = Field(
+        default=3600, ge=0, description="Max age in seconds before re-downloading"
+    )
+    sources: list[DiagramSource] = Field(default_factory=list)
+
+
 class BrandingConfig(BaseModel):
     """Top-level leafpress branding configuration."""
 
@@ -73,6 +99,7 @@ class BrandingConfig(BaseModel):
     pdf: PdfOptions = Field(default_factory=PdfOptions)
     docx: DocxOptions = Field(default_factory=DocxOptions)
     watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
+    diagrams: DiagramsConfig = Field(default_factory=DiagramsConfig)
 
     @field_validator("primary_color", "accent_color")
     @classmethod
@@ -160,6 +187,11 @@ def _apply_env_overrides(config: BrandingConfig) -> BrandingConfig:
         with contextlib.suppress(ValueError):
             data["watermark"]["angle"] = int(wm_angle)
 
+    lc_token = os.environ.get("LEAFPRESS_LUCIDCHART_TOKEN")
+    if lc_token:
+        data.setdefault("diagrams", {})
+        data["diagrams"]["lucidchart_token"] = lc_token
+
     return BrandingConfig.model_validate(data)
 
 
@@ -233,4 +265,14 @@ pdf:
 #   color: "#cccccc"
 #   opacity: 0.15           # 0.0 to 1.0
 #   angle: -45              # -90 to 90
+
+# diagrams:
+#   lucidchart_token: null  # or set LEAFPRESS_LUCIDCHART_TOKEN env var
+#   cache_max_age: 3600     # seconds; 0 = always re-download
+#   sources:
+#     - url: https://example.com/diagram.svg
+#       dest: docs/assets/diagrams/architecture.svg
+#     - lucidchart: abc123-document-id
+#       dest: docs/assets/diagrams/network.png
+#       page: 1
 """

@@ -111,6 +111,8 @@ class TestInternalLinks:
 
     # Matches [text](target.md) and [text](target.md#anchor) but not http(s) URLs
     _LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
+    # Matches fenced code blocks (``` ... ```)
+    _FENCE_RE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 
     def _get_all_md_files(self) -> list[Path]:
         return list(DOCS_DIR.rglob("*.md"))
@@ -120,6 +122,8 @@ class TestInternalLinks:
         broken = []
         for md_file in self._get_all_md_files():
             content = md_file.read_text(encoding="utf-8")
+            # Strip fenced code blocks so example links aren't checked
+            content = self._FENCE_RE.sub("", content)
             for match in self._LINK_RE.finditer(content):
                 target = match.group(2)
                 # Skip external URLs, anchors-only, and image badges
@@ -221,23 +225,23 @@ class TestMkDocsExtensions:
 
     def test_has_admonition(self, mkdocs_config: dict) -> None:
         extensions = mkdocs_config.get("markdown_extensions", [])
-        ext_names = [e if isinstance(e, str) else list(e.keys())[0] for e in extensions]
+        ext_names = [e if isinstance(e, str) else next(iter(e.keys())) for e in extensions]
         assert "admonition" in ext_names
 
     def test_has_pymdownx_tabbed(self, mkdocs_config: dict) -> None:
         """pymdownx.tabbed is required for tab syntax in docs."""
         extensions = mkdocs_config.get("markdown_extensions", [])
-        ext_names = [e if isinstance(e, str) else list(e.keys())[0] for e in extensions]
+        ext_names = [e if isinstance(e, str) else next(iter(e.keys())) for e in extensions]
         assert "pymdownx.tabbed" in ext_names
 
     def test_has_pymdownx_superfences(self, mkdocs_config: dict) -> None:
         extensions = mkdocs_config.get("markdown_extensions", [])
-        ext_names = [e if isinstance(e, str) else list(e.keys())[0] for e in extensions]
+        ext_names = [e if isinstance(e, str) else next(iter(e.keys())) for e in extensions]
         assert "pymdownx.superfences" in ext_names
 
     def test_has_codehilite_or_highlight(self, mkdocs_config: dict) -> None:
         extensions = mkdocs_config.get("markdown_extensions", [])
-        ext_names = [e if isinstance(e, str) else list(e.keys())[0] for e in extensions]
+        ext_names = [e if isinstance(e, str) else next(iter(e.keys())) for e in extensions]
         assert "codehilite" in ext_names or "pymdownx.highlight" in ext_names
 
 
