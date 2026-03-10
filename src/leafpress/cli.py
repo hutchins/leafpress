@@ -9,6 +9,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -173,10 +174,10 @@ def convert(
             console.print("\n[yellow]No files were generated.[/yellow]")
 
     except LeafpressError as e:
-        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"\n[bold red]Unexpected error:[/bold red] {e}")
+        console.print(f"\n[bold red]Unexpected error:[/bold red] {escape(str(e))}")
         if verbose:
             console.print_exception()
         raise typer.Exit(code=1) from e
@@ -274,8 +275,25 @@ def info(
                 console.print(git_table)
 
     except LeafpressError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
+        console.print(f"[bold red]Error:[/bold red] {escape(str(e))}")
         raise typer.Exit(code=1) from e
+
+
+@cli.command()
+def doctor(
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        help="Also check core dependencies (normally guaranteed to be installed).",
+    ),
+) -> None:
+    """Check your environment and show the status of optional dependencies."""
+    from leafpress.doctor import print_report, run_doctor
+
+    report = run_doctor(verbose=verbose)
+    print_report(report, console)
+    if not report.all_passed:
+        raise typer.Exit(code=1)
 
 
 @cli.command(name="fetch-diagrams")
@@ -316,7 +334,7 @@ def fetch_diagrams_cmd(
     try:
         branding = _config_mod.load_config(config)
     except LeafpressError as e:
-        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
         raise typer.Exit(code=1) from e
 
     if not branding.diagrams.sources:
@@ -336,10 +354,10 @@ def fetch_diagrams_cmd(
         console.print(f"\n[bold green]Done![/bold green] {len(fetched)} diagram(s) fetched.")
 
     except LeafpressError as e:
-        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"\n[bold red]Unexpected error:[/bold red] {e}")
+        console.print(f"\n[bold red]Unexpected error:[/bold red] {escape(str(e))}")
         if verbose:
             console.print_exception()
         raise typer.Exit(code=1) from e
@@ -420,7 +438,7 @@ def import_docx(
                 console.print(f"    - {w}")
 
     except LeafpressError as e:
-        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
         raise typer.Exit(code=1) from e
 
 

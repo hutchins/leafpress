@@ -189,7 +189,7 @@ def test_pdf_missing_error_mentions_pdf_extra(
     tmp_output: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Error message must include literal [pdf] so Rich doesn't swallow it."""
+    """Error message must include literal [pdf] and suggest doctor command."""
     import sys
 
     monkeypatch.setitem(sys.modules, "leafpress.pdf.renderer", None)
@@ -200,4 +200,6 @@ def test_pdf_missing_error_mentions_pdf_extra(
             output_dir=tmp_output,
             format="pdf",
         )
-    assert "[pdf]" in str(exc_info.value)
+    msg = str(exc_info.value)
+    assert "[pdf]" in msg
+    assert "leafpress doctor" in msg
