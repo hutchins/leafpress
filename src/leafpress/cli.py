@@ -6,7 +6,6 @@ import platform
 import subprocess
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -14,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from leafpress import __version__
-from leafpress.config import DEFAULT_CONFIG_TEMPLATE, load_config
+from leafpress.config import DEFAULT_CONFIG_TEMPLATE
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
@@ -22,7 +21,7 @@ from leafpress.source import resolve_source
 
 cli = typer.Typer(
     name="leafpress",
-    help="Convert MkDocs sites to PDF and Word documents with branding.  [bold]leafpress[/bold] contributors",
+    help="Convert MkDocs sites to PDF and Word documents with branding.",
     epilog="For detailed usage instructions, see the documentation at https://leafpress.dev",
     rich_markup_mode="rich",
     no_args_is_help=True,
@@ -44,7 +43,7 @@ def version_callback(value: bool) -> None:
 
 @cli.callback()
 def main(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         "-v",
@@ -73,18 +72,18 @@ def convert(
         "-f",
         help="Output format: pdf, docx, or both.",
     ),
-    config: Optional[Path] = typer.Option(
+    config: Path | None = typer.Option(
         None,
         "--config",
         "-c",
         help="Path to leafpress branding config YAML file.",
     ),
-    mkdocs_config: Optional[Path] = typer.Option(
+    mkdocs_config: Path | None = typer.Option(
         None,
         "--mkdocs-config",
         help="Override path to mkdocs.yml.",
     ),
-    branch: Optional[str] = typer.Option(
+    branch: str | None = typer.Option(
         None,
         "--branch",
         "-b",
@@ -144,12 +143,12 @@ def convert(
 
     except LeafpressError as e:
         console.print(f"\n[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"\n[bold red]Unexpected error:[/bold red] {e}")
         if verbose:
             console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @cli.command()
@@ -176,7 +175,7 @@ def info(
     source: str = typer.Argument(
         help="Path to MkDocs directory or git URL.",
     ),
-    branch: Optional[str] = typer.Option(
+    branch: str | None = typer.Option(
         None,
         "--branch",
         "-b",
@@ -245,7 +244,7 @@ def info(
 
     except LeafpressError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @cli.command()
@@ -259,13 +258,13 @@ def ui(
     """Launch the leafpress menu bar / system tray app."""
     try:
         from leafpress.ui.app import run_ui
-    except ImportError:
+    except ImportError as e:
         console.print("[bold red]PyQt6 is required for the UI.[/bold red]")
         console.print(
             r"Install it with: [cyan]uv add 'leafpress\[ui]'[/cyan]"
             r"  or  [cyan]pip install 'leafpress\[ui]'[/cyan]"
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     run_ui(show=show)
 
 

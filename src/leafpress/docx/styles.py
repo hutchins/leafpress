@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from docx import Document
 from docx.shared import Pt, RGBColor
 
 from leafpress.config import BrandingConfig
 
 
-def apply_branding_styles(doc: Document, branding: Optional[BrandingConfig]) -> None:
+def apply_branding_styles(doc: Document, branding: BrandingConfig | None) -> None:
     """Apply branding styles to a DOCX document."""
     style = doc.styles
 

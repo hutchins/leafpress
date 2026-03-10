@@ -5,7 +5,7 @@ from pathlib import Path
 from leafpress.config import load_config
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
-from leafpress.mkdocs_parser import NavItem, flatten_nav, parse_mkdocs_config
+from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.pdf.renderer import PdfRenderer
 
 

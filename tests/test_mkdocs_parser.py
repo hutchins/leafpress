@@ -59,7 +59,7 @@ def test_parse_missing_config(tmp_path: Path) -> None:
 def test_parse_extensions(sample_mkdocs_config: Path) -> None:
     config = parse_mkdocs_config(sample_mkdocs_config)
     ext_names = [
-        e if isinstance(e, str) else list(e.keys())[0]
+        e if isinstance(e, str) else next(iter(e.keys()))
         for e in config.markdown_extensions
     ]
     assert "admonition" in ext_names

@@ -6,7 +6,6 @@ import platform
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
@@ -72,7 +71,7 @@ class ConvertWorker(QThread):
         source: str,
         output_dir: Path,
         fmt: str,
-        config_path: Optional[Path],
+        config_path: Path | None,
         cover_page: bool,
         include_toc: bool,
         open_after: bool = False,
@@ -117,7 +116,7 @@ class LeafpressWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("leafpress")
         self.setMinimumWidth(540)
-        self._worker: Optional[ConvertWorker] = None
+        self._worker: ConvertWorker | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
