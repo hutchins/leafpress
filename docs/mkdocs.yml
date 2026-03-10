@@ -1,0 +1,93 @@
+site_name: LeafPress
+site_description: Convert MkDocs sites to PDF and Word documents with branding
+site_url: https://leafpress.dev/
+site_author: Shane Hutchins
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - CLI Reference: cli.md
+  - Desktop UI: ui.md
+  - CI / GitHub Actions: ci.md
+  - Output Formats:
+    - PDF Output: pdf.md
+    - Word Output: docx.md
+  - Branding & Styling: branding.md
+  - Git Integration: git-integration.md
+  - Remote Sources: remote-sources.md
+  - Changelog: changelog.md
+
+# Repository
+repo_url: https://github.com/hutchins/leafpress
+repo_name: leafpress
+
+# Copyright
+copyright: Copyright &copy; 2026 Shane Hutchins
+
+theme:
+  name: material
+  custom_dir: overrides
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - content.code.copy
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/hutchins/leafpress
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/leafpress/
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - attr_list
+  - meta
+  - extra
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - git-revision-date
+  - termynal

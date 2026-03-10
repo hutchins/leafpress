@@ -1,0 +1,80 @@
+name: leafpress
+description: Convert an MkDocs site to PDF and/or DOCX with branding
+author: Shane Hutchins
+
+inputs:
+  source:
+    description: Path to the MkDocs project directory
+    default: "."
+  output:
+    description: Output directory for generated files
+    default: "dist"
+  format:
+    description: "Output format: pdf, docx, or both"
+    default: "pdf"
+  config:
+    description: Path to leafpress.yml branding config (optional — uses auto-detection or LEAFPRESS_* env vars)
+    required: false
+    default: ""
+  cover_page:
+    description: Include a cover page (true/false)
+    default: "true"
+  toc:
+    description: Include a table of contents (true/false)
+    default: "true"
+  python_version:
+    description: Python version to use
+    default: "3.13"
+
+outputs:
+  files:
+    description: Newline-separated list of generated output file paths
+    value: ${{ steps.convert.outputs.files }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install WeasyPrint system dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y \
+          libpango-1.0-0 \
+          libharfbuzz0b \
+          libpangoft2-1.0-0 \
+          libfontconfig1
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+        cache: pip
+
+    - name: Install leafpress
+      shell: bash
+      run: pip install leafpress
+
+    - name: Convert docs
+      id: convert
+      shell: bash
+      run: |
+        LEAFPRESS_ARGS=("${{ inputs.source }}" "-f" "${{ inputs.format }}" "-o" "${{ inputs.output }}")
+        if [ -n "${{ inputs.config }}" ]; then
+          LEAFPRESS_ARGS+=("-c" "${{ inputs.config }}")
+        fi
+        if [ "${{ inputs.cover_page }}" = "false" ]; then
+          LEAFPRESS_ARGS+=("--no-cover-page")
+        fi
+        if [ "${{ inputs.toc }}" = "false" ]; then
+          LEAFPRESS_ARGS+=("--no-toc")
+        fi
+        leafpress convert "${LEAFPRESS_ARGS[@]}"
+        FILES=$(find "${{ inputs.output }}" -type f 2>/dev/null | sort)
+        echo "files<<EOF" >> $GITHUB_OUTPUT
+        echo "$FILES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+branding:
+  icon: file-text
+  color: blue

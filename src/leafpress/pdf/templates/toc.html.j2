@@ -1,0 +1,16 @@
+<div class="toc-page">
+    <h1 class="toc-title">Table of Contents</h1>
+    <nav class="toc-list">
+        {% for item, html in pages %}
+        {% if item.path is not none %}
+        <div class="toc-entry toc-level-{{ item.level }}">
+            <span class="toc-text">{{ item.title }}</span>
+        </div>
+        {% elif item.children %}
+        <div class="toc-section toc-level-{{ item.level }}">
+            <span class="toc-section-text">{{ item.title }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </nav>
+</div>
