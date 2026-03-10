@@ -22,7 +22,7 @@ _MATERIAL_ICON_MAP: dict[str, str] = {
     ":material-check:": "\u2714",  # ✔
     ":material-close:": "\u2716",  # ✖
     ":material-alert:": "\u26A0",  # ⚠
-    ":material-information:": "\u2139",  # ℹ
+    ":material-information:": "\u2139",
     ":material-star:": "\u2B50",  # ⭐
     ":material-heart:": "\u2764",  # ❤
     ":material-link:": "\U0001F517",  # 🔗

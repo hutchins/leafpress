@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -14,15 +14,12 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from dotenv import load_dotenv
-
 from leafpress.config import BrandingConfig, config_from_env, load_config
 from leafpress.docx.renderer import DocxRenderer
 from leafpress.exceptions import LeafpressError
-from leafpress.git_info import GitVersion, extract_git_info
+from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
-    MkDocsConfig,
     NavItem,
     flatten_nav,
     parse_mkdocs_config,
@@ -37,9 +34,9 @@ def convert(
     source: str,
     output_dir: Path,
     format: str = "pdf",
-    config_path: Optional[Path] = None,
-    mkdocs_config_path: Optional[Path] = None,
-    branch: Optional[str] = None,
+    config_path: Path | None = None,
+    mkdocs_config_path: Path | None = None,
+    branch: str | None = None,
     cover_page: bool = True,
     include_toc: bool = True,
 ) -> list[Path]:
@@ -71,7 +68,7 @@ def convert(
         console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
 
         # Load branding config
-        branding: Optional[BrandingConfig] = None
+        branding: BrandingConfig | None = None
         if config_path:
             branding = load_config(config_path)
         else:

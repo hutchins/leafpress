@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import re
 import warnings
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
-from docx.oxml.ns import qn
+from docx.enum.text import WD_COLOR_INDEX
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt, RGBColor
 
 
 class HtmlToDocxConverter:
@@ -78,7 +77,7 @@ class HtmlToDocxConverter:
 
     def _handle_list(self, element: Tag, ordered: bool, level: int = 0) -> None:
         """Convert list tags to DOCX list items."""
-        for i, li in enumerate(element.find_all("li", recursive=False)):
+        for _i, li in enumerate(element.find_all("li", recursive=False)):
             is_task_item = "task-list-item" in li.get("class", [])
 
             if is_task_item:
@@ -141,12 +140,12 @@ class HtmlToDocxConverter:
         run.font.size = Pt(9)
 
         # Light gray background via shading
-        pPr = para._element.get_or_add_pPr()
+        p_pr = para._element.get_or_add_pPr()
         shd = OxmlElement("w:shd")
         shd.set(qn("w:val"), "clear")
         shd.set(qn("w:color"), "auto")
         shd.set(qn("w:fill"), "F5F5F5")
-        pPr.append(shd)
+        p_pr.append(shd)
 
         para.paragraph_format.space_before = Pt(6)
         para.paragraph_format.space_after = Pt(6)
@@ -172,12 +171,15 @@ class HtmlToDocxConverter:
 
         # Content paragraphs
         for child in element.children:
-            if isinstance(child, Tag) and "admonition-title" not in child.get("class", []):
-                if child.name == "p":
-                    para = self._doc.add_paragraph()
-                    self._add_inline_content(para, child)
-                    para.paragraph_format.left_indent = Pt(18)
-                    self._add_left_border(para, color)
+            if (
+                isinstance(child, Tag)
+                and "admonition-title" not in child.get("class", [])
+                and child.name == "p"
+            ):
+                para = self._doc.add_paragraph()
+                self._add_inline_content(para, child)
+                para.paragraph_format.left_indent = Pt(18)
+                self._add_left_border(para, color)
 
     def _handle_image(self, element: Tag) -> None:
         """Insert an image into the document."""
@@ -214,15 +216,15 @@ class HtmlToDocxConverter:
     def _handle_horizontal_rule(self) -> None:
         """Add a horizontal rule as a paragraph border."""
         para = self._doc.add_paragraph()
-        pPr = para._element.get_or_add_pPr()
-        pBdr = OxmlElement("w:pBdr")
+        p_pr = para._element.get_or_add_pPr()
+        p_bdr = OxmlElement("w:pBdr")
         bottom = OxmlElement("w:bottom")
         bottom.set(qn("w:val"), "single")
         bottom.set(qn("w:sz"), "6")
         bottom.set(qn("w:space"), "1")
         bottom.set(qn("w:color"), "E0E0E0")
-        pBdr.append(bottom)
-        pPr.append(pBdr)
+        p_bdr.append(bottom)
+        p_pr.append(p_bdr)
 
     def _add_inline_content(
         self,
@@ -332,13 +334,13 @@ class HtmlToDocxConverter:
 
     def _add_left_border(self, para: object, color: RGBColor) -> None:
         """Add a colored left border to a paragraph."""
-        pPr = para._element.get_or_add_pPr()  # type: ignore[union-attr]
-        pBdr = OxmlElement("w:pBdr")
+        p_pr = para._element.get_or_add_pPr()  # type: ignore[union-attr]
+        p_bdr = OxmlElement("w:pBdr")
         left = OxmlElement("w:left")
         left.set(qn("w:val"), "single")
         left.set(qn("w:sz"), "18")
         left.set(qn("w:space"), "4")
         hex_color = f"{color[0]:02X}{color[1]:02X}{color[2]:02X}"
         left.set(qn("w:color"), hex_color)
-        pBdr.append(left)
-        pPr.append(pBdr)
+        p_bdr.append(left)
+        p_pr.append(p_bdr)
