@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.3 — 2026-03-10
+
+### Features
+
+- `leafpress fetch-diagrams` command to pull diagrams from URLs and Lucidchart API
+- `--fetch-diagrams` flag on `convert` command to fetch diagrams as a pre-step
+- `diagrams` config section in `leafpress.yml` with caching, Lucidchart token, and source list
+- `LEAFPRESS_LUCIDCHART_TOKEN` environment variable for secure token configuration
+
+### Tests
+
+- 17 new DOCX HTML converter tests (strikethrough, superscript, subscript, highlight, line break, task lists, nested lists, images, emoji) — coverage from 90% to 99%
+- 30 new diagram tests (config models, cache staleness, URL/Lucidchart fetch, CLI commands)
+- Fixed internal link checker to skip fenced code blocks
+
+### Docs
+
+- New [Diagrams](diagrams.md) documentation page with configuration, CLI usage, Lucidchart setup, caching, and CI/CD examples
+- Diagram Fetching feature card on homepage
+- CLI reference updated with `fetch-diagrams` command and `--fetch-diagrams` flag
+- Configuration page updated with `diagrams` section and field reference
+- CI/CD page updated with diagram fetching examples and `LEAFPRESS_LUCIDCHART_TOKEN`
+
+---
+
 ## 0.1.2 — 2026-03-10
 
 ### Features

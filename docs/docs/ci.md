@@ -110,6 +110,7 @@ Set `LEAFPRESS_*` variables to configure branding without a YAML file. If both `
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` | |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` | |
 | `LEAFPRESS_LOCAL_TIME` | _(CLI flag)_ | `true` or `false` — use local timezone for dates |
+| `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` | API token for Lucidchart diagram exports |
 
 **Priority:** shell env > `.env` file > `leafpress.yml` > built-in defaults
 
@@ -262,6 +263,36 @@ generate-docs:
 
 !!! tip "Full git history"
     Set `GIT_DEPTH: 0` in variables so leafpress can read git tags and commit history for version info in the footer.
+
+---
+
+## Fetching diagrams in CI
+
+If your project uses external diagrams (URLs or Lucidchart), add `--fetch-diagrams` to your convert step:
+
+```yaml
+      - name: Convert docs (with diagrams)
+        env:
+          LEAFPRESS_LUCIDCHART_TOKEN: ${{ secrets.LUCIDCHART_TOKEN }}
+        run: leafpress convert . -c leafpress.yml -f pdf -o dist/ --fetch-diagrams
+```
+
+Or run the fetch step separately for more control:
+
+```yaml
+      - name: Fetch diagrams
+        env:
+          LEAFPRESS_LUCIDCHART_TOKEN: ${{ secrets.LUCIDCHART_TOKEN }}
+        run: leafpress fetch-diagrams -c leafpress.yml --refresh
+
+      - name: Convert docs
+        run: leafpress convert . -c leafpress.yml -f pdf -o dist/
+```
+
+!!! tip "Store tokens as secrets"
+    Always store `LEAFPRESS_LUCIDCHART_TOKEN` as a repository secret, not a variable. It grants read access to your Lucidchart documents.
+
+See [Diagrams](diagrams.md) for full configuration details.
 
 ---
 

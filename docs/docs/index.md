@@ -52,6 +52,12 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
+<span class="feature-card__icon">:material-image-sync-outline:</span>
+<p class="feature-card__title">Diagram Fetching</p>
+<p class="feature-card__desc">Pull diagrams from URLs or Lucidchart before converting — with built-in caching.</p>
+</div>
+
+<div class="feature-card" markdown>
 <span class="feature-card__icon">:material-docker:</span>
 <p class="feature-card__title">Docker Support</p>
 <p class="feature-card__desc">Run in a container with all dependencies included — no system setup required.</p>

@@ -99,9 +99,11 @@ class TestCloneRepo:
         mock_repo.clone_from.side_effect = Exception("network error")
         temp_dir = tmp_path / "clone_dir"
         temp_dir.mkdir()
-        with patch("leafpress.source.tempfile.mkdtemp", return_value=str(temp_dir)):
-            with pytest.raises(SourceError, match="Failed to clone"):
-                _clone_repo("https://github.com/org/repo", None)
+        with (
+            patch("leafpress.source.tempfile.mkdtemp", return_value=str(temp_dir)),
+            pytest.raises(SourceError, match="Failed to clone"),
+        ):
+            _clone_repo("https://github.com/org/repo", None)
         assert not temp_dir.exists()
 
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from leafpress.config import BrandingConfig, WatermarkConfig, load_config
 from leafpress.html.styles import generate_html_css
@@ -99,16 +100,16 @@ class TestWatermarkConfig:
 
     def test_watermark_opacity_validation(self) -> None:
         """Opacity must be between 0.0 and 1.0."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             WatermarkConfig(opacity=1.5)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             WatermarkConfig(opacity=-0.1)
 
     def test_watermark_angle_validation(self) -> None:
         """Angle must be between -90 and 90."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             WatermarkConfig(angle=100)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             WatermarkConfig(angle=-100)
 
 

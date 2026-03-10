@@ -19,3 +19,7 @@ class RenderError(LeafpressError):
 
 class GitInfoError(LeafpressError):
     """Error extracting git information."""
+
+
+class DiagramError(LeafpressError):
+    """Error fetching or exporting diagrams."""

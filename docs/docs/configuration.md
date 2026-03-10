@@ -59,6 +59,23 @@ watermark:
   angle: -45                    # -90 to 90
 ```
 
+## Diagrams
+
+See the dedicated [Diagrams](diagrams.md) page for full usage details. Below is the config reference.
+
+```yaml
+# Diagram fetching (optional)
+diagrams:
+  cache_max_age: 3600           # seconds; 0 = always re-download
+  lucidchart_token: null        # or set LEAFPRESS_LUCIDCHART_TOKEN env var
+  sources:
+    - url: https://example.com/architecture.svg
+      dest: docs/assets/diagrams/architecture.svg
+    - lucidchart: abc123-document-id
+      dest: docs/assets/diagrams/network.png
+      page: 1
+```
+
 ## Field reference
 
 ### Top-level fields
@@ -111,6 +128,23 @@ watermark:
 | `opacity` | float | `0.15` | Opacity from `0.0` (invisible) to `1.0` (solid) |
 | `angle` | int | `-45` | Rotation angle from `-90` to `90` degrees |
 
+### `diagrams` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cache_max_age` | int | `3600` | Seconds before a cached diagram is considered stale |
+| `lucidchart_token` | string | `null` | Lucidchart API token (prefer `LEAFPRESS_LUCIDCHART_TOKEN` env var) |
+| `sources` | list | `[]` | List of diagram sources to fetch |
+
+### `diagrams.sources[]` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | string | `null` | HTTP/HTTPS URL to download |
+| `lucidchart` | string | `null` | Lucidchart document ID to export as PNG |
+| `dest` | string | _(required)_ | Local path to save the file (relative to config) |
+| `page` | int | `1` | Page number to export (Lucidchart only) |
+
 ## Environment variables
 
 All config fields can be set or overridden via `LEAFPRESS_*` environment variables. This is the recommended approach for CI/CD pipelines.
@@ -139,6 +173,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_WATERMARK_COLOR` | `watermark.color` |
 | `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` (e.g. `0.2`) |
 | `LEAFPRESS_WATERMARK_ANGLE` | `watermark.angle` (e.g. `-30`) |
+| `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` |
 
 !!! tip "Env-only mode"
     If both `LEAFPRESS_COMPANY_NAME` and `LEAFPRESS_PROJECT_NAME` are set and no `leafpress.yml` is present, LeafPress builds the branding config entirely from environment variables.

@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 from leafpress.config import BrandingConfig, load_config
+from leafpress.exceptions import ConfigError
 from leafpress.mkdocs_parser import _MkDocsLoader
-
 
 # ---------------------------------------------------------------------------
 # 1. YAML deserialization safety
@@ -26,7 +26,7 @@ class TestYamlSafety:
             "company_name: !!python/object/apply:os.system ['echo pwned']\n"
             "project_name: test\n"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigError):
             load_config(malicious)
 
     def test_config_rejects_python_name_tag(self, tmp_path: Path) -> None:
@@ -36,7 +36,7 @@ class TestYamlSafety:
             "company_name: !!python/name:os.system\n"
             "project_name: test\n"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigError):
             load_config(malicious)
 
     def test_config_rejects_python_module_tag(self, tmp_path: Path) -> None:
@@ -46,7 +46,7 @@ class TestYamlSafety:
             "company_name: !!python/module:os\n"
             "project_name: test\n"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigError):
             load_config(malicious)
 
     def test_mkdocs_loader_extends_safe_loader(self) -> None:
@@ -139,7 +139,7 @@ class TestPathTraversal:
             "project_name: Test\n"
             'logo_path: "logo\x00.png"\n'
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigError):
             load_config(config_file)
 
     def test_logo_path_file_uri_rejected(self, tmp_path: Path) -> None:
@@ -152,7 +152,7 @@ class TestPathTraversal:
         )
         # file:// should NOT be treated like http:// — it should go through
         # local file validation and fail because the path doesn't exist
-        with pytest.raises(Exception):
+        with pytest.raises(ConfigError):
             load_config(config_file)
 
     def test_template_path_traversal(self, tmp_path: Path) -> None:
