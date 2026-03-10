@@ -1,10 +1,13 @@
 # LeafPress
 
-[![PyPI](https://img.shields.io/pypi/v/leafpress?color=blue)](https://pypi.org/project/leafpress/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-leafpress.dev-2e7d32)](https://leafpress.dev/)
+[![PyPI](https://img.shields.io/pypi/v/leafpress?color=2e7d32)](https://pypi.org/project/leafpress/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2e7d32.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
 [![CI](https://github.com/hutchins/leafpress/actions/workflows/ci.yml/badge.svg)](https://github.com/hutchins/leafpress/actions/workflows/ci.yml)
 
 Convert MkDocs sites to PDF and Word documents with branding.
+
+**[Documentation](https://leafpress.dev/)** · **[GitHub](https://github.com/hutchins/leafpress)** · **[PyPI](https://pypi.org/project/leafpress/)**
 
 ## Features
 
