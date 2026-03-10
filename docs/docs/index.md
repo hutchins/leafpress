@@ -18,7 +18,7 @@ hide:
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-file-pdf-box:</span>
 <p class="feature-card__title">Multiple Output Formats</p>
-<p class="feature-card__desc">Generate PDF, DOCX, HTML, and ODT files from any MkDocs project with a single command.</p>
+<p class="feature-card__desc">Generate PDF, DOCX, HTML, ODT, and EPUB files from any MkDocs project with a single command.</p>
 </div>
 
 <div class="feature-card" markdown>
@@ -58,6 +58,12 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
+<span class="feature-card__icon">:material-file-word-box:</span>
+<p class="feature-card__title">Word Import</p>
+<p class="feature-card__desc">Import Word documents to Markdown with image extraction and code block detection.</p>
+</div>
+
+<div class="feature-card" markdown>
 <span class="feature-card__icon">:material-docker:</span>
 <p class="feature-card__title">Docker Support</p>
 <p class="feature-card__desc">Run in a container with all dependencies included — no system setup required.</p>
@@ -87,6 +93,7 @@ Converting MkDocs site to all formats...
 ✓ dist/docs.docx
 ✓ dist/docs.html
 ✓ dist/docs.odt
+✓ dist/docs.epub
 ```
 
 </div>

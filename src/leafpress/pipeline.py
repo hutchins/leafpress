@@ -15,18 +15,14 @@ from rich.progress import (
 )
 
 from leafpress.config import BrandingConfig, config_from_env, load_config
-from leafpress.docx.renderer import DocxRenderer
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
-from leafpress.html.renderer import HtmlRenderer
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
     NavItem,
     flatten_nav,
     parse_mkdocs_config,
 )
-from leafpress.odt.renderer import OdtRenderer
-from leafpress.pdf.renderer import PdfRenderer
 from leafpress.source import resolve_source
 
 console = Console()
@@ -153,6 +149,15 @@ def convert(
         safe_name = _safe_filename(mkdocs_cfg.site_name)
 
         if format in ("pdf", "both", "all"):
+            try:
+                from leafpress.pdf.renderer import PdfRenderer
+            except (ImportError, OSError) as e:
+                raise LeafpressError(
+                    "PDF output requires WeasyPrint and its system dependencies.\n"
+                    "  Install with: pip install 'leafpress[pdf]'\n"
+                    "  System deps: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html"
+                ) from e
+
             pdf_path = output_dir / f"{safe_name}.pdf"
             with console.status("[bold blue]Generating PDF..."):
                 pdf_renderer = PdfRenderer(branding, git_info, mkdocs_cfg)
@@ -167,6 +172,8 @@ def convert(
             console.print(f"  [bold green]PDF:[/bold green] {pdf_path}")
 
         if format in ("docx", "both", "all"):
+            from leafpress.docx.renderer import DocxRenderer
+
             docx_path = output_dir / f"{safe_name}.docx"
             with console.status("[bold blue]Generating DOCX..."):
                 docx_renderer = DocxRenderer(branding, git_info, mkdocs_cfg)
@@ -181,6 +188,8 @@ def convert(
             console.print(f"  [bold green]DOCX:[/bold green] {docx_path}")
 
         if format in ("html", "all"):
+            from leafpress.html.renderer import HtmlRenderer
+
             html_path = output_dir / f"{safe_name}.html"
             with console.status("[bold blue]Generating HTML..."):
                 html_renderer = HtmlRenderer(branding, git_info, mkdocs_cfg)
@@ -195,6 +204,8 @@ def convert(
             console.print(f"  [bold green]HTML:[/bold green] {html_path}")
 
         if format in ("odt", "all"):
+            from leafpress.odt.renderer import OdtRenderer
+
             odt_path = output_dir / f"{safe_name}.odt"
             with console.status("[bold blue]Generating ODT..."):
                 odt_renderer = OdtRenderer(branding, git_info, mkdocs_cfg)
@@ -207,6 +218,22 @@ def convert(
                 )
             generated_files.append(odt_path)
             console.print(f"  [bold green]ODT:[/bold green] {odt_path}")
+
+        if format in ("epub", "all"):
+            from leafpress.epub.renderer import EpubRenderer
+
+            epub_path = output_dir / f"{safe_name}.epub"
+            with console.status("[bold blue]Generating EPUB..."):
+                epub_renderer = EpubRenderer(branding, git_info, mkdocs_cfg)
+                epub_renderer.render(
+                    html_pages,
+                    epub_path,
+                    cover_page=cover_page,
+                    include_toc=include_toc,
+                    local_time=local_time,
+                )
+            generated_files.append(epub_path)
+            console.print(f"  [bold green]EPUB:[/bold green] {epub_path}")
 
     return generated_files
 

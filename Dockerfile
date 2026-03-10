@@ -19,7 +19,7 @@ WORKDIR /build
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ src/
 
-RUN uv sync --no-dev --no-editable --frozen
+RUN uv sync --no-dev --no-editable --frozen --extra pdf
 
 # Stage 2: Runtime
 FROM python:3.13-slim

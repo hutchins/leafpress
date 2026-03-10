@@ -8,7 +8,8 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 
 | Command | Description |
 |---------|-------------|
-| [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT |
+| [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB |
+| [`import`](#import) | Import a Word document and convert it to Markdown |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
 | [`fetch-diagrams`](#fetch-diagrams) | Fetch diagrams from external sources (URLs, Lucidchart) |
@@ -26,7 +27,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 
 ## `convert`
 
-Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT.
+Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB.
 
 ```bash
 leafpress convert SOURCE [OPTIONS]
@@ -43,7 +44,7 @@ leafpress convert SOURCE [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--output`, `-o` | `output/` | Output directory for generated files |
-| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `both` (pdf+docx), or `all` |
+| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `epub`, `both` (pdf+docx), or `all` |
 | `--config`, `-c` | _(auto-detect)_ | Path to `leafpress.yml` branding config |
 | `--mkdocs-config` | _(auto-detect)_ | Override path to `mkdocs.yml` |
 | `--branch`, `-b` | _(default branch)_ | Git branch to clone (remote sources only) |
@@ -64,11 +65,12 @@ leafpress convert /path/to/project
 # Convert to both PDF and DOCX
 leafpress convert /path/to/project -f both
 
-# Convert to HTML or ODT
+# Convert to HTML, ODT, or EPUB
 leafpress convert /path/to/project -f html
 leafpress convert /path/to/project -f odt
+leafpress convert /path/to/project -f epub
 
-# Convert to all formats (PDF, DOCX, HTML, ODT)
+# Convert to all formats (PDF, DOCX, HTML, ODT, EPUB)
 leafpress convert /path/to/project -f all
 
 # Convert with branding config, output to custom dir
@@ -99,6 +101,49 @@ leafpress convert /path/to/project --mkdocs-config /path/to/docs/mkdocs.yml
 leafpress looks for `leafpress.yml` or `leafpress.yaml` in the project root automatically. You only need `--config` if the file is elsewhere.
 
 leafpress also loads a `.env` file from the project root and applies any `LEAFPRESS_*` environment variables on top of the YAML config. See [Configuration](configuration.md#environment-variables).
+
+---
+
+## `import`
+
+Import a Word document and convert it to Markdown.
+
+```bash
+leafpress import DOCX_FILE [OPTIONS]
+```
+
+**Arguments**
+
+| Argument | Description |
+|----------|-------------|
+| `DOCX_FILE` | Path to the `.docx` file to import |
+
+**Options**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--output`, `-o` | `<docx-stem>.md` | Output `.md` file path or directory |
+| `--extract-images` / `--no-extract-images` | `--extract-images` | Extract embedded images to an `assets/` folder |
+| `--code-styles` | _(none)_ | Comma-separated Word style names to treat as code blocks |
+
+**Examples**
+
+```bash
+# Import a Word document to Markdown (creates report.md alongside report.docx)
+leafpress import report.docx
+
+# Specify output path
+leafpress import report.docx -o docs/report.md
+
+# Output to a directory (creates dir/report.md)
+leafpress import report.docx -o docs/
+
+# Skip image extraction
+leafpress import report.docx --no-extract-images
+
+# Treat custom Word styles as code blocks
+leafpress import report.docx --code-styles "Code Block,Source Code"
+```
 
 ---
 

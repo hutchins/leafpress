@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.2.0 — 2026-03-10
+
+### Features
+
+- **EPUB output format** — new `leafpress convert -f epub` produces reflowable e-books via ebooklib, with cover page, table of contents, branding CSS, and watermark support
+- **DOCX → Markdown import** — new `leafpress import` command converts Word documents to Markdown using mammoth + markdownify, with image extraction, custom code-style mapping, and pipe tables
+- **Optional PDF extras** — WeasyPrint moved from base dependency to `leafpress[pdf]`; base install (`pip install leafpress`) no longer requires system libraries
+  - `leafpress[pdf]` — adds PDF output (WeasyPrint)
+  - `leafpress[ui]` — adds desktop UI (PyQt6)
+  - `leafpress[all]` — everything
+
+### Improvements
+
+- Lazy renderer imports in pipeline — `leafpress --help` and non-PDF commands work without WeasyPrint system libraries installed
+- Friendly error message when PDF output is requested without `leafpress[pdf]`
+- `convert -f all` now generates 5 formats (PDF, DOCX, HTML, ODT, EPUB)
+
+### Tests
+
+- 21 new EPUB renderer tests (cover page, TOC, chapter splitting, branding, watermarks, metadata)
+- 23 new DOCX import tests (headings, formatting, lists, tables, images, code blocks, pipe tables, CLI integration)
+- 291 total tests, 91% coverage
+
+### Docs
+
+- New [EPUB](epub.md) documentation page with format details and examples
+- [Installation](installation.md) restructured with extras: base, `[pdf]`, `[ui]`, `[all]`
+- CLI, CI/CD, and homepage updated to include EPUB format
+- Dockerfile updated with `--extra pdf` for optional dependency
+- GitHub Action updated to install `leafpress[pdf]`
+
+---
+
 ## 0.1.3 — 2026-03-10
 
 ### Features

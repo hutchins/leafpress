@@ -1,0 +1,64 @@
+"""Image extraction handler for mammoth DOCX conversion."""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+
+
+class ImageHandler:
+    """Extracts embedded images from DOCX and saves to disk.
+
+    Used as a mammoth convert_image callback. Each image is saved
+    with a content-hash filename to avoid duplicates.
+    """
+
+    def __init__(self, assets_dir: Path) -> None:
+        self._assets_dir = assets_dir
+        self._saved_images: list[Path] = []
+        self._counter = 0
+
+    @property
+    def saved_images(self) -> list[Path]:
+        return list(self._saved_images)
+
+    def handle_image(self, image) -> dict[str, str]:
+        """Mammoth image conversion callback.
+
+        Args:
+            image: mammoth image element with open() and content_type.
+
+        Returns:
+            Dict with 'src' key for the HTML img tag.
+        """
+        with image.open() as img_file:
+            image_bytes = img_file.read()
+
+        ext = _extension_for_content_type(image.content_type)
+
+        self._counter += 1
+        content_hash = hashlib.sha256(image_bytes).hexdigest()[:12]
+        filename = f"image-{self._counter:03d}-{content_hash}{ext}"
+
+        self._assets_dir.mkdir(parents=True, exist_ok=True)
+        image_path = self._assets_dir / filename
+        image_path.write_bytes(image_bytes)
+        self._saved_images.append(image_path)
+
+        return {"src": f"assets/{filename}"}
+
+
+def _extension_for_content_type(content_type: str) -> str:
+    """Map MIME content type to file extension."""
+    mapping = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/gif": ".gif",
+        "image/svg+xml": ".svg",
+        "image/bmp": ".bmp",
+        "image/tiff": ".tiff",
+        "image/webp": ".webp",
+        "image/x-emf": ".emf",
+        "image/x-wmf": ".wmf",
+    }
+    return mapping.get(content_type, ".png")
