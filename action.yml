@@ -1,5 +1,5 @@
 name: leafpress
-description: Convert an MkDocs site to PDF, Word, HTML, and ODT documents with branding
+description: Convert an MkDocs site to PDF, Word, HTML, ODT, and EPUB documents with branding
 author: Shane Hutchins
 
 inputs:
@@ -10,7 +10,7 @@ inputs:
     description: Output directory for generated files
     default: "dist"
   format:
-    description: "Output format: pdf, docx, html, odt, both (pdf+docx), or all"
+    description: "Output format: pdf, docx, html, odt, epub, both (pdf+docx), or all"
     default: "pdf"
   config:
     description: Path to leafpress.yml branding config (optional — uses auto-detection or LEAFPRESS_* env vars)
@@ -56,7 +56,7 @@ runs:
 
     - name: Install leafpress
       shell: bash
-      run: pip install leafpress
+      run: pip install 'leafpress[pdf]'
 
     - name: Convert docs
       id: convert

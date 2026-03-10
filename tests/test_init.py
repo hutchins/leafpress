@@ -14,5 +14,7 @@ def test_version_not_fallback() -> None:
 
 
 def test_convert_importable() -> None:
-    """The convert function is re-exported from the package."""
-    assert callable(leafpress.convert)
+    """The convert function is importable from the pipeline module."""
+    from leafpress.pipeline import convert
+
+    assert callable(convert)

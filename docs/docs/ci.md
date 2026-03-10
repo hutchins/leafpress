@@ -37,7 +37,7 @@ The action handles Python setup and WeasyPrint system dependencies automatically
 |-------|---------|-------------|
 | `source` | `.` | Path to MkDocs project directory |
 | `output` | `dist` | Output directory |
-| `format` | `pdf` | `pdf`, `docx`, `html`, `odt`, `both` (pdf+docx), or `all` |
+| `format` | `pdf` | `pdf`, `docx`, `html`, `odt`, `epub`, `both` (pdf+docx), or `all` |
 | `config` | _(auto-detect)_ | Path to `leafpress.yml` |
 | `cover_page` | `true` | Include cover page |
 | `toc` | `true` | Include table of contents |

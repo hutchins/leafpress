@@ -73,6 +73,22 @@ def test_convert_odt(
     assert result[0].exists()
 
 
+def test_convert_epub(
+    sample_mkdocs_config: Path,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    result = convert(
+        source=str(sample_mkdocs_config.parent),
+        output_dir=tmp_output,
+        format="epub",
+        config_path=sample_branding_config,
+    )
+    assert len(result) == 1
+    assert result[0].suffix == ".epub"
+    assert result[0].exists()
+
+
 def test_convert_both(
     sample_mkdocs_config: Path,
     sample_branding_config: Path,
@@ -100,9 +116,9 @@ def test_convert_all(
         format="all",
         config_path=sample_branding_config,
     )
-    assert len(result) == 4
+    assert len(result) == 5
     suffixes = {f.suffix for f in result}
-    assert suffixes == {".pdf", ".docx", ".html", ".odt"}
+    assert suffixes == {".pdf", ".docx", ".html", ".odt", ".epub"}
 
 
 def test_convert_without_branding(

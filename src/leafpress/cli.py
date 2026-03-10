@@ -21,7 +21,7 @@ from leafpress.source import resolve_source
 
 cli = typer.Typer(
     name="leafpress",
-    help="Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding.",
+    help="Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding.",
     epilog="For detailed usage instructions, see the documentation at https://leafpress.dev",
     rich_markup_mode="rich",
     no_args_is_help=True,
@@ -34,6 +34,7 @@ class OutputFormat(str, Enum):
     docx = "docx"
     html = "html"
     odt = "odt"
+    epub = "epub"
     both = "both"
     all = "all"
 
@@ -55,7 +56,7 @@ def main(
         help="Show version and exit.",
     ),
 ) -> None:
-    """leafpress - Convert MkDocs sites to PDF, Word, HTML, and ODT documents."""
+    """leafpress - Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents."""
 
 
 @cli.command()
@@ -73,7 +74,7 @@ def convert(
         OutputFormat.pdf,
         "--format",
         "-f",
-        help="Output format: pdf, docx, html, odt, both (pdf+docx), or all.",
+        help="Output format: pdf, docx, html, odt, epub, both (pdf+docx), or all.",
     ),
     config: Path | None = typer.Option(
         None,
@@ -129,11 +130,11 @@ def convert(
         help="Enable verbose output.",
     ),
 ) -> None:
-    """Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT."""
+    """Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB."""
     console.print(
         Panel(
             f"[bold]leafpress[/bold] v{__version__}",
-            subtitle="MkDocs to PDF/DOCX/HTML/ODT converter",
+            subtitle="MkDocs to PDF/DOCX/HTML/ODT/EPUB converter",
             style="blue",
         )
     )
@@ -371,6 +372,56 @@ def ui(
         )
         raise typer.Exit(code=1) from e
     run_ui(show=show)
+
+
+@cli.command(name="import")
+def import_docx(
+    docx_file: Path = typer.Argument(
+        help="Path to the .docx file to import.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output .md file path or directory. Defaults to <docx-stem>.md.",
+    ),
+    extract_images: bool = typer.Option(
+        True,
+        "--extract-images/--no-extract-images",
+        help="Extract embedded images to an assets/ folder.",
+    ),
+    code_styles: str | None = typer.Option(
+        None,
+        "--code-styles",
+        help="Comma-separated Word style names to treat as code blocks.",
+    ),
+) -> None:
+    """Import a Word document and convert it to Markdown."""
+    try:
+        from leafpress.importer.converter import import_docx as do_import
+
+        style_list = (
+            [s.strip() for s in code_styles.split(",") if s.strip()] if code_styles else None
+        )
+
+        result = do_import(
+            docx_path=docx_file,
+            output_path=output,
+            extract_images=extract_images,
+            code_styles=style_list,
+        )
+
+        console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
+        if result.images:
+            console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
+        if result.warnings:
+            console.print(f"  [yellow]Warnings:[/yellow] {len(result.warnings)}")
+            for w in result.warnings[:5]:
+                console.print(f"    - {w}")
+
+    except LeafpressError as e:
+        console.print(f"\n[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from e
 
 
 def _open_file(path: Path) -> None:

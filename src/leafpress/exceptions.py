@@ -23,3 +23,7 @@ class GitInfoError(LeafpressError):
 
 class DiagramError(LeafpressError):
     """Error fetching or exporting diagrams."""
+
+
+class DocxImportError(LeafpressError):
+    """Error during DOCX-to-Markdown import."""

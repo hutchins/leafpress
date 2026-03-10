@@ -1,5 +1,5 @@
 site_name: LeafPress
-site_description: Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding
+site_description: Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding
 site_url: https://leafpress.dev/
 site_author: Shane Hutchins
 docs_dir: docs
@@ -17,6 +17,7 @@ nav:
     - Word Output: docx.md
     - HTML Output: html.md
     - ODT Output: odt.md
+    - EPUB Output: epub.md
   - Deployment:
     - CI / CD Pipelines: ci.md
     - Docker: docker.md
