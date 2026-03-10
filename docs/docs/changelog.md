@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.2 — 2026-03-10
+
+### Features
+
+- Docker support with multi-stage build (Dockerfile, .dockerignore, docs page)
+- `--version` flag documented in CLI reference
+
+### Fixes
+
+- Fixed DOCX watermark rendering (VML namespace registration)
+
+### Tests
+
+- Added 36 new tests bringing coverage from 87% to 91%
+- Added optional Docker integration tests (`pytest -m docker`)
+- New test files: `test_main.py`, `test_init.py`
+- Expanded: `test_source.py`, `test_cli.py`, `test_git_info.py`, `test_docx_renderer.py`, `test_odt_renderer.py`
+
+### Docs
+
+- Added Docker documentation page and feature card on homepage
+- Added Global Options section to CLI reference
+
+---
+
 ## 0.1.1 — 2026-03-10
 
 ### Features

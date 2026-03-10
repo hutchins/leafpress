@@ -15,6 +15,14 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 
 ---
 
+## Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--version`, `-v` | Show the leafpress version and exit |
+
+---
+
 ## `convert`
 
 Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT.

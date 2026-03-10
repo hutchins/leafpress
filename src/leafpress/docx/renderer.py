@@ -10,8 +10,11 @@ import requests
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
+from docx.oxml.ns import nsmap, qn
 from docx.shared import Inches, Pt, RGBColor
+
+# Register VML namespace for watermark support
+nsmap["v"] = "urn:schemas-microsoft-com:vml"
 
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter

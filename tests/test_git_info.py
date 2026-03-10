@@ -1,8 +1,11 @@
 """Tests for git_info module."""
 
 from pathlib import Path
+from unittest.mock import MagicMock, PropertyMock, patch
 
-from leafpress.git_info import extract_git_info
+from git import GitCommandError
+
+from leafpress.git_info import GitVersion, extract_git_info
 
 
 def test_extract_from_git_repo(sample_mkdocs_dir: Path) -> None:
@@ -58,3 +61,47 @@ def test_version_string_without_tag() -> None:
     version_str = info.format_version_string()
     assert "feature/test@def5678" in version_str
     assert "[dirty]" in version_str
+
+
+def test_version_string_tag_with_distance() -> None:
+    from datetime import datetime, timezone
+
+    info = GitVersion(
+        commit_hash="aaa1111",
+        commit_hash_full="aaa1111" * 6 + "aa",
+        commit_date=datetime(2025, 6, 1, tzinfo=timezone.utc),
+        branch="main",
+        tag="v2.0.0",
+        is_dirty=False,
+        tag_distance=5,
+    )
+    version_str = info.format_version_string()
+    assert "v2.0.0+5" in version_str
+
+
+@patch("leafpress.git_info.Repo")
+def test_detached_head(mock_repo_cls, tmp_path: Path) -> None:
+    mock_repo = MagicMock()
+    mock_repo_cls.return_value = mock_repo
+
+    mock_commit = MagicMock()
+    mock_commit.hexsha = "a" * 40
+    mock_commit.committed_datetime = MagicMock()
+    mock_repo.head.commit = mock_commit
+    mock_repo.head.is_detached = True
+    mock_repo.is_dirty.return_value = False
+    mock_repo.git.describe.side_effect = GitCommandError("describe", "no tags")
+
+    info = extract_git_info(tmp_path)
+    assert info is not None
+    assert info.branch == "detached"
+
+
+@patch("leafpress.git_info.Repo")
+def test_empty_repo_returns_none(mock_repo_cls, tmp_path: Path) -> None:
+    mock_repo = MagicMock()
+    mock_repo_cls.return_value = mock_repo
+    type(mock_repo.head).commit = PropertyMock(side_effect=ValueError("no commits"))
+
+    info = extract_git_info(tmp_path)
+    assert info is None

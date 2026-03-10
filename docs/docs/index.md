@@ -51,6 +51,12 @@ hide:
 <p class="feature-card__desc">Convert directly from git URLs — no need to clone repos manually.</p>
 </div>
 
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-docker:</span>
+<p class="feature-card__title">Docker Support</p>
+<p class="feature-card__desc">Run in a container with all dependencies included — no system setup required.</p>
+</div>
+
 </div>
 
 <div class="quick-start" markdown>
