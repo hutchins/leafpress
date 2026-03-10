@@ -1,5 +1,5 @@
 name: leafpress
-description: Convert an MkDocs site to PDF and/or DOCX with branding
+description: Convert an MkDocs site to PDF, Word, HTML, and ODT documents with branding
 author: Shane Hutchins
 
 inputs:
@@ -10,7 +10,7 @@ inputs:
     description: Output directory for generated files
     default: "dist"
   format:
-    description: "Output format: pdf, docx, or both"
+    description: "Output format: pdf, docx, html, odt, both (pdf+docx), or all"
     default: "pdf"
   config:
     description: Path to leafpress.yml branding config (optional — uses auto-detection or LEAFPRESS_* env vars)
@@ -22,6 +22,9 @@ inputs:
   toc:
     description: Include a table of contents (true/false)
     default: "true"
+  local_time:
+    description: Use local timezone for dates instead of UTC (true/false)
+    default: "false"
   python_version:
     description: Python version to use
     default: "3.13"
@@ -68,6 +71,9 @@ runs:
         fi
         if [ "${{ inputs.toc }}" = "false" ]; then
           LEAFPRESS_ARGS+=("--no-toc")
+        fi
+        if [ "${{ inputs.local_time }}" = "true" ]; then
+          LEAFPRESS_ARGS+=("--local-time")
         fi
         leafpress convert "${LEAFPRESS_ARGS[@]}"
         FILES=$(find "${{ inputs.output }}" -type f 2>/dev/null | sort)

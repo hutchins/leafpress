@@ -18,12 +18,14 @@ from leafpress.config import BrandingConfig, config_from_env, load_config
 from leafpress.docx.renderer import DocxRenderer
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
+from leafpress.html.renderer import HtmlRenderer
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
     NavItem,
     flatten_nav,
     parse_mkdocs_config,
 )
+from leafpress.odt.renderer import OdtRenderer
 from leafpress.pdf.renderer import PdfRenderer
 from leafpress.source import resolve_source
 
@@ -39,13 +41,14 @@ def convert(
     branch: str | None = None,
     cover_page: bool = True,
     include_toc: bool = True,
+    local_time: bool = False,
 ) -> list[Path]:
     """Main conversion pipeline.
 
     Args:
         source: Local path or git URL to an MkDocs project.
         output_dir: Directory for generated output files.
-        format: Output format - "pdf", "docx", or "both".
+        format: Output format - "pdf", "docx", "html", "odt", or "all".
         config_path: Optional path to leafpress branding config YAML.
         mkdocs_config_path: Optional override path to mkdocs.yml.
         branch: Git branch to clone (only for git URL sources).
@@ -130,7 +133,7 @@ def convert(
         output_dir.mkdir(parents=True, exist_ok=True)
         safe_name = _safe_filename(mkdocs_cfg.site_name)
 
-        if format in ("pdf", "both"):
+        if format in ("pdf", "both", "all"):
             pdf_path = output_dir / f"{safe_name}.pdf"
             with console.status("[bold blue]Generating PDF..."):
                 pdf_renderer = PdfRenderer(branding, git_info, mkdocs_cfg)
@@ -139,11 +142,12 @@ def convert(
                     pdf_path,
                     cover_page=cover_page,
                     include_toc=include_toc,
+                    local_time=local_time,
                 )
             generated_files.append(pdf_path)
             console.print(f"  [bold green]PDF:[/bold green] {pdf_path}")
 
-        if format in ("docx", "both"):
+        if format in ("docx", "both", "all"):
             docx_path = output_dir / f"{safe_name}.docx"
             with console.status("[bold blue]Generating DOCX..."):
                 docx_renderer = DocxRenderer(branding, git_info, mkdocs_cfg)
@@ -152,9 +156,38 @@ def convert(
                     docx_path,
                     cover_page=cover_page,
                     include_toc=include_toc,
+                    local_time=local_time,
                 )
             generated_files.append(docx_path)
             console.print(f"  [bold green]DOCX:[/bold green] {docx_path}")
+
+        if format in ("html", "all"):
+            html_path = output_dir / f"{safe_name}.html"
+            with console.status("[bold blue]Generating HTML..."):
+                html_renderer = HtmlRenderer(branding, git_info, mkdocs_cfg)
+                html_renderer.render(
+                    html_pages,
+                    html_path,
+                    cover_page=cover_page,
+                    include_toc=include_toc,
+                    local_time=local_time,
+                )
+            generated_files.append(html_path)
+            console.print(f"  [bold green]HTML:[/bold green] {html_path}")
+
+        if format in ("odt", "all"):
+            odt_path = output_dir / f"{safe_name}.odt"
+            with console.status("[bold blue]Generating ODT..."):
+                odt_renderer = OdtRenderer(branding, git_info, mkdocs_cfg)
+                odt_renderer.render(
+                    html_pages,
+                    odt_path,
+                    cover_page=cover_page,
+                    include_toc=include_toc,
+                    local_time=local_time,
+                )
+            generated_files.append(odt_path)
+            console.print(f"  [bold green]ODT:[/bold green] {odt_path}")
 
     return generated_files
 
