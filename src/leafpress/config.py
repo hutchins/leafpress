@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -19,8 +18,8 @@ class FooterConfig(BaseModel):
     include_date: bool = True
     include_commit: bool = True
     include_branch: bool = False
-    custom_text: Optional[str] = None
-    repo_url: Optional[str] = None
+    custom_text: str | None = None
+    repo_url: str | None = None
 
 
 class PdfOptions(BaseModel):
@@ -36,7 +35,7 @@ class PdfOptions(BaseModel):
 class DocxOptions(BaseModel):
     """DOCX-specific options."""
 
-    template_path: Optional[Path] = None
+    template_path: Path | None = None
 
 
 class BrandingConfig(BaseModel):
@@ -44,14 +43,14 @@ class BrandingConfig(BaseModel):
 
     company_name: str = Field(description="Company or organization name")
     project_name: str = Field(description="Project or document title")
-    logo_path: Optional[str] = Field(
+    logo_path: str | None = Field(
         default=None,
         description="Path to logo image (PNG, SVG, or JPEG) or an http(s):// URL",
     )
-    subtitle: Optional[str] = None
-    author: Optional[str] = None
-    author_email: Optional[str] = None
-    copyright_text: Optional[str] = None
+    subtitle: str | None = None
+    author: str | None = None
+    author_email: str | None = None
+    copyright_text: str | None = None
     primary_color: str = Field(
         default="#1a73e8",
         description="Primary brand color (hex)",
@@ -74,7 +73,7 @@ class BrandingConfig(BaseModel):
 
     @field_validator("logo_path")
     @classmethod
-    def validate_logo_exists(cls, v: Optional[str]) -> Optional[str]:
+    def validate_logo_exists(cls, v: str | None) -> str | None:
         if v is None:
             return v
         if v.startswith(("http://", "https://")):
@@ -133,7 +132,7 @@ def _apply_env_overrides(config: BrandingConfig) -> BrandingConfig:
     return BrandingConfig.model_validate(data)
 
 
-def config_from_env() -> Optional[BrandingConfig]:
+def config_from_env() -> BrandingConfig | None:
     """Build a BrandingConfig solely from LEAFPRESS_* environment variables.
 
     Returns None if neither LEAFPRESS_COMPANY_NAME nor LEAFPRESS_PROJECT_NAME is set.

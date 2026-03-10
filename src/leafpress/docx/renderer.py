@@ -5,15 +5,13 @@ from __future__ import annotations
 import io
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
+import requests
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
-
-import requests
 
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter
@@ -27,8 +25,8 @@ class DocxRenderer:
 
     def __init__(
         self,
-        branding: Optional[BrandingConfig],
-        git_info: Optional[GitVersion],
+        branding: BrandingConfig | None,
+        git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
     ) -> None:
         self._branding = branding
@@ -205,7 +203,7 @@ class DocxRenderer:
 
         doc.add_page_break()
 
-    def _get_logo_stream(self) -> Optional[io.BytesIO]:
+    def _get_logo_stream(self) -> io.BytesIO | None:
         """Return logo image bytes as a stream, fetching from URL if needed."""
         if not self._branding or not self._branding.logo_path:
             return None
@@ -229,27 +227,27 @@ class DocxRenderer:
 
         paragraph = doc.add_paragraph()
         run = paragraph.add_run()
-        fldChar = OxmlElement("w:fldChar")
-        fldChar.set(qn("w:fldCharType"), "begin")
-        run._element.append(fldChar)
+        fld_char = OxmlElement("w:fldChar")
+        fld_char.set(qn("w:fldCharType"), "begin")
+        run._element.append(fld_char)
 
         run = paragraph.add_run()
-        instrText = OxmlElement("w:instrText")
-        instrText.set(qn("xml:space"), "preserve")
-        instrText.text = ' TOC \\o "1-3" \\h \\z \\u '
-        run._element.append(instrText)
+        instr_text = OxmlElement("w:instrText")
+        instr_text.set(qn("xml:space"), "preserve")
+        instr_text.text = ' TOC \\o "1-3" \\h \\z \\u '
+        run._element.append(instr_text)
 
         run = paragraph.add_run()
-        fldChar = OxmlElement("w:fldChar")
-        fldChar.set(qn("w:fldCharType"), "separate")
-        run._element.append(fldChar)
+        fld_char = OxmlElement("w:fldChar")
+        fld_char.set(qn("w:fldCharType"), "separate")
+        run._element.append(fld_char)
 
         run = paragraph.add_run("Right-click and select 'Update Field' to generate TOC")
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
         run = paragraph.add_run()
-        fldChar = OxmlElement("w:fldChar")
-        fldChar.set(qn("w:fldCharType"), "end")
-        run._element.append(fldChar)
+        fld_char = OxmlElement("w:fldChar")
+        fld_char.set(qn("w:fldCharType"), "end")
+        run._element.append(fld_char)
 
         doc.add_page_break()

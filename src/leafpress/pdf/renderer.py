@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
@@ -22,8 +21,8 @@ class PdfRenderer:
 
     def __init__(
         self,
-        branding: Optional[BrandingConfig],
-        git_info: Optional[GitVersion],
+        branding: BrandingConfig | None,
+        git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
     ) -> None:
         self._branding = branding

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from git import GitCommandError, GitCommandNotFound, InvalidGitRepositoryError, Repo
 
@@ -18,9 +17,9 @@ class GitVersion:
     commit_hash_full: str
     commit_date: datetime
     branch: str
-    tag: Optional[str]
+    tag: str | None
     is_dirty: bool
-    tag_distance: Optional[int]
+    tag_distance: int | None
 
     def format_version_string(self) -> str:
         """Produce a human-readable version string.
@@ -48,7 +47,7 @@ class GitVersion:
         return " ".join(parts)
 
 
-def extract_git_info(repo_path: Path) -> Optional[GitVersion]:
+def extract_git_info(repo_path: Path) -> GitVersion | None:
     """Extract git version info from a repository path.
 
     Returns None if the path is not a git repository.
@@ -73,8 +72,8 @@ def extract_git_info(repo_path: Path) -> Optional[GitVersion]:
             branch = "unknown"
 
     # Find the most recent reachable tag
-    tag_name: Optional[str] = None
-    tag_distance: Optional[int] = None
+    tag_name: str | None = None
+    tag_distance: int | None = None
     try:
         describe = repo.git.describe("--tags", "--abbrev=0")
         tag_name = describe
