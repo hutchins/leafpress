@@ -2,11 +2,33 @@
 
 from pathlib import Path
 
-from leafpress.config import load_config
+import pytest
+
+from leafpress.config import WatermarkConfig, load_config
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.odt.renderer import OdtRenderer
+
+
+@pytest.fixture
+def html_pages(sample_mkdocs_config: Path):
+    """Render all pages from sample MkDocs project."""
+    mkdocs_cfg = parse_mkdocs_config(sample_mkdocs_config)
+    renderer = MarkdownRenderer(
+        extensions=mkdocs_cfg.markdown_extensions,
+        docs_dir=mkdocs_cfg.docs_dir,
+    )
+    pages = flatten_nav(mkdocs_cfg.nav_items)
+    result = []
+    for item in pages:
+        if item.path is None:
+            result.append((item, ""))
+            continue
+        md_file = mkdocs_cfg.docs_dir / item.path
+        html = renderer.render(md_file.read_text(), md_file)
+        result.append((item, html))
+    return result, mkdocs_cfg
 
 
 def test_odt_generation(
@@ -67,3 +89,66 @@ def test_odt_without_branding(
 
     assert odt_path.exists()
     assert odt_path.stat().st_size > 0
+
+
+def test_odt_with_watermark(
+    html_pages,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    pages, mkdocs_cfg = html_pages
+    branding = load_config(sample_branding_config)
+    branding.watermark = WatermarkConfig(text="DRAFT")
+    git_info = extract_git_info(sample_branding_config.parent)
+
+    odt_path = tmp_output / "watermark.odt"
+    odt_renderer = OdtRenderer(branding, git_info, mkdocs_cfg)
+    odt_renderer.render(pages, odt_path)
+
+    assert odt_path.exists()
+    assert odt_path.stat().st_size > 0
+
+
+def test_odt_no_cover_page(
+    html_pages,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    pages, mkdocs_cfg = html_pages
+    branding = load_config(sample_branding_config)
+
+    odt_path = tmp_output / "no_cover.odt"
+    odt_renderer = OdtRenderer(branding, None, mkdocs_cfg)
+    odt_renderer.render(pages, odt_path, cover_page=False)
+
+    assert odt_path.exists()
+
+
+def test_odt_no_toc(
+    html_pages,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    pages, mkdocs_cfg = html_pages
+    branding = load_config(sample_branding_config)
+
+    odt_path = tmp_output / "no_toc.odt"
+    odt_renderer = OdtRenderer(branding, None, mkdocs_cfg)
+    odt_renderer.render(pages, odt_path, include_toc=False)
+
+    assert odt_path.exists()
+
+
+def test_odt_local_time(
+    html_pages,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    pages, mkdocs_cfg = html_pages
+    branding = load_config(sample_branding_config)
+
+    odt_path = tmp_output / "local_time.odt"
+    odt_renderer = OdtRenderer(branding, None, mkdocs_cfg)
+    odt_renderer.render(pages, odt_path, local_time=True)
+
+    assert odt_path.exists()
