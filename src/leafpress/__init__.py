@@ -1,5 +1,10 @@
-"""leafpress - Convert MkDocs sites to PDF and Word documents."""
+"""leafpress - Convert MkDocs sites to PDF, Word, HTML, and ODT documents."""
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("leafpress")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
 
 from leafpress.pipeline import convert  # noqa: F401

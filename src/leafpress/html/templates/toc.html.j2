@@ -1,0 +1,12 @@
+<div class="lp-toc">
+    <h2>Table of Contents</h2>
+    <nav>
+        {% for item, html in pages %}
+        {% if item.path is not none %}
+        <a href="#{{ item.title | lower | replace(' ', '-') | replace('.', '') }}" class="toc-level-{{ item.level }}">{{ item.title }}</a>
+        {% elif item.children %}
+        <div class="toc-section toc-level-{{ item.level }}">{{ item.title }}</div>
+        {% endif %}
+        {% endfor %}
+    </nav>
+</div>
