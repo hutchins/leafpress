@@ -56,6 +56,7 @@ class OdtRenderer:
         doc = OpenDocumentText()
         self._setup_styles(doc)
         self._setup_page_layout(doc)
+        self._add_watermark_style(doc)
 
         if cover_page:
             self._add_cover_page(doc)
@@ -480,3 +481,34 @@ class OdtRenderer:
         frame.addElement(Image(href=href))
         p.addElement(frame)
         doc.text.addElement(p)
+
+    def _add_watermark_style(self, doc: OpenDocumentText) -> None:
+        """Add watermark style and insert watermark text on each page via header."""
+        if not self._branding or not self._branding.watermark.text:
+            return
+
+        wm = self._branding.watermark
+
+        # Create a watermark paragraph style
+        wm_style = Style(name="Watermark", family="paragraph")
+        wm_style.addElement(
+            TextProperties(
+                fontsize="48pt",
+                fontweight="bold",
+                color=wm.color,
+                fontstyle="normal",
+            )
+        )
+        wm_style.addElement(
+            ParagraphProperties(textalign="center", margintop="200pt")
+        )
+        doc.styles.addElement(wm_style)
+
+        # Insert watermark text at the very beginning of the document
+        wm_para = P(stylename="Watermark")
+        wm_para.addText(wm.text)
+        # Prepend to document body
+        if doc.text.childNodes:
+            doc.text.insertBefore(wm_para, doc.text.childNodes[0])
+        else:
+            doc.text.addElement(wm_para)

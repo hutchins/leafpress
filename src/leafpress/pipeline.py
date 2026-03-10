@@ -42,6 +42,7 @@ def convert(
     cover_page: bool = True,
     include_toc: bool = True,
     local_time: bool = False,
+    watermark: str | None = None,
 ) -> list[Path]:
     """Main conversion pipeline.
 
@@ -83,10 +84,28 @@ def convert(
                     break
             if branding is None:
                 branding = config_from_env()
+        # CLI --watermark flag overrides config
+        if watermark and branding:
+            branding = branding.model_copy(
+                update={"watermark": branding.watermark.model_copy(update={"text": watermark})}
+            )
+        elif watermark and not branding:
+            from leafpress.config import WatermarkConfig
+
+            branding = BrandingConfig(
+                company_name=mkdocs_cfg.site_name,
+                project_name=mkdocs_cfg.site_name,
+                watermark=WatermarkConfig(text=watermark),
+            )
+
         if branding:
             console.print(
                 f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}"
             )
+            if branding.watermark.text:
+                console.print(
+                    f"  [green]Watermark:[/green] \"{branding.watermark.text}\""
+                )
 
         # Extract git info
         git_info = extract_git_info(project_dir)

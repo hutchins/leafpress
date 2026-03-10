@@ -52,6 +52,7 @@ class DocxRenderer:
         apply_branding_styles(doc, self._branding)
         self._setup_header(doc)
         self._setup_footer(doc)
+        self._add_watermark(doc)
 
         if cover_page:
             self._add_cover_page(doc)
@@ -254,3 +255,53 @@ class DocxRenderer:
         run._element.append(fld_char)
 
         doc.add_page_break()
+
+    def _add_watermark(self, doc: Document) -> None:
+        """Add a diagonal text watermark to the document header using WordprocessingML."""
+        if not self._branding or not self._branding.watermark.text:
+            return
+
+        wm = self._branding.watermark
+        section = doc.sections[0]
+        header = section.header
+
+        # Parse watermark color
+        hex_color = wm.color.lstrip("#")
+
+        # Create a VML shape in the header for the watermark
+        paragraph = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
+        run = paragraph.add_run()
+        pict = OxmlElement("w:pict")
+
+        shape = OxmlElement("v:shape")
+        shape.set("id", "PowerPlusWaterMarkObject")
+        shape.set(
+            "style",
+            f"position:absolute;margin-left:0;margin-top:0;"
+            f"width:500pt;height:120pt;"
+            f"rotation:{wm.angle};"
+            f"z-index:-251658752;mso-position-horizontal:center;"
+            f"mso-position-vertical:center;"
+            f"mso-position-horizontal-relative:margin;"
+            f"mso-position-vertical-relative:margin",
+        )
+        shape.set("fillcolor", f"#{hex_color}")
+        shape.set("stroked", "f")
+        shape.set("type", "#_x0000_t136")
+
+        # Fill with opacity
+        fill = OxmlElement("v:fill")
+        fill.set("opacity", f"{wm.opacity}")
+        shape.append(fill)
+
+        # Text path with the watermark text
+        textpath = OxmlElement("v:textpath")
+        textpath.set("string", wm.text)
+        textpath.set(
+            "style",
+            "font-family:&quot;Calibri&quot;;font-size:1pt",
+        )
+        shape.append(textpath)
+
+        pict.append(shape)
+        run._element.append(pict)

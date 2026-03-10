@@ -1,6 +1,6 @@
-# CI / GitHub Actions
+# CI / CD Pipelines
 
-leafpress is designed to run in CI/CD pipelines. Branding can be configured entirely via environment variables — no `leafpress.yml` file required.
+leafpress is designed to run in any CI/CD system. Branding can be configured entirely via environment variables — no `leafpress.yml` file required.
 
 ## Using the GitHub Action
 
@@ -210,3 +210,68 @@ jobs:
 
 !!! tip "Full git history"
     Use `fetch-depth: 0` in the checkout step so leafpress can read git tags and commit history for version info in the footer.
+
+---
+
+## GitLab CI
+
+leafpress works on GitLab CI (and any other CI system) with the same `LEAFPRESS_*` environment variables.
+
+### Quick start
+
+```yaml
+# .gitlab-ci.yml
+generate-docs:
+  image: python:3.13-slim
+  variables:
+    LEAFPRESS_COMPANY_NAME: "Acme Corp"
+    LEAFPRESS_PROJECT_NAME: "Platform Docs"
+    LEAFPRESS_PRIMARY_COLOR: "#1a73e8"
+  before_script:
+    - apt-get update && apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
+    - pip install leafpress
+  script:
+    - leafpress convert . -f all -o dist/
+  artifacts:
+    paths:
+      - dist/
+```
+
+### Using CI/CD variables
+
+Store branding values in **Settings > CI/CD > Variables** and reference them in your pipeline:
+
+```yaml
+generate-docs:
+  image: python:3.13-slim
+  variables:
+    LEAFPRESS_COMPANY_NAME: $COMPANY_NAME
+    LEAFPRESS_PROJECT_NAME: $CI_PROJECT_NAME
+    LEAFPRESS_FOOTER_REPO_URL: $CI_PROJECT_URL
+    LEAFPRESS_FOOTER_CUSTOM_TEXT: "Build $CI_PIPELINE_IID"
+    GIT_DEPTH: 0  # full history for git version info
+  before_script:
+    - apt-get update && apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
+    - pip install leafpress
+  script:
+    - leafpress convert . -f all -o dist/
+  artifacts:
+    paths:
+      - dist/
+```
+
+!!! tip "Full git history"
+    Set `GIT_DEPTH: 0` in variables so leafpress can read git tags and commit history for version info in the footer.
+
+---
+
+## Other CI systems
+
+leafpress runs anywhere Python is available. The general steps are:
+
+1. Install system dependencies (Pango and friends — see [Installation](installation.md#weasyprint-system-dependencies))
+2. Install leafpress: `pip install leafpress`
+3. Set `LEAFPRESS_*` environment variables for branding
+4. Run `leafpress convert . -f <format> -o dist/`
+
+No GitHub- or GitLab-specific features are required. The `LEAFPRESS_*` env vars and `.env` file support work identically on every platform.
