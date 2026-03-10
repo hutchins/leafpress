@@ -1,36 +1,217 @@
+/* ── Hero Section ─────────────────────────────────────────── */
+
 .leafpress-hero {
-  background: var(--md-primary-fg-color);
-  padding: 4rem 1rem;
+  background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 40%, #43a047 100%);
+  padding: 5rem 2rem 4rem;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.leafpress-hero::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.leafpress-hero::after {
+  content: "";
+  position: absolute;
+  bottom: -30%;
+  left: -5%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.leafpress-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.leafpress-hero__logo {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
 }
 
 .leafpress-hero__title {
-  color: var(--md-primary-bg-color);
-  font-size: 3rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
+  color: #ffffff;
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
+  line-height: 1.1;
 }
 
 .leafpress-hero__tagline {
-  color: var(--md-primary-bg-color--light);
-  font-size: 1.25rem;
-  margin: 0 0 2rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin: 0 0 2.5rem;
+  line-height: 1.5;
 }
 
 .leafpress-hero__buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .leafpress-hero .md-button {
-  color: var(--md-primary-fg-color);
-  background: var(--md-primary-bg-color);
+  font-weight: 600;
+  padding: 0.7em 1.8em;
+  border-radius: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.leafpress-hero .md-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.leafpress-hero .md-button--primary {
+  color: #2e7d32;
+  background: #ffffff;
+  border: none;
 }
 
 .leafpress-hero .md-button:not(.md-button--primary) {
   background: transparent;
-  color: var(--md-primary-bg-color);
-  border: 2px solid var(--md-primary-bg-color);
+  color: #ffffff;
+  border: 2px solid rgba(255,255,255,0.6);
+}
+
+.leafpress-hero .md-button:not(.md-button--primary):hover {
+  border-color: #ffffff;
+}
+
+/* ── Feature Cards ───────────────────────────────────────── */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature-card {
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 12px;
+  padding: 1.75rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.feature-card__icon {
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.feature-card__title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0 0 0.4rem;
+  color: var(--md-default-fg-color);
+}
+
+.feature-card__desc {
+  font-size: 0.9rem;
+  color: var(--md-default-fg-color--light);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Badges row ──────────────────────────────────────────── */
+
+.badges {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 2rem 0 1rem;
+}
+
+/* ── Quick Start section ─────────────────────────────────── */
+
+.quick-start {
+  max-width: 680px;
+  margin: 0 auto 2rem;
+}
+
+/* ── Next Steps ──────────────────────────────────────────── */
+
+.next-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.next-steps a {
+  display: block;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.next-steps a:hover {
+  border-color: var(--md-primary-fg-color);
+  background: var(--md-primary-fg-color--light);
+}
+
+.next-steps a small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--light);
+  margin-top: 0.25rem;
+}
+
+/* ── Dark mode adjustments ───────────────────────────────── */
+
+[data-md-color-scheme="slate"] .feature-card {
+  border-color: rgba(255,255,255,0.08);
+}
+
+[data-md-color-scheme="slate"] .feature-card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+[data-md-color-scheme="slate"] .next-steps a:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Announce bar ────────────────────────────────────────── */
+
+.md-banner {
+  background: linear-gradient(90deg, #1b5e20, #2e7d32);
+}
+
+.md-banner a {
+  color: #ffffff;
 }
