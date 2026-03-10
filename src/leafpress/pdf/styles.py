@@ -26,7 +26,9 @@ def generate_pdf_css(
     # Brand color overrides
     color_css = _build_color_overrides(branding)
 
-    return f"{base_css}\n\n{page_css}\n\n{color_css}"
+    watermark_css = _build_watermark_css(branding)
+
+    return f"{base_css}\n\n{page_css}\n\n{color_css}\n\n{watermark_css}"
 
 
 def _build_page_rules(
@@ -121,6 +123,31 @@ def _build_page_rules(
     @top-right {{ content: none; }}
     @bottom-center {{ content: none; }}
     @bottom-right {{ content: none; }}
+}}
+"""
+
+
+def _build_watermark_css(branding: BrandingConfig | None) -> str:
+    """Build CSS for a diagonal text watermark overlay on every page."""
+    if not branding or not branding.watermark.text:
+        return ""
+
+    wm = branding.watermark
+    return f"""
+/* Watermark overlay */
+.watermark {{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate({wm.angle}deg);
+    font-size: 80pt;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: bold;
+    color: {wm.color};
+    opacity: {wm.opacity};
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: -1;
 }}
 """
 

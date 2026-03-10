@@ -112,6 +112,12 @@ def convert(
         "--local-time",
         help="Use local timezone for dates instead of UTC.",
     ),
+    watermark: str | None = typer.Option(
+        None,
+        "--watermark",
+        "-w",
+        help='Watermark text overlay (e.g. "DRAFT", "CONFIDENTIAL").',
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -140,6 +146,7 @@ def convert(
             cover_page=cover_page,
             include_toc=toc,
             local_time=local_time,
+            watermark=watermark,
         )
 
         if generated:

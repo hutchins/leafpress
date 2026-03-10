@@ -85,6 +85,15 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 
+[tool.coverage.run]
+source = ["leafpress"]
+omit = ["src/leafpress/ui/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 70
+
 [tool.mypy]
 python_version = "3.10"
 strict = true

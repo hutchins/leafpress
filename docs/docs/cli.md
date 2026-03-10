@@ -42,6 +42,7 @@ leafpress convert SOURCE [OPTIONS]
 | `--toc` / `--no-toc` | `--toc` | Include a table of contents |
 | `--open` | `false` | Open the generated file(s) after conversion |
 | `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
+| `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) |
 | `--verbose` | `false` | Show full traceback on error |
 
 **Examples**
@@ -68,6 +69,10 @@ leafpress convert https://github.com/org/repo -b main -f pdf
 
 # Use local timezone for the cover page date
 leafpress convert . --local-time
+
+# Add a watermark overlay
+leafpress convert . -f pdf -w "DRAFT"
+leafpress convert . -f all --watermark "CONFIDENTIAL"
 
 # No cover page, open after conversion
 leafpress convert . --no-cover-page --open

@@ -50,6 +50,13 @@ pdf:
 # DOCX-specific options
 docx:
   template_path: null           # path to a .docx template file
+
+# Watermark overlay
+watermark:
+  text: "DRAFT"                 # set to null or remove to disable
+  color: "#cccccc"              # watermark text color
+  opacity: 0.15                 # 0.0 to 1.0
+  angle: -45                    # -90 to 90
 ```
 
 ## Field reference
@@ -95,6 +102,15 @@ docx:
 |-------|------|---------|-------------|
 | `template_path` | path | `null` | Path to a `.docx` template file |
 
+### `watermark` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `text` | string | `null` | Watermark text (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) — `null` to disable |
+| `color` | hex string | `#cccccc` | Watermark text color |
+| `opacity` | float | `0.15` | Opacity from `0.0` (invisible) to `1.0` (solid) |
+| `angle` | int | `-45` | Rotation angle from `-90` to `90` degrees |
+
 ## Environment variables
 
 All config fields can be set or overridden via `LEAFPRESS_*` environment variables. This is the recommended approach for CI/CD pipelines.
@@ -119,6 +135,10 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` |
 | `LEAFPRESS_LOCAL_TIME` | Use local timezone for dates (`true`/`false`, default: `false`) |
+| `LEAFPRESS_WATERMARK_TEXT` | `watermark.text` |
+| `LEAFPRESS_WATERMARK_COLOR` | `watermark.color` |
+| `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` (e.g. `0.2`) |
+| `LEAFPRESS_WATERMARK_ANGLE` | `watermark.angle` (e.g. `-30`) |
 
 !!! tip "Env-only mode"
     If both `LEAFPRESS_COMPANY_NAME` and `LEAFPRESS_PROJECT_NAME` are set and no `leafpress.yml` is present, LeafPress builds the branding config entirely from environment variables.
