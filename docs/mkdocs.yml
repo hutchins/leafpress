@@ -33,29 +33,38 @@ theme:
   favicon: assets/favicon.svg
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: green
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: green
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   font:
-    text: Roboto
-    code: Roboto Mono
+    text: Inter
+    code: JetBrains Mono
   features:
     - content.code.copy
     - navigation.tabs
     - navigation.sections
     - navigation.indexes
     - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
 
 extra:
   social:
+    - icon: fontawesome/solid/globe
+      link: https://leafpress.dev/
     - icon: fontawesome/brands/github
       link: https://github.com/hutchins/leafpress
     - icon: fontawesome/brands/python

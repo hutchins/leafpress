@@ -5,23 +5,55 @@ hide:
   - toc
 ---
 
-[![PyPI](https://img.shields.io/pypi/v/leafpress?color=blue)](https://pypi.org/project/leafpress/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
+<div class="badges" markdown>
+
+[![PyPI](https://img.shields.io/pypi/v/leafpress?color=2e7d32)](https://pypi.org/project/leafpress/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2e7d32.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
 [![CI](https://github.com/hutchins/leafpress/actions/workflows/ci.yml/badge.svg)](https://github.com/hutchins/leafpress/actions/workflows/ci.yml)
 
-# LeafPress
+</div>
 
-Convert MkDocs sites to PDF and Word documents with branding.
+<div class="feature-grid" markdown>
 
-## Features
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-file-pdf-box:</span>
+<p class="feature-card__title">PDF & Word Output</p>
+<p class="feature-card__desc">Generate polished PDF and DOCX files from any MkDocs project with a single command.</p>
+</div>
 
-- Generate **PDF** and **DOCX** from any MkDocs project
-- Branded cover page, table of contents, and footer
-- Logo, colors, and metadata via `leafpress.yml`
-- Git version info (tag, branch, commit, date) embedded in output
-- Convert from **local paths** or **remote git URLs**
-- **Desktop UI** — macOS/Linux/Windows menu bar app
-- **CI-friendly** — configure entirely via `LEAFPRESS_*` environment variables and `.env` files
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-palette-outline:</span>
+<p class="feature-card__title">Custom Branding</p>
+<p class="feature-card__desc">Cover pages, logos, colors, and footers — all configurable via leafpress.yml.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-git:</span>
+<p class="feature-card__title">Git-Aware</p>
+<p class="feature-card__desc">Automatically embeds tag, branch, commit hash, and date into your documents.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-console:</span>
+<p class="feature-card__title">CLI & Desktop UI</p>
+<p class="feature-card__desc">Use the command line for automation or the desktop app for a visual workflow.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-github:</span>
+<p class="feature-card__title">CI / GitHub Actions</p>
+<p class="feature-card__desc">Run in pipelines with environment variables and the built-in GitHub Action.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-cloud-download-outline:</span>
+<p class="feature-card__title">Remote Sources</p>
+<p class="feature-card__desc">Convert directly from git URLs — no need to clone repos manually.</p>
+</div>
+
+</div>
+
+<div class="quick-start" markdown>
 
 ## Quick Start
 
@@ -43,10 +75,40 @@ Converting MkDocs site to PDF and DOCX...
 ✓ dist/docs.docx
 ```
 
+</div>
+
 ## Next Steps
 
-- [Installation](installation.md) — system requirements and setup
-- [Configuration](configuration.md) — full `leafpress.yml` reference
-- [CLI Reference](cli.md) — all commands and flags
-- [Desktop UI](ui.md) — menu bar app
-- [CI / GitHub Actions](ci.md) — use in pipelines
+<div class="next-steps" markdown>
+
+<a href="installation/">
+  Installation
+  <small>System requirements and setup</small>
+</a>
+
+<a href="configuration/">
+  Configuration
+  <small>Full leafpress.yml reference</small>
+</a>
+
+<a href="cli/">
+  CLI Reference
+  <small>All commands and flags</small>
+</a>
+
+<a href="ui/">
+  Desktop UI
+  <small>Menu bar app</small>
+</a>
+
+<a href="ci/">
+  CI / GitHub Actions
+  <small>Use in pipelines</small>
+</a>
+
+<a href="branding/">
+  Branding & Styling
+  <small>Logos, colors, and covers</small>
+</a>
+
+</div>
