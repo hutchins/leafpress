@@ -37,10 +37,11 @@ The action handles Python setup and WeasyPrint system dependencies automatically
 |-------|---------|-------------|
 | `source` | `.` | Path to MkDocs project directory |
 | `output` | `dist` | Output directory |
-| `format` | `pdf` | `pdf`, `docx`, or `both` |
+| `format` | `pdf` | `pdf`, `docx`, `html`, `odt`, `both` (pdf+docx), or `all` |
 | `config` | _(auto-detect)_ | Path to `leafpress.yml` |
 | `cover_page` | `true` | Include cover page |
 | `toc` | `true` | Include table of contents |
+| `local_time` | `false` | Use local timezone for dates instead of UTC |
 | `python_version` | `3.13` | Python version to install |
 
 **Outputs:**
@@ -108,6 +109,7 @@ Set `LEAFPRESS_*` variables to configure branding without a YAML file. If both `
 | `LEAFPRESS_FOOTER_INCLUDE_DATE` | `footer.include_date` | |
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` | |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` | |
+| `LEAFPRESS_LOCAL_TIME` | _(CLI flag)_ | `true` or `false` — use local timezone for dates |
 
 **Priority:** shell env > `.env` file > `leafpress.yml` > built-in defaults
 
@@ -157,7 +159,7 @@ env:
   LEAFPRESS_FOOTER_REPO_URL: "${{ github.server_url }}/${{ github.repository }}"
 ```
 
-## Full workflow example (PDF + DOCX)
+## Full workflow example (all formats)
 
 ```yaml
 name: Generate Documentation
@@ -197,7 +199,7 @@ jobs:
           LEAFPRESS_PROJECT_NAME: ${{ github.event.repository.name }}
           LEAFPRESS_FOOTER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           LEAFPRESS_FOOTER_CUSTOM_TEXT: "Build ${{ github.run_number }}"
-        run: leafpress convert . -f both -o dist/
+        run: leafpress convert . -f all -o dist/
 
       - name: Upload documentation
         uses: actions/upload-artifact@v4

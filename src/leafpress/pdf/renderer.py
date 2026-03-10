@@ -39,9 +39,11 @@ class PdfRenderer:
         output_path: Path,
         cover_page: bool = True,
         include_toc: bool = True,
+        local_time: bool = False,
     ) -> None:
         """Compose all pages into a single HTML document and render to PDF."""
         sections_html: list[str] = []
+        now = datetime.now() if local_time else datetime.now(timezone.utc)
 
         if cover_page:
             cover_tmpl = self._jinja.get_template("cover.html.j2")
@@ -58,7 +60,7 @@ class PdfRenderer:
                     git_info=self._git_info,
                     author=self._branding.author if self._branding else "",
                     author_email=self._branding.author_email if self._branding else "",
-                    date=datetime.now(timezone.utc).strftime("%B %d, %Y"),
+                    date=now.strftime("%B %d, %Y"),
                 )
             )
 

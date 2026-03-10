@@ -17,8 +17,8 @@ hide:
 
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-file-pdf-box:</span>
-<p class="feature-card__title">PDF & Word Output</p>
-<p class="feature-card__desc">Generate polished PDF and DOCX files from any MkDocs project with a single command.</p>
+<p class="feature-card__title">Multiple Output Formats</p>
+<p class="feature-card__desc">Generate PDF, DOCX, HTML, and ODT files from any MkDocs project with a single command.</p>
 </div>
 
 <div class="feature-card" markdown>
@@ -69,10 +69,12 @@ $ leafpress convert . -f pdf -o dist/
 Converting MkDocs site to PDF...
 ✓ dist/docs.pdf
 
-$ leafpress convert . -f both -c leafpress.yml -o dist/
-Converting MkDocs site to PDF and DOCX...
+$ leafpress convert . -f all -c leafpress.yml -o dist/
+Converting MkDocs site to all formats...
 ✓ dist/docs.pdf
 ✓ dist/docs.docx
+✓ dist/docs.html
+✓ dist/docs.odt
 ```
 
 </div>

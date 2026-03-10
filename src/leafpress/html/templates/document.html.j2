@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="LeafPress">
+    <title>{{ site_name }}</title>
+    <style>{{ css }}</style>
+</head>
+<body>
+
+<nav class="lp-sidebar">
+    <h2>{{ site_name }}</h2>
+    {% for item, html in nav_items %}
+    {% if item.path is not none %}
+    <a href="#{{ item.title | lower | replace(' ', '-') | replace('.', '') }}" class="level-{{ item.level }}">{{ item.title }}</a>
+    {% elif item.children %}
+    <a href="#{{ item.title | lower | replace(' ', '-') }}" class="level-{{ item.level }}" style="font-weight:700">{{ item.title }}</a>
+    {% endif %}
+    {% endfor %}
+</nav>
+
+<main class="lp-main">
+    {{ cover }}
+    {{ toc }}
+    {{ sections }}
+    <footer class="lp-footer">{{ footer_text }}</footer>
+</main>
+
+</body>
+</html>

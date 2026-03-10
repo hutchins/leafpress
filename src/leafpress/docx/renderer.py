@@ -39,8 +39,10 @@ class DocxRenderer:
         output_path: Path,
         cover_page: bool = True,
         include_toc: bool = True,
+        local_time: bool = False,
     ) -> None:
         """Build a DOCX document from converted HTML pages."""
+        self._local_time = local_time
         template_path = None
         if self._branding and self._branding.docx.template_path:
             template_path = self._branding.docx.template_path
@@ -197,7 +199,8 @@ class DocxRenderer:
 
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = para.add_run(datetime.now(timezone.utc).strftime("%B %d, %Y"))
+        now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+        run = para.add_run(now.strftime("%B %d, %Y"))
         run.font.size = Pt(10)
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 

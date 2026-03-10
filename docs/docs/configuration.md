@@ -118,6 +118,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_FOOTER_INCLUDE_DATE` | `footer.include_date` |
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` |
+| `LEAFPRESS_LOCAL_TIME` | Use local timezone for dates (`true`/`false`, default: `false`) |
 
 !!! tip "Env-only mode"
     If both `LEAFPRESS_COMPANY_NAME` and `LEAFPRESS_PROJECT_NAME` are set and no `leafpress.yml` is present, LeafPress builds the branding config entirely from environment variables.

@@ -5,13 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2e7d32.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
 [![CI](https://github.com/hutchins/leafpress/actions/workflows/ci.yml/badge.svg)](https://github.com/hutchins/leafpress/actions/workflows/ci.yml)
 
-Convert MkDocs sites to PDF and Word documents with branding.
+Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding.
 
 **[Documentation](https://leafpress.dev/)** · **[GitHub](https://github.com/hutchins/leafpress)** · **[PyPI](https://pypi.org/project/leafpress/)**
 
 ## Features
 
-- Generate **PDF** and **DOCX** output from any MkDocs project
+- Generate **PDF**, **DOCX**, **HTML**, and **ODT** output from any MkDocs project
 - Cover page, table of contents, and branded footer
 - Logo, colors, and metadata via a simple `leafpress.yml` config
 - Git version info (tag, branch, commit) embedded in output
@@ -46,6 +46,13 @@ leafpress convert /path/to/mkdocs/project
 
 # Convert to PDF + DOCX with branding
 leafpress convert /path/to/project -f both -c leafpress.yml
+
+# Convert to HTML or ODT
+leafpress convert /path/to/project -f html
+leafpress convert /path/to/project -f odt
+
+# Convert to all formats (PDF, DOCX, HTML, ODT)
+leafpress convert /path/to/project -f all -c leafpress.yml
 
 # Convert from a remote git repo
 leafpress convert https://github.com/org/repo -b main -f pdf

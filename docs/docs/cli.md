@@ -8,7 +8,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 
 | Command | Description |
 |---------|-------------|
-| [`convert`](#convert) | Convert an MkDocs site to PDF and/or DOCX |
+| [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
 | [`ui`](#ui) | Launch the desktop menu bar / system tray app |
@@ -17,7 +17,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 
 ## `convert`
 
-Convert an MkDocs site to PDF and/or DOCX.
+Convert an MkDocs site to PDF, DOCX, HTML, and/or ODT.
 
 ```bash
 leafpress convert SOURCE [OPTIONS]
@@ -34,13 +34,14 @@ leafpress convert SOURCE [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--output`, `-o` | `output/` | Output directory for generated files |
-| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, or `both` |
+| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `both` (pdf+docx), or `all` |
 | `--config`, `-c` | _(auto-detect)_ | Path to `leafpress.yml` branding config |
 | `--mkdocs-config` | _(auto-detect)_ | Override path to `mkdocs.yml` |
 | `--branch`, `-b` | _(default branch)_ | Git branch to clone (remote sources only) |
 | `--cover-page` / `--no-cover-page` | `--cover-page` | Include a cover page |
 | `--toc` / `--no-toc` | `--toc` | Include a table of contents |
 | `--open` | `false` | Open the generated file(s) after conversion |
+| `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
 | `--verbose` | `false` | Show full traceback on error |
 
 **Examples**
@@ -52,11 +53,21 @@ leafpress convert /path/to/project
 # Convert to both PDF and DOCX
 leafpress convert /path/to/project -f both
 
+# Convert to HTML or ODT
+leafpress convert /path/to/project -f html
+leafpress convert /path/to/project -f odt
+
+# Convert to all formats (PDF, DOCX, HTML, ODT)
+leafpress convert /path/to/project -f all
+
 # Convert with branding config, output to custom dir
 leafpress convert /path/to/project -c leafpress.yml -o dist/
 
 # Convert from a git URL (specific branch)
 leafpress convert https://github.com/org/repo -b main -f pdf
+
+# Use local timezone for the cover page date
+leafpress convert . --local-time
 
 # No cover page, open after conversion
 leafpress convert . --no-cover-page --open
