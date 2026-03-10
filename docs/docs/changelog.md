@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.2 — 2026-03-10
+
+### Features
+
+- **`leafpress doctor` command** — diagnose your environment with a single command; checks Python version, WeasyPrint (package + system libs), PyQt6, and pyobjc; shows ✓/✗ status, versions, and suggested fixes for any missing dependencies
+- `--verbose` flag on `doctor` to also check all 18 core dependencies
+
+### Fixes
+
+- **Properly fixed Rich markup swallowing `[pdf]`/`[ui]` in error messages** — all `console.print()` error sites now use `rich.markup.escape()` instead of embedding Rich-specific escapes in exception messages
+- Error messages for missing WeasyPrint now suggest running `leafpress doctor` to diagnose
+- **GitHub Releases now auto-created** when tags are pushed — `release.yml` updated with `gh release create` step and `contents: write` permission
+
+### Tests
+
+- 25 new doctor command tests (dataclasses, check functions, orchestrator, CLI integration, Rich escape regression)
+
+### Docs
+
+- New [`doctor`](cli.md#doctor) section in CLI reference with checks table, exit codes, and examples
+
+---
+
 ## 0.2.1 — 2026-03-10
 
 ### Fixes

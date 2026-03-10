@@ -154,7 +154,8 @@ def convert(
             except (ImportError, OSError) as e:
                 raise LeafpressError(
                     "PDF output requires WeasyPrint and its system dependencies.\n"
-                    "  Install with: pip install 'leafpress\\[pdf]'\n"
+                    "  Run 'leafpress doctor' to diagnose your environment.\n"
+                    "  Install with: pip install 'leafpress[pdf]'\n"
                     "  System deps: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html"
                 ) from e
 

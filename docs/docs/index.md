@@ -64,6 +64,12 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
+<span class="feature-card__icon">:material-stethoscope:</span>
+<p class="feature-card__title">Doctor Command</p>
+<p class="feature-card__desc">Run `leafpress doctor` to diagnose your environment — checks dependencies, system libs, and suggests fixes.</p>
+</div>
+
+<div class="feature-card" markdown>
 <span class="feature-card__icon">:material-docker:</span>
 <p class="feature-card__title">Docker Support</p>
 <p class="feature-card__desc">Run in a container with all dependencies included — no system setup required.</p>

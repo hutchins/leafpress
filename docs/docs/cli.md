@@ -9,6 +9,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 | Command | Description |
 |---------|-------------|
 | [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB |
+| [`doctor`](#doctor) | Check your environment and optional dependency status |
 | [`import`](#import) | Import a Word document and convert it to Markdown |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
@@ -101,6 +102,49 @@ leafpress convert /path/to/project --mkdocs-config /path/to/docs/mkdocs.yml
 leafpress looks for `leafpress.yml` or `leafpress.yaml` in the project root automatically. You only need `--config` if the file is elsewhere.
 
 leafpress also loads a `.env` file from the project root and applies any `LEAFPRESS_*` environment variables on top of the YAML config. See [Configuration](configuration.md#environment-variables).
+
+---
+
+## `doctor`
+
+Check your environment and show the status of optional dependencies. Useful for diagnosing missing system libraries (e.g. WeasyPrint's cairo/pango) or confirming your install is complete.
+
+```bash
+leafpress doctor [OPTIONS]
+```
+
+**Options**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--verbose` | `false` | Also check core dependencies (normally guaranteed to be installed) |
+
+**Checks performed**
+
+| Check | What it verifies |
+|-------|-----------------|
+| Python version | Python >= 3.13 |
+| WeasyPrint | Python package installed (optional — needed for PDF output) |
+| WeasyPrint system libs | cairo, pango, gdk-pixbuf C libraries work correctly |
+| PyQt6 | Python package installed (optional — needed for desktop UI) |
+| pyobjc (macOS only) | Cocoa bindings installed (optional — needed for macOS UI) |
+
+With `--verbose`, all 18 core dependencies are also checked.
+
+**Exit codes**
+
+- `0` — all checks passed
+- `1` — one or more checks failed
+
+**Examples**
+
+```bash
+# Quick check of optional dependencies
+leafpress doctor
+
+# Include core dependency checks
+leafpress doctor --verbose
+```
 
 ---
 

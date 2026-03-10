@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "leafpress"
-version = "0.2.1"
+version = "0.2.2"
 description = "Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding"
 readme = "README.md"
 authors = [{name = "Shane Hutchins", email = "hutchins@users.noreply.github.com"}]
