@@ -1,0 +1,27 @@
+<div class="cover-page">
+    {% if logo_path %}
+    <div class="cover-logo">
+        <img src="{{ logo_path }}" alt="Logo" />
+    </div>
+    {% endif %}
+
+    <div class="cover-title">
+        {% if company_name %}
+        <p class="cover-company">{{ company_name }}</p>
+        {% endif %}
+        <h1 class="cover-project">{{ project_name }}</h1>
+        {% if subtitle %}
+        <p class="cover-subtitle">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+
+    <div class="cover-meta">
+        {% if git_info %}
+        <p class="cover-version">{{ git_info.format_version_string() }}</p>
+        {% endif %}
+        {% if author or author_email %}
+        <p class="cover-author">{{ author }}{% if author and author_email %} &lt;{{ author_email }}&gt;{% elif author_email %}{{ author_email }}{% endif %}</p>
+        {% endif %}
+        <p class="cover-date">{{ date }}</p>
+    </div>
+</div>

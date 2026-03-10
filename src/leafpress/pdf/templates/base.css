@@ -1,0 +1,326 @@
+/* Base print styles for leafpress PDF output */
+
+/* Typography */
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* Headings */
+h1 { font-size: 22pt; margin-top: 24pt; margin-bottom: 12pt; color: #1a1a1a; }
+h2 { font-size: 18pt; margin-top: 20pt; margin-bottom: 10pt; color: #1a1a1a; }
+h3 { font-size: 14pt; margin-top: 16pt; margin-bottom: 8pt; color: #1a1a1a; }
+h4 { font-size: 12pt; margin-top: 14pt; margin-bottom: 6pt; color: #1a1a1a; }
+h5, h6 { font-size: 10pt; margin-top: 12pt; margin-bottom: 6pt; color: #1a1a1a; }
+
+h1, h2, h3, h4 {
+    page-break-after: avoid;
+}
+
+/* Paragraphs */
+p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    orphans: 3;
+    widows: 3;
+}
+
+/* Links */
+a {
+    color: #1a73e8;
+    text-decoration: none;
+}
+
+/* Code */
+code {
+    font-family: "Source Code Pro", "Courier New", Courier, monospace;
+    font-size: 9pt;
+    background: #f5f5f5;
+    padding: 1pt 3pt;
+    border-radius: 2pt;
+}
+
+pre {
+    background: #f5f5f5;
+    padding: 12pt;
+    border-radius: 4pt;
+    font-size: 8.5pt;
+    line-height: 1.4;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+    border: 1px solid #e0e0e0;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12pt 0;
+    font-size: 9pt;
+    page-break-inside: avoid;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 6pt 8pt;
+    text-align: left;
+}
+
+th {
+    background: #f5f5f5;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background: #fafafa;
+}
+
+/* Lists */
+ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 24pt;
+}
+
+li {
+    margin-bottom: 4pt;
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 3pt solid #e0e0e0;
+    margin: 12pt 0;
+    padding: 8pt 16pt;
+    color: #555;
+    background: #fafafa;
+}
+
+/* Horizontal rules */
+hr {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 16pt 0;
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Emoji images - render inline at text height */
+img.emojione, img.twemoji, img.gemoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+}
+
+/* Admonitions (MkDocs) */
+.admonition {
+    border-left: 4pt solid #448aff;
+    padding: 12pt 16pt;
+    margin: 16pt 0;
+    background: #f8f9fa;
+    page-break-inside: avoid;
+}
+
+.admonition-title {
+    font-weight: 700;
+    margin-bottom: 4pt;
+}
+
+.admonition.note { border-left-color: #448aff; }
+.admonition.warning { border-left-color: #ff9100; }
+.admonition.danger, .admonition.error { border-left-color: #ff1744; }
+.admonition.tip, .admonition.hint { border-left-color: #00c853; }
+.admonition.info { border-left-color: #2196f3; }
+.admonition.example { border-left-color: #7c4dff; }
+
+/* Task lists */
+.task-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.task-list-item {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 4pt;
+}
+
+.task-list-control {
+    display: inline;
+    margin-right: 6pt;
+}
+
+.task-list-indicator {
+    display: none;
+}
+
+/* Hide the actual checkbox input - replaced by unicode in print */
+.task-list-item input[type="checkbox"] {
+    display: none;
+}
+
+/* Checkbox unicode markers */
+.task-checkbox {
+    font-size: 11pt;
+    margin-right: 4pt;
+}
+
+.task-checkbox-checked {
+    color: #00c853;
+}
+
+.task-checkbox-unchecked {
+    color: #999;
+}
+
+/* Details/summary (rendered expanded in print) */
+details {
+    border: 1px solid #e0e0e0;
+    border-radius: 4pt;
+    padding: 12pt;
+    margin: 12pt 0;
+}
+
+summary {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Cover page */
+.cover-page {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100%;
+    text-align: center;
+}
+
+.cover-logo img {
+    max-width: 200pt;
+    max-height: 100pt;
+    margin-bottom: 40pt;
+}
+
+.cover-company {
+    font-size: 14pt;
+    color: #666;
+    margin-bottom: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 2pt;
+}
+
+.cover-project {
+    font-size: 32pt;
+    margin: 0 0 12pt 0;
+}
+
+.cover-subtitle {
+    font-size: 16pt;
+    color: #666;
+    margin-bottom: 40pt;
+}
+
+.cover-meta {
+    margin-top: auto;
+    font-size: 9pt;
+    color: #999;
+}
+
+.cover-version {
+    margin-bottom: 4pt;
+}
+
+/* TOC page */
+.toc-page {
+    page-break-after: always;
+}
+
+.toc-title {
+    margin-bottom: 20pt;
+}
+
+.toc-entry {
+    padding: 3pt 0;
+    border-bottom: 1px dotted #ddd;
+}
+
+.toc-level-0 { padding-left: 0; }
+.toc-level-1 { padding-left: 20pt; }
+.toc-level-2 { padding-left: 40pt; }
+.toc-level-3 { padding-left: 60pt; }
+
+.toc-section {
+    padding: 6pt 0 3pt;
+    font-weight: 700;
+}
+
+/* Section breaks */
+.section-break {
+    page-break-before: always;
+}
+
+.page-content {
+    page-break-before: always;
+}
+
+.page-content:first-of-type {
+    page-break-before: auto;
+}
+
+/* Pygments syntax highlighting */
+.highlight .hll { background-color: #ffffcc; }
+.highlight .c { color: #6a737d; } /* Comment */
+.highlight .k { color: #d73a49; } /* Keyword */
+.highlight .o { color: #d73a49; } /* Operator */
+.highlight .cm { color: #6a737d; } /* Comment.Multiline */
+.highlight .cp { color: #d73a49; } /* Comment.Preproc */
+.highlight .c1 { color: #6a737d; } /* Comment.Single */
+.highlight .cs { color: #6a737d; } /* Comment.Special */
+.highlight .gd { color: #b31d28; background-color: #ffeef0; } /* Generic.Deleted */
+.highlight .gi { color: #22863a; background-color: #f0fff4; } /* Generic.Inserted */
+.highlight .gs { font-weight: bold; } /* Generic.Strong */
+.highlight .gu { color: #6f42c1; } /* Generic.Subheading */
+.highlight .kc { color: #005cc5; } /* Keyword.Constant */
+.highlight .kd { color: #d73a49; } /* Keyword.Declaration */
+.highlight .kn { color: #d73a49; } /* Keyword.Namespace */
+.highlight .kp { color: #d73a49; } /* Keyword.Pseudo */
+.highlight .kr { color: #d73a49; } /* Keyword.Reserved */
+.highlight .kt { color: #6f42c1; } /* Keyword.Type */
+.highlight .m { color: #005cc5; } /* Literal.Number */
+.highlight .s { color: #032f62; } /* Literal.String */
+.highlight .na { color: #6f42c1; } /* Name.Attribute */
+.highlight .nb { color: #005cc5; } /* Name.Builtin */
+.highlight .nc { color: #6f42c1; } /* Name.Class */
+.highlight .no { color: #005cc5; } /* Name.Constant */
+.highlight .nd { color: #6f42c1; } /* Name.Decorator */
+.highlight .nf { color: #6f42c1; } /* Name.Function */
+.highlight .nn { color: #005cc5; } /* Name.Namespace */
+.highlight .nt { color: #22863a; } /* Name.Tag */
+.highlight .nv { color: #e36209; } /* Name.Variable */
+.highlight .mi { color: #005cc5; } /* Literal.Number.Integer */
+.highlight .mf { color: #005cc5; } /* Literal.Number.Float */
+.highlight .sa { color: #032f62; } /* Literal.String.Affix */
+.highlight .sb { color: #032f62; } /* Literal.String.Backtick */
+.highlight .sc { color: #032f62; } /* Literal.String.Char */
+.highlight .dl { color: #032f62; } /* Literal.String.Delimiter */
+.highlight .sd { color: #032f62; } /* Literal.String.Doc */
+.highlight .s2 { color: #032f62; } /* Literal.String.Double */
+.highlight .se { color: #032f62; } /* Literal.String.Escape */
+.highlight .si { color: #032f62; } /* Literal.String.Interpol */
+.highlight .s1 { color: #032f62; } /* Literal.String.Single */
+.highlight .ss { color: #005cc5; } /* Literal.String.Symbol */
+.highlight .sr { color: #032f62; } /* Literal.String.Regex */

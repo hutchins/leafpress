@@ -1,0 +1,36 @@
+.leafpress-hero {
+  background: var(--md-primary-fg-color);
+  padding: 4rem 1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.leafpress-hero__title {
+  color: var(--md-primary-bg-color);
+  font-size: 3rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.leafpress-hero__tagline {
+  color: var(--md-primary-bg-color--light);
+  font-size: 1.25rem;
+  margin: 0 0 2rem;
+}
+
+.leafpress-hero__buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.leafpress-hero .md-button {
+  color: var(--md-primary-fg-color);
+  background: var(--md-primary-bg-color);
+}
+
+.leafpress-hero .md-button:not(.md-button--primary) {
+  background: transparent;
+  color: var(--md-primary-bg-color);
+  border: 2px solid var(--md-primary-bg-color);
+}

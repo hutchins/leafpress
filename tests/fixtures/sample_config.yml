@@ -1,0 +1,18 @@
+company_name: "Test Corp"
+project_name: "Test Documentation"
+subtitle: "Internal Docs"
+author: "Test Author"
+primary_color: "#336699"
+
+footer:
+  include_tag: true
+  include_date: true
+  include_commit: true
+  custom_text: "Confidential"
+
+pdf:
+  page_size: "A4"
+  margin_top: "25mm"
+  margin_bottom: "25mm"
+  margin_left: "20mm"
+  margin_right: "20mm"

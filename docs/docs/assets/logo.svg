@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Rounded green background -->
+  <rect width="100" height="100" rx="20" fill="#2e7d32"/>
+
+  <!-- Document page -->
+  <rect x="22" y="18" width="42" height="54" rx="5" fill="white"/>
+  <!-- Folded corner -->
+  <path d="M 50 18 L 64 32 H 50 Z" fill="#a5d6a7"/>
+  <!-- Content lines -->
+  <rect x="30" y="40" width="24" height="4" rx="2" fill="#c8e6c9"/>
+  <rect x="30" y="50" width="18" height="4" rx="2" fill="#c8e6c9"/>
+
+  <!-- Leaf overlapping bottom-right of document -->
+  <g transform="translate(52, 42)">
+    <!-- Leaf shape -->
+    <path d="M 0 38 C 0 18, 14 4, 36 0 C 32 8, 26 16, 26 28 C 26 32, 24 36, 20 38 Z"
+          fill="#66bb6a" opacity="0.95"/>
+    <!-- Leaf vein -->
+    <path d="M 2 36 C 10 26, 20 14, 34 2"
+          stroke="white" stroke-width="2" fill="none" opacity="0.6"/>
+    <path d="M 12 36 C 16 28, 22 20, 30 10"
+          stroke="white" stroke-width="1.2" fill="none" opacity="0.4"/>
+    <path d="M 6 28 C 10 24, 16 18, 22 12"
+          stroke="white" stroke-width="1.2" fill="none" opacity="0.4"/>
+  </g>
+</svg>
