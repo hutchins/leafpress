@@ -182,3 +182,22 @@ def test_safe_filename() -> None:
     assert _safe_filename("Hello/World!") == "Hello_World_"
     assert _safe_filename("a-b_c") == "a-b_c"
     assert _safe_filename("  spaced  ") == "spaced"
+
+
+def test_pdf_missing_error_mentions_pdf_extra(
+    sample_mkdocs_config: Path,
+    tmp_output: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Error message must include literal [pdf] so Rich doesn't swallow it."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "leafpress.pdf.renderer", None)
+
+    with pytest.raises(LeafpressError) as exc_info:
+        convert(
+            source=str(sample_mkdocs_config.parent),
+            output_dir=tmp_output,
+            format="pdf",
+        )
+    assert "[pdf]" in str(exc_info.value)

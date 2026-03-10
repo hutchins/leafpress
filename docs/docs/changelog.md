@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 — 2026-03-10
+
+### Fixes
+
+- Fixed `[pdf]` being swallowed by Rich markup in the WeasyPrint missing error message — users now correctly see `pip install 'leafpress[pdf]'`
+
+---
+
 ## 0.2.0 — 2026-03-10
 
 ### Features

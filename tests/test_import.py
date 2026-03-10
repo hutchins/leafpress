@@ -183,7 +183,7 @@ def test_import_result_dataclass() -> None:
 
 # --- Direct markdown converter unit tests ---
 
-from leafpress.importer.markdown_converter import LeafpressMarkdownConverter
+from leafpress.importer.markdown_converter import LeafpressMarkdownConverter  # noqa: E402
 
 
 def _convert_html(html: str) -> str:
@@ -248,7 +248,7 @@ def test_converter_table_uneven_rows() -> None:
     )
     md = _convert_html(html)
     # Should still produce a valid table with 3 columns
-    lines = [l for l in md.split("\n") if l.startswith("|")]
+    lines = [line for line in md.split("\n") if line.startswith("|")]
     assert len(lines) == 3  # header + separator + data row
     # Each line should have 3 pipe-separated cells
     for line in lines:
