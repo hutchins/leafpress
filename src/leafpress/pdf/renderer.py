@@ -100,9 +100,16 @@ class PdfRenderer:
 
     def _wrap_document(self, body: str) -> str:
         """Wrap body content in a full HTML5 document."""
+        watermark_div = ""
+        if self._branding and self._branding.watermark.text:
+            from markupsafe import escape
+
+            watermark_div = (
+                f'<div class="watermark">{escape(self._branding.watermark.text)}</div>'
+            )
         return (
             '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n'
-            f"<body>\n{body}\n</body>\n</html>"
+            f"<body>\n{watermark_div}\n{body}\n</body>\n</html>"
         )
 
     @staticmethod

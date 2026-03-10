@@ -10,7 +10,7 @@ nav:
   - Configuration: configuration.md
   - CLI Reference: cli.md
   - Desktop UI: ui.md
-  - CI / GitHub Actions: ci.md
+  - CI / CD Pipelines: ci.md
   - Output Formats:
     - PDF Output: pdf.md
     - Word Output: docx.md

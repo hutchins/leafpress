@@ -23,4 +23,5 @@ output/
 *.docx
 .DS_Store
 .claude/
+TODO.md
 src/leafpress/output/

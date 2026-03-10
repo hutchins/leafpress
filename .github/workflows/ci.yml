@@ -26,5 +26,5 @@ jobs:
       - name: Lint
         run: uv run ruff check src/
 
-      - name: Test
-        run: uv run pytest tests/ -q
+      - name: Test with coverage
+        run: uv run pytest tests/ --cov --cov-report=term-missing --cov-report=xml -q
