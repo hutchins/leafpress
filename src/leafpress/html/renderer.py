@@ -93,6 +93,16 @@ class HtmlRenderer:
         footer_parts.append("Made with LeafPress")
         footer_text = " &middot; ".join(footer_parts)
 
+        # Build watermark HTML
+        watermark_html = ""
+        if self._branding and self._branding.watermark.text:
+            from markupsafe import escape
+
+            watermark_html = (
+                f'<div class="lp-watermark">'
+                f"{escape(self._branding.watermark.text)}</div>"
+            )
+
         # Render full document
         doc_tmpl = self._jinja.get_template("document.html.j2")
         site_name = (
@@ -108,6 +118,7 @@ class HtmlRenderer:
             sections=Markup("\n".join(sections)),
             footer_text=Markup(footer_text),
             nav_items=html_pages,
+            watermark=Markup(watermark_html),
         )
 
         # Post-process checkboxes

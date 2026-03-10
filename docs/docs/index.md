@@ -40,9 +40,9 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
-<span class="feature-card__icon">:material-github:</span>
-<p class="feature-card__title">CI / GitHub Actions</p>
-<p class="feature-card__desc">Run in pipelines with environment variables and the built-in GitHub Action.</p>
+<span class="feature-card__icon">:material-pipe:</span>
+<p class="feature-card__title">CI / CD Pipelines</p>
+<p class="feature-card__desc">Run in GitHub Actions, GitLab CI, or any pipeline with environment variables.</p>
 </div>
 
 <div class="feature-card" markdown>
@@ -104,8 +104,8 @@ Converting MkDocs site to all formats...
 </a>
 
 <a href="ci/">
-  CI / GitHub Actions
-  <small>Use in pipelines</small>
+  CI / CD Pipelines
+  <small>GitHub Actions, GitLab CI, and more</small>
 </a>
 
 <a href="branding/">

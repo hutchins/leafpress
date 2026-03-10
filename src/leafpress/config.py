@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
@@ -38,6 +39,15 @@ class DocxOptions(BaseModel):
     template_path: Path | None = None
 
 
+class WatermarkConfig(BaseModel):
+    """Watermark overlay configuration."""
+
+    text: str | None = None
+    color: str = "#cccccc"
+    opacity: float = Field(default=0.15, ge=0.0, le=1.0)
+    angle: int = Field(default=-45, ge=-90, le=90)
+
+
 class BrandingConfig(BaseModel):
     """Top-level leafpress branding configuration."""
 
@@ -62,6 +72,7 @@ class BrandingConfig(BaseModel):
     footer: FooterConfig = Field(default_factory=FooterConfig)
     pdf: PdfOptions = Field(default_factory=PdfOptions)
     docx: DocxOptions = Field(default_factory=DocxOptions)
+    watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
 
     @field_validator("primary_color", "accent_color")
     @classmethod
@@ -109,6 +120,11 @@ _FOOTER_BOOL_FIELDS = [
     ("include_branch", "LEAFPRESS_FOOTER_INCLUDE_BRANCH"),
 ]
 
+_WATERMARK_STR_FIELDS = [
+    ("text", "LEAFPRESS_WATERMARK_TEXT"),
+    ("color", "LEAFPRESS_WATERMARK_COLOR"),
+]
+
 
 def _apply_env_overrides(config: BrandingConfig) -> BrandingConfig:
     """Override config fields with LEAFPRESS_* environment variables if set."""
@@ -128,6 +144,21 @@ def _apply_env_overrides(config: BrandingConfig) -> BrandingConfig:
         raw = os.environ.get(env, "").lower()
         if raw in _BOOL_MAP:
             data["footer"][field] = _BOOL_MAP[raw]
+
+    for field, env in _WATERMARK_STR_FIELDS:
+        val = os.environ.get(env)
+        if val:
+            data["watermark"][field] = val
+
+    wm_opacity = os.environ.get("LEAFPRESS_WATERMARK_OPACITY")
+    if wm_opacity:
+        with contextlib.suppress(ValueError):
+            data["watermark"]["opacity"] = float(wm_opacity)
+
+    wm_angle = os.environ.get("LEAFPRESS_WATERMARK_ANGLE")
+    if wm_angle:
+        with contextlib.suppress(ValueError):
+            data["watermark"]["angle"] = int(wm_angle)
 
     return BrandingConfig.model_validate(data)
 
@@ -196,4 +227,10 @@ pdf:
 
 # docx:
 #   template_path: null
+
+# watermark:
+#   text: "DRAFT"          # set to null or remove to disable
+#   color: "#cccccc"
+#   opacity: 0.15           # 0.0 to 1.0
+#   angle: -45              # -90 to 90
 """

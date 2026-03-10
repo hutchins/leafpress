@@ -5,6 +5,30 @@ from __future__ import annotations
 from leafpress.config import BrandingConfig
 
 
+def _watermark_display(branding: BrandingConfig | None) -> str:
+    if branding and branding.watermark.text:
+        return "block"
+    return "none"
+
+
+def _watermark_color(branding: BrandingConfig | None) -> str:
+    if branding and branding.watermark.text:
+        return branding.watermark.color
+    return "#cccccc"
+
+
+def _watermark_opacity(branding: BrandingConfig | None) -> float:
+    if branding and branding.watermark.text:
+        return branding.watermark.opacity
+    return 0.15
+
+
+def _watermark_angle(branding: BrandingConfig | None) -> int:
+    if branding and branding.watermark.text:
+        return branding.watermark.angle
+    return -45
+
+
 def generate_html_css(branding: BrandingConfig | None) -> str:
     """Generate complete CSS for standalone HTML output."""
     primary = branding.primary_color if branding else "#1a73e8"
@@ -275,6 +299,23 @@ summary {{ font-weight: 600; cursor: pointer; }}
 .highlight .s1 {{ color: #032f62; }}
 .highlight .ss {{ color: #005cc5; }}
 .highlight .sr {{ color: #032f62; }}
+
+/* Watermark overlay */
+.lp-watermark {{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate({_watermark_angle(branding)}deg);
+    font-size: 80pt;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-weight: bold;
+    color: {_watermark_color(branding)};
+    opacity: {_watermark_opacity(branding)};
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 9999;
+    display: {_watermark_display(branding)};
+}}
 
 /* Print styles */
 @media print {{
