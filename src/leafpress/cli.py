@@ -17,6 +17,7 @@ from leafpress import __version__
 from leafpress.config import DEFAULT_CONFIG_TEMPLATE
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
+from leafpress.importer.converter import ImportResult
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.source import resolve_source
 
@@ -414,15 +415,15 @@ def ui(
 
 
 @cli.command(name="import")
-def import_docx(
-    docx_file: Path = typer.Argument(
-        help="Path to the .docx file to import.",
+def import_file(
+    files: list[Path] = typer.Argument(
+        help="One or more .docx or .pptx files to import.",
     ),
     output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
-        help="Output .md file path or directory. Defaults to <docx-stem>.md.",
+        help="Output .md file path or directory. Defaults to <stem>.md.",
     ),
     extract_images: bool = typer.Option(
         True,
@@ -432,35 +433,89 @@ def import_docx(
     code_styles: str | None = typer.Option(
         None,
         "--code-styles",
-        help="Comma-separated Word style names to treat as code blocks.",
+        help="Comma-separated Word style names to treat as code blocks (DOCX only).",
+    ),
+    include_notes: bool = typer.Option(
+        True,
+        "--notes/--no-notes",
+        help="Include speaker notes as blockquotes (PPTX only).",
     ),
 ) -> None:
-    """Import a Word document and convert it to Markdown."""
-    try:
+    """Import Word or PowerPoint documents and convert them to Markdown."""
+    # When multiple files are given, -o must be a directory (or omitted)
+    if output and len(files) > 1 and output.suffix:
+        console.print(
+            "\n[bold red]Error:[/bold red] Use a directory for --output "
+            "when importing multiple files."
+        )
+        raise typer.Exit(code=1)
+
+    errors = 0
+    for file in files:
+        try:
+            result = _import_single_file(
+                file,
+                output=output,
+                extract_images=extract_images,
+                code_styles=code_styles,
+                include_notes=include_notes,
+            )
+            console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
+            if result.images:
+                console.print(
+                    f"  [green]Images:[/green] {len(result.images)} extracted to assets/"
+                )
+            if result.warnings:
+                console.print(f"  [yellow]Warnings:[/yellow] {len(result.warnings)}")
+                for w in result.warnings[:5]:
+                    console.print(f"    - {w}")
+
+        except LeafpressError as e:
+            console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
+            errors += 1
+
+    if errors:
+        console.print(f"\n[yellow]{errors} file(s) failed to import.[/yellow]")
+        raise typer.Exit(code=1)
+
+
+def _import_single_file(
+    file: Path,
+    *,
+    output: Path | None,
+    extract_images: bool,
+    code_styles: str | None,
+    include_notes: bool,
+) -> ImportResult:
+    """Import a single .docx or .pptx file and return the result."""
+    suffix = file.suffix.lower()
+
+    if suffix == ".docx":
         from leafpress.importer.converter import import_docx as do_import
 
         style_list = (
-            [s.strip() for s in code_styles.split(",") if s.strip()] if code_styles else None
+            [s.strip() for s in code_styles.split(",") if s.strip()]
+            if code_styles
+            else None
         )
-
-        result = do_import(
-            docx_path=docx_file,
+        return do_import(
+            docx_path=file,
             output_path=output,
             extract_images=extract_images,
             code_styles=style_list,
         )
 
-        console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
-        if result.images:
-            console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
-        if result.warnings:
-            console.print(f"  [yellow]Warnings:[/yellow] {len(result.warnings)}")
-            for w in result.warnings[:5]:
-                console.print(f"    - {w}")
+    if suffix == ".pptx":
+        from leafpress.importer.converter_pptx import import_pptx
 
-    except LeafpressError as e:
-        console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
-        raise typer.Exit(code=1) from e
+        return import_pptx(
+            pptx_path=file,
+            output_path=output,
+            extract_images=extract_images,
+            include_notes=include_notes,
+        )
+
+    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx or .pptx")
 
 
 def _open_file(path: Path) -> None:
