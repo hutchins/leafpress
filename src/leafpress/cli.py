@@ -37,6 +37,7 @@ class OutputFormat(str, Enum):
     html = "html"
     odt = "odt"
     epub = "epub"
+    markdown = "markdown"
     both = "both"
     all = "all"
 
@@ -415,7 +416,7 @@ def ui(
 @cli.command(name="import")
 def import_file(
     files: list[Path] = typer.Argument(
-        help="One or more .docx or .pptx files to import.",
+        help="One or more .docx, .pptx, or .xlsx files to import.",
     ),
     output: Path | None = typer.Option(
         None,
@@ -439,7 +440,7 @@ def import_file(
         help="Include speaker notes as blockquotes (PPTX only).",
     ),
 ) -> None:
-    """Import Word or PowerPoint documents and convert them to Markdown."""
+    """Import Word, PowerPoint, or Excel documents and convert them to Markdown."""
     # When multiple files are given, -o must be a directory (or omitted)
     if output and len(files) > 1 and output.suffix:
         console.print(
@@ -483,7 +484,7 @@ def _import_single_file(
     code_styles: str | None,
     include_notes: bool,
 ) -> ImportResult:
-    """Import a single .docx or .pptx file and return the result."""
+    """Import a single .docx, .pptx, or .xlsx file and return the result."""
     suffix = file.suffix.lower()
 
     if suffix == ".docx":
@@ -509,7 +510,15 @@ def _import_single_file(
             include_notes=include_notes,
         )
 
-    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx or .pptx")
+    if suffix == ".xlsx":
+        from leafpress.importer.converter_xlsx import import_xlsx
+
+        return import_xlsx(
+            xlsx_path=file,
+            output_path=output,
+        )
+
+    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx, .pptx, or .xlsx")
 
 
 def _open_file(path: Path) -> None:

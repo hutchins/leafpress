@@ -253,6 +253,22 @@ def convert(
             generated_files.append(epub_path)
             console.print(f"  [bold green]EPUB:[/bold green] {epub_path}")
 
+        if format in ("markdown", "all"):
+            from leafpress.markdown_export.renderer import MarkdownExportRenderer
+
+            md_export_path = output_dir / f"{safe_name}.md"
+            with console.status("[bold blue]Generating Markdown..."):
+                md_export = MarkdownExportRenderer(branding, git_info, mkdocs_cfg)
+                md_export.render(
+                    html_pages,
+                    md_export_path,
+                    cover_page=cover_page,
+                    include_toc=include_toc,
+                    local_time=local_time,
+                )
+            generated_files.append(md_export_path)
+            console.print(f"  [bold green]Markdown:[/bold green] {md_export_path}")
+
     return generated_files
 
 

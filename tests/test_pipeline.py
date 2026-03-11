@@ -116,9 +116,9 @@ def test_convert_all(
         format="all",
         config_path=sample_branding_config,
     )
-    assert len(result) == 5
+    assert len(result) == 6
     suffixes = {f.suffix for f in result}
-    assert suffixes == {".pdf", ".docx", ".html", ".odt", ".epub"}
+    assert suffixes == {".pdf", ".docx", ".html", ".odt", ".epub", ".md"}
 
 
 def test_convert_without_branding(

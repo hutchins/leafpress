@@ -25,11 +25,13 @@ flowchart TD
     PL --> DOCX["DOCX Renderer"]
     PL --> ODT["ODT Renderer"]
     PL --> EPUB["EPUB Renderer"]
+    PL --> MDE["Markdown Export Renderer"]
     PDF --> OUT["Output Files"]
     HTML --> OUT
     DOCX --> OUT
     ODT --> OUT
     EPUB --> OUT
+    MDE --> OUT
 ```
 
 ## Pipeline Stages
@@ -107,25 +109,29 @@ Each renderer receives `list[tuple[NavItem, str]]` (the nav structure paired wit
 | DOCX | `src/leafpress/docx/renderer.py` | python-docx | HTML parsed via custom `html_converter.py` into docx elements |
 | ODT | `src/leafpress/odt/renderer.py` | odfpy | Programmatic ODF document construction |
 | EPUB | `src/leafpress/epub/renderer.py` | ebooklib | HTML chapters wrapped in EPUB structure |
+| Markdown | `src/leafpress/markdown_export/renderer.py` | — | Reads source `.md` files, concatenates with front matter and TOC |
 
-All renderers support cover pages, tables of contents, branding, and watermarks. PDF and HTML use Jinja2 templates in their respective `templates/` directories; DOCX, ODT, and EPUB build documents programmatically.
+All renderers support cover pages, tables of contents, branding, and watermarks. PDF and HTML use Jinja2 templates in their respective `templates/` directories; DOCX, ODT, and EPUB build documents programmatically. The Markdown export renderer reads source `.md` files directly rather than converting from HTML, preserving the original formatting.
 
 ## Import Pipeline
 
-The `leafpress import` command converts Word (`.docx`) and PowerPoint (`.pptx`) files to Markdown. This is a separate pipeline from the convert flow above.
+The `leafpress import` command converts Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files to Markdown. This is a separate pipeline from the convert flow above.
 
 ```mermaid
 flowchart TD
     CLI["CLI (cli.py)"] --> |"file path + options"| DET["Format Detection"]
     DET --> |".docx"| DOCXI["DOCX Converter (importer/converter.py)"]
     DET --> |".pptx"| PPTXI["PPTX Converter (importer/converter_pptx.py)"]
+    DET --> |".xlsx"| XLSXI["XLSX Converter (importer/converter_xlsx.py)"]
     DOCXI --> MAM["mammoth (HTML → Markdown)"]
     PPTXI --> PPT["python-pptx (slides → Markdown)"]
+    XLSXI --> OPX["openpyxl (sheets → Markdown tables)"]
     MAM --> IMG["Image Handler (importer/image_handler.py)"]
     PPT --> IMG
     IMG --> |"assets/"| OUT["Output .md + images"]
     MAM --> OUT
     PPT --> OUT
+    OPX --> OUT
 ```
 
 ### DOCX Import
@@ -147,6 +153,12 @@ Uses python-pptx to iterate over slides and extract content:
 - **Speaker notes** are included as blockquotes (toggleable via `--notes/--no-notes`)
 - **Group shapes** are recursed into for nested content
 
+### XLSX Import
+
+**Module:** `src/leafpress/importer/converter_xlsx.py`
+
+Uses openpyxl to read Excel workbooks in data-only mode (computed values, not formulas). Each worksheet becomes a `## Sheet Name` section with a pipe-style Markdown table. The first row is treated as the header. Empty sheets are skipped. No image extraction is needed.
+
 ### Image Handler
 
 **Module:** `src/leafpress/importer/image_handler.py`
@@ -160,12 +172,12 @@ Shared by both importers. `ImageHandler` manages an output directory for extract
 | **CLI** | `cli.py` | Command definitions, argument parsing, progress display |
 | **Orchestration** | `pipeline.py` | Coordinates all stages of conversion |
 | **Input** | `source.py`, `project.py` | Source resolution, project auto-detection |
-| **Import** | `importer/converter.py`, `importer/converter_pptx.py`, `importer/image_handler.py` | DOCX/PPTX to Markdown conversion |
+| **Import** | `importer/converter.py`, `importer/converter_pptx.py`, `importer/converter_xlsx.py`, `importer/image_handler.py` | DOCX/PPTX/XLSX to Markdown conversion |
 | **Config** | `config.py`, `exceptions.py` | Branding schema, validation, env overrides |
 | **Parsing** | `mkdocs_parser.py` | MkDocs config and nav parsing |
 | **Rendering** | `markdown_renderer.py` | Markdown-to-HTML conversion |
 | **Post-processing** | `mermaid.py`, `annotations.py` | Diagram and annotation transforms |
-| **Output** | `pdf/`, `html/`, `docx/`, `odt/`, `epub/` | Format-specific renderers and templates |
+| **Output** | `pdf/`, `html/`, `docx/`, `odt/`, `epub/`, `markdown_export/` | Format-specific renderers and templates |
 | **Metadata** | `git_info.py` | Git version extraction |
 | **Diagnostics** | `doctor.py` | Environment health checks |
 
@@ -224,6 +236,7 @@ LeafPress is built on top of excellent open-source libraries. Here's what powers
 | [mammoth](https://github.com/mwilliamson/python-mammoth) | Word (.docx) to HTML conversion with semantic style mapping | [GitHub](https://github.com/mwilliamson/python-mammoth) · [PyPI](https://pypi.org/project/mammoth/) |
 | [markdownify](https://github.com/matthewwithanm/python-markdownify) | HTML-to-Markdown conversion for the DOCX import pipeline | [GitHub](https://github.com/matthewwithanm/python-markdownify) · [PyPI](https://pypi.org/project/markdownify/) |
 | [python-pptx](https://python-pptx.readthedocs.io/) | PowerPoint (.pptx) slide parsing and content extraction | [GitHub](https://github.com/scanny/python-pptx) · [Docs](https://python-pptx.readthedocs.io/) |
+| [openpyxl](https://openpyxl.readthedocs.io/) | Excel (.xlsx) workbook reading and cell extraction | [GitHub](https://github.com/theorchard/openpyxl) · [Docs](https://openpyxl.readthedocs.io/) |
 
 ### Other
 

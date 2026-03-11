@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import markdown
+from markupsafe import Markup
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,26 @@ PYMDOWNX_EXTENSIONS = {
     "pymdownx.magiclink",
     "pymdownx.snippets",
     "pymdownx.striphtml",
+}
+
+
+def _mermaid_fence_format(
+    source: str,
+    language: str,
+    css_class: str,
+    options: dict[str, Any],
+    md: markdown.Markdown,
+    **kwargs: Any,
+) -> str:
+    """Custom fence formatter that preserves mermaid class for later rendering."""
+    return f'<pre class="mermaid"><code>{Markup.escape(source)}</code></pre>'
+
+
+# Superfences config to route mermaid blocks through our custom formatter
+_SUPERFENCES_CONFIG = {
+    "custom_fences": [
+        {"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format}
+    ]
 }
 
 
@@ -120,9 +141,23 @@ class MarkdownRenderer:
             except Exception:
                 logger.warning("Skipping unavailable extension: %s", ext)
 
+        # Ensure superfences routes mermaid blocks through our callable formatter.
+        # MkDocs configs often use !!python/name: YAML tags for the format function
+        # which safe_load cannot resolve, leaving a raw string instead of a callable.
+        # We always replace/inject our own mermaid fence with a real function.
+        configs = dict(self._extension_configs)
+        sf_cfg = configs.setdefault("pymdownx.superfences", {})
+        fences = sf_cfg.get("custom_fences", [])
+        fences = [f for f in fences if f.get("name") != "mermaid"]
+        fences.append(
+            {"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format}
+        )
+        sf_cfg["custom_fences"] = fences
+        configs["pymdownx.superfences"] = sf_cfg
+
         return markdown.Markdown(
             extensions=valid_extensions,
-            extension_configs=self._extension_configs,
+            extension_configs=configs,
             output_format="html",
         )
 

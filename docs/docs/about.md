@@ -2,13 +2,15 @@
 
 ## What is LeafPress?
 
-LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, and ODT files — complete with cover pages, tables of contents, version info, and your organization's branding.
+LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, ODT, EPUB, and consolidated Markdown files — complete with cover pages, tables of contents, version info, and your organization's branding.
 
 ## Why LeafPress?
 
 Documentation teams often need to deliver polished documents alongside their web-based docs. Proposals, compliance reports, client deliverables, and internal handbooks all benefit from a formatted, downloadable document. LeafPress bridges this gap by turning MkDocs projects into print-ready output without leaving the tools you already use.
 
-LeafPress also helps teams move their documentation into source control. Many organizations have years of knowledge locked in Word documents and PowerPoint decks scattered across shared drives and email threads. The `leafpress import` command converts these files to Markdown — preserving headings, tables, images, and formatting — so teams can bring existing content into an MkDocs project and manage it alongside their code. Once in Markdown, documentation benefits from version history, pull request reviews, and automated publishing.
+LeafPress also helps teams move their documentation into source control. Many organizations have years of knowledge locked in Word documents, PowerPoint decks, and Excel spreadsheets scattered across shared drives and email threads. The `leafpress import` command converts these files to Markdown — preserving headings, tables, images, and formatting — so teams can bring existing content into an MkDocs project and manage it alongside their code. Once in Markdown, documentation benefits from version history, pull request reviews, and automated publishing.
+
+The consolidated Markdown export (`-f markdown`) goes the other direction — combining an entire MkDocs site into a single `.md` file. This is especially useful for feeding documentation to large language models as context, pasting into wikis or knowledge bases, or sharing a lightweight snapshot of your docs without requiring a browser or PDF viewer.
 
 ## Key Principles
 
