@@ -23,9 +23,7 @@ def _make_mkdocs_project(root: Path, site_name: str, pages: dict[str, str]) -> P
 
     nav_entries = "\n".join(f'    - "{title}": {fname}' for fname, title in pages.items())
     (root / "mkdocs.yml").write_text(
-        f"site_name: {site_name}\n"
-        f"docs_dir: docs\n"
-        f"nav:\n{nav_entries}\n"
+        f"site_name: {site_name}\ndocs_dir: docs\nnav:\n{nav_entries}\n"
     )
 
     for fname, _title in pages.items():
@@ -68,7 +66,11 @@ def test_monorepo_collects_pages_from_all_projects(monorepo: Path) -> None:
         ProjectEntry(path="services/frontend"),
     ]
     pages, count = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
     )
     assert count == 4  # 2 pages per project
     # Check that content from both projects is present
@@ -88,7 +90,11 @@ def test_monorepo_chapter_headings_inserted(monorepo: Path) -> None:
         ProjectEntry(path="services/frontend"),
     ]
     pages, _ = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
     )
     headings = [item.title for item, _ in pages if item.path is None and item.title]
     assert "API Service" in headings
@@ -101,7 +107,11 @@ def test_monorepo_nav_levels_bumped(monorepo: Path) -> None:
 
     projects = [ProjectEntry(path="services/api")]
     pages, _ = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
     )
     content_pages = [(item, html) for item, html in pages if item.path is not None]
     assert all(item.level >= 1 for item, _ in content_pages)
@@ -116,7 +126,11 @@ def test_monorepo_page_order_preserved(monorepo: Path) -> None:
         ProjectEntry(path="services/frontend"),
     ]
     pages, _ = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
     )
     titles = [item.title for item, _ in pages if item.path is None and item.title]
     assert titles.index("API Service") < titles.index("Frontend App")
@@ -131,7 +145,11 @@ def test_monorepo_per_project_author(monorepo: Path) -> None:
         ProjectEntry(path="services/frontend", author="Frontend Team"),
     ]
     pages, _ = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
     )
     meta_htmls = [html for _, html in pages if html and "Author:" in html]
     assert any("API Team" in h for h in meta_htmls)
@@ -145,7 +163,11 @@ def test_monorepo_inherits_top_level_metadata(monorepo: Path) -> None:
     projects = [ProjectEntry(path="services/api")]
     branding = _branding(author="Global Author")
     pages, _ = _collect_monorepo_pages(
-        projects, monorepo, monorepo / "mermaid", branding, Console(quiet=True),
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        branding,
+        Console(quiet=True),
     )
     meta_htmls = [html for _, html in pages if html and "Author:" in html]
     assert any("Global Author" in h for h in meta_htmls)
@@ -158,7 +180,11 @@ def test_monorepo_missing_project_dir_raises(tmp_path: Path) -> None:
     projects = [ProjectEntry(path="nonexistent")]
     with pytest.raises(SourceError, match="not found"):
         _collect_monorepo_pages(
-            projects, tmp_path, tmp_path / "mermaid", _branding(), Console(quiet=True),
+            projects,
+            tmp_path,
+            tmp_path / "mermaid",
+            _branding(),
+            Console(quiet=True),
         )
 
 
@@ -170,7 +196,11 @@ def test_monorepo_missing_mkdocs_raises(tmp_path: Path) -> None:
     projects = [ProjectEntry(path="empty_project")]
     with pytest.raises(Exception, match="mkdocs"):
         _collect_monorepo_pages(
-            projects, tmp_path, tmp_path / "mermaid", _branding(), Console(quiet=True),
+            projects,
+            tmp_path,
+            tmp_path / "mermaid",
+            _branding(),
+            Console(quiet=True),
         )
 
 
@@ -306,7 +336,11 @@ def test_monorepo_url_project_cloned(monorepo: Path) -> None:
 
     with patch("leafpress.pipeline.resolve_source", side_effect=mock_resolve):
         pages, count = _collect_monorepo_pages(
-            projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+            projects,
+            monorepo,
+            monorepo / "mermaid",
+            _branding(),
+            Console(quiet=True),
         )
 
     assert count == 2  # api project has 2 pages
@@ -330,7 +364,11 @@ def test_monorepo_mixed_path_and_url(monorepo: Path) -> None:
 
     with patch("leafpress.pipeline.resolve_source", side_effect=mock_resolve):
         pages, count = _collect_monorepo_pages(
-            projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+            projects,
+            monorepo,
+            monorepo / "mermaid",
+            _branding(),
+            Console(quiet=True),
         )
 
     assert count == 4  # 2 from local api + 2 from "remote" frontend
@@ -357,7 +395,11 @@ def test_monorepo_url_passes_branch(monorepo: Path) -> None:
 
     with patch("leafpress.pipeline.resolve_source", side_effect=mock_resolve):
         _collect_monorepo_pages(
-            projects, monorepo, monorepo / "mermaid", _branding(), Console(quiet=True),
+            projects,
+            monorepo,
+            monorepo / "mermaid",
+            _branding(),
+            Console(quiet=True),
         )
 
     assert captured_args[0] == ("https://github.com/org/repo", "develop")

@@ -46,10 +46,7 @@ class TestWatermarkConfig:
     def test_watermark_env_override_text(self, tmp_path: Path) -> None:
         """LEAFPRESS_WATERMARK_TEXT env var overrides config."""
         config_file = tmp_path / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\n")
         with patch.dict(os.environ, {"LEAFPRESS_WATERMARK_TEXT": "CONFIDENTIAL"}):
             cfg = load_config(config_file)
         assert cfg.watermark.text == "CONFIDENTIAL"
@@ -57,10 +54,7 @@ class TestWatermarkConfig:
     def test_watermark_env_override_color(self, tmp_path: Path) -> None:
         """LEAFPRESS_WATERMARK_COLOR env var overrides config."""
         config_file = tmp_path / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\n")
         with patch.dict(os.environ, {"LEAFPRESS_WATERMARK_COLOR": "#aabbcc"}):
             cfg = load_config(config_file)
         assert cfg.watermark.color == "#aabbcc"
@@ -68,10 +62,7 @@ class TestWatermarkConfig:
     def test_watermark_env_override_opacity(self, tmp_path: Path) -> None:
         """LEAFPRESS_WATERMARK_OPACITY env var overrides config."""
         config_file = tmp_path / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\n")
         with patch.dict(os.environ, {"LEAFPRESS_WATERMARK_OPACITY": "0.5"}):
             cfg = load_config(config_file)
         assert cfg.watermark.opacity == 0.5
@@ -79,10 +70,7 @@ class TestWatermarkConfig:
     def test_watermark_env_override_angle(self, tmp_path: Path) -> None:
         """LEAFPRESS_WATERMARK_ANGLE env var overrides config."""
         config_file = tmp_path / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\n")
         with patch.dict(os.environ, {"LEAFPRESS_WATERMARK_ANGLE": "-60"}):
             cfg = load_config(config_file)
         assert cfg.watermark.angle == -60
@@ -90,10 +78,7 @@ class TestWatermarkConfig:
     def test_watermark_invalid_opacity_ignored(self, tmp_path: Path) -> None:
         """Invalid LEAFPRESS_WATERMARK_OPACITY is silently ignored."""
         config_file = tmp_path / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\n")
         with patch.dict(os.environ, {"LEAFPRESS_WATERMARK_OPACITY": "not_a_number"}):
             cfg = load_config(config_file)
         assert cfg.watermark.opacity == 0.15  # default

@@ -126,9 +126,7 @@ class TestFetchUrl:
 
         assert result == dest
         assert dest.read_bytes() == b"PNG_DATA"
-        mock_get.assert_called_once_with(
-            "https://example.com/diagram.png", stream=True, timeout=30
-        )
+        mock_get.assert_called_once_with("https://example.com/diagram.png", stream=True, timeout=30)
 
     @patch("leafpress.diagrams.requests.get")
     def test_http_error(self, mock_get: MagicMock, tmp_path: Path) -> None:
@@ -221,9 +219,7 @@ class TestFetchDiagrams:
         mock_fetch.assert_not_called()
 
     @patch("leafpress.diagrams.fetch_url")
-    def test_refresh_overrides_cache(
-        self, mock_fetch: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_refresh_overrides_cache(self, mock_fetch: MagicMock, tmp_path: Path) -> None:
         dest = tmp_path / "img.svg"
         dest.write_bytes(b"cached")
         mock_fetch.return_value = dest
@@ -240,9 +236,7 @@ class TestFetchDiagrams:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("LEAFPRESS_LUCIDCHART_TOKEN", raising=False)
-        cfg = DiagramsConfig(
-            sources=[DiagramSource(lucidchart="doc1", dest="d.png")]
-        )
+        cfg = DiagramsConfig(sources=[DiagramSource(lucidchart="doc1", dest="d.png")])
         with pytest.raises(DiagramError, match="token required"):
             fetch_diagrams(cfg, tmp_path, refresh=True)
 
@@ -257,17 +251,13 @@ class TestFetchDiagrams:
         dest = tmp_path / "d.png"
         mock_fetch.return_value = dest
 
-        cfg = DiagramsConfig(
-            sources=[DiagramSource(lucidchart="doc1", dest="d.png")]
-        )
+        cfg = DiagramsConfig(sources=[DiagramSource(lucidchart="doc1", dest="d.png")])
         result = fetch_diagrams(cfg, tmp_path, refresh=True)
 
         assert len(result) == 1
         mock_fetch.assert_called_once_with("doc1", dest, "envtok", 1)
 
     def test_no_source_type_skipped(self, tmp_path: Path) -> None:
-        cfg = DiagramsConfig(
-            sources=[DiagramSource(dest="orphan.png")]
-        )
+        cfg = DiagramsConfig(sources=[DiagramSource(dest="orphan.png")])
         result = fetch_diagrams(cfg, tmp_path, refresh=True)
         assert result == []

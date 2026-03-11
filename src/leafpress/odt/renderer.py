@@ -119,9 +119,7 @@ class OdtRenderer:
 
         # Normal text
         normal = Style(name="Normal", family="paragraph")
-        normal.addElement(
-            TextProperties(fontsize="10pt", fontname="Liberation Sans")
-        )
+        normal.addElement(TextProperties(fontsize="10pt", fontname="Liberation Sans"))
         normal.addElement(ParagraphProperties(marginbottom="6pt"))
         doc.styles.addElement(normal)
 
@@ -165,16 +163,12 @@ class OdtRenderer:
 
         # Link
         link_style = Style(name="Link", family="text")
-        link_style.addElement(
-            TextProperties(color=primary, textunderlinestyle="solid")
-        )
+        link_style.addElement(TextProperties(color=primary, textunderlinestyle="solid"))
         doc.styles.addElement(link_style)
 
         # Cover styles
         cover_title = Style(name="CoverTitle", family="paragraph")
-        cover_title.addElement(
-            TextProperties(fontsize="28pt", fontweight="bold", color=primary)
-        )
+        cover_title.addElement(TextProperties(fontsize="28pt", fontweight="bold", color=primary))
         cover_title.addElement(
             ParagraphProperties(textalign="center", margintop="40pt", marginbottom="12pt")
         )
@@ -269,9 +263,7 @@ class OdtRenderer:
             doc.text.addElement(p)
 
         # Title
-        project = (
-            self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
-        )
+        project = self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
         title_p = P(stylename="CoverTitle")
         title_p.addText(project)
         doc.text.addElement(title_p)
@@ -511,9 +503,7 @@ class OdtRenderer:
                 fontstyle="normal",
             )
         )
-        wm_style.addElement(
-            ParagraphProperties(textalign="center", margintop="200pt")
-        )
+        wm_style.addElement(ParagraphProperties(textalign="center", margintop="200pt"))
         doc.styles.addElement(wm_style)
 
         # Insert watermark text at the very beginning of the document

@@ -364,9 +364,7 @@ def fetch_diagrams_cmd(
         raise typer.Exit()
 
     try:
-        console.print(
-            f"[bold]Fetching {len(branding.diagrams.sources)} diagram(s)...[/bold]\n"
-        )
+        console.print(f"[bold]Fetching {len(branding.diagrams.sources)} diagram(s)...[/bold]\n")
         fetched = _diagrams_mod.fetch_diagrams(
             branding.diagrams,
             config.parent.resolve(),
@@ -462,9 +460,7 @@ def import_file(
             )
             console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
             if result.images:
-                console.print(
-                    f"  [green]Images:[/green] {len(result.images)} extracted to assets/"
-                )
+                console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
             if result.warnings:
                 console.print(f"  [yellow]Warnings:[/yellow] {len(result.warnings)}")
                 for w in result.warnings[:5]:
@@ -494,9 +490,7 @@ def _import_single_file(
         from leafpress.importer.converter import import_docx as do_import
 
         style_list = (
-            [s.strip() for s in code_styles.split(",") if s.strip()]
-            if code_styles
-            else None
+            [s.strip() for s in code_styles.split(",") if s.strip()] if code_styles else None
         )
         return do_import(
             docx_path=file,

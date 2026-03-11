@@ -274,9 +274,7 @@ def _extras_line(report: DoctorReport) -> str:
     return "Extras: " + "  ".join(parts)
 
 
-def print_report(
-    report: DoctorReport, console: Console, *, debug: bool = False
-) -> None:
+def print_report(report: DoctorReport, console: Console, *, debug: bool = False) -> None:
     """Render a DoctorReport to the console with Rich formatting."""
     # Header
     console.print(

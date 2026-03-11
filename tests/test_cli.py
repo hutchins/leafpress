@@ -54,9 +54,14 @@ def test_convert_with_watermark(sample_mkdocs_dir: Path, tmp_output: Path) -> No
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
-            "--watermark", "DRAFT",
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
+            "--watermark",
+            "DRAFT",
         ],
     )
     assert result.exit_code == 0
@@ -66,8 +71,12 @@ def test_convert_with_local_time(sample_mkdocs_dir: Path, tmp_output: Path) -> N
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
             "--local-time",
         ],
     )
@@ -78,9 +87,14 @@ def test_convert_no_cover_no_toc(sample_mkdocs_dir: Path, tmp_output: Path) -> N
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
-            "--no-cover-page", "--no-toc",
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
+            "--no-cover-page",
+            "--no-toc",
         ],
     )
     assert result.exit_code == 0
@@ -143,9 +157,7 @@ def test_import_multiple_output_file_rejected(tmp_path: Path) -> None:
     f1 = _make_docx(tmp_path / "a.docx")
     f2 = _make_docx(tmp_path / "b.docx")
 
-    result = runner.invoke(
-        cli, ["import", str(f1), str(f2), "-o", str(tmp_path / "single.md")]
-    )
+    result = runner.invoke(cli, ["import", str(f1), str(f2), "-o", str(tmp_path / "single.md")])
     assert result.exit_code == 1
     assert "directory" in result.output.lower()
 

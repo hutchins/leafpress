@@ -102,9 +102,7 @@ def convert(
                 f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}"
             )
             if branding.watermark.text:
-                console.print(
-                    f"  [green]Watermark:[/green] \"{branding.watermark.text}\""
-                )
+                console.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
 
         # Extract git info
         git_info = extract_git_info(project_dir)
@@ -118,11 +116,14 @@ def convert(
         if branding and branding.projects:
             config_dir = (config_path or project_dir).parent if config_path else project_dir
             html_pages, page_count = _collect_monorepo_pages(
-                branding.projects, config_dir, mermaid_dir, branding, console,
+                branding.projects,
+                config_dir,
+                mermaid_dir,
+                branding,
+                console,
             )
             console.print(
-                f"  [green]Projects:[/green] {len(branding.projects)} "
-                f"({page_count} documents)\n"
+                f"  [green]Projects:[/green] {len(branding.projects)} ({page_count} documents)\n"
             )
         else:
             # Single-project mode (unchanged)
@@ -290,25 +291,19 @@ def _collect_monorepo_pages(
         for entry in projects:
             # Resolve project directory (local path or git clone)
             if entry.url:
-                resolved = stack.enter_context(
-                    resolve_source(entry.url, entry.branch)
-                )
+                resolved = stack.enter_context(resolve_source(entry.url, entry.branch))
                 project_dir = resolved
                 source_label = entry.url
             else:
                 project_dir = (config_dir / entry.path).resolve()
                 if not project_dir.is_dir():
-                    raise SourceError(
-                        f"Monorepo project directory not found: {project_dir}"
-                    )
+                    raise SourceError(f"Monorepo project directory not found: {project_dir}")
                 source_label = entry.path
 
             mkdocs_file = _find_mkdocs_config(project_dir)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
 
-            con.print(
-                f"  [green]Chapter:[/green] {mkdocs_cfg.site_name} ({source_label})"
-            )
+            con.print(f"  [green]Chapter:[/green] {mkdocs_cfg.site_name} ({source_label})")
 
             # Chapter heading
             chapter = NavItem(title=mkdocs_cfg.site_name, path=None, level=0)
@@ -335,9 +330,7 @@ def _collect_monorepo_pages(
                     continue
                 md_file = mkdocs_cfg.docs_dir / item.path
                 if not md_file.exists():
-                    con.print(
-                        f"  [yellow]Warning:[/yellow] File not found: {item.path}"
-                    )
+                    con.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}")
                     continue
                 md_content = md_file.read_text(encoding="utf-8")
                 html = renderer.render(md_content, md_file)

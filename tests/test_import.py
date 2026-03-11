@@ -224,12 +224,7 @@ def test_converter_fenced_code_non_language_class() -> None:
 
 def test_converter_pipe_table() -> None:
     """<table> converts to pipe-style markdown table."""
-    html = (
-        "<table>"
-        "<tr><th>A</th><th>B</th></tr>"
-        "<tr><td>1</td><td>2</td></tr>"
-        "</table>"
-    )
+    html = "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
     md = _convert_html(html)
     assert "| A" in md
     assert "| B" in md
@@ -240,12 +235,7 @@ def test_converter_pipe_table() -> None:
 
 def test_converter_table_uneven_rows() -> None:
     """Table with uneven row lengths pads shorter rows."""
-    html = (
-        "<table>"
-        "<tr><th>A</th><th>B</th><th>C</th></tr>"
-        "<tr><td>1</td><td>2</td></tr>"
-        "</table>"
-    )
+    html = "<table><tr><th>A</th><th>B</th><th>C</th></tr><tr><td>1</td><td>2</td></tr></table>"
     md = _convert_html(html)
     # Should still produce a valid table with 3 columns
     lines = [line for line in md.split("\n") if line.startswith("|")]

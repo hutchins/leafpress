@@ -268,9 +268,7 @@ class TestCibutlerDocx:
         renderer.render(cibutler_html_pages, docx_path, cover_page=False, include_toc=False)
 
         doc = Document(str(docx_path))
-        heading_texts = [
-            p.text for p in doc.paragraphs if p.style.name.startswith("Heading")
-        ]
+        heading_texts = [p.text for p in doc.paragraphs if p.style.name.startswith("Heading")]
         assert len(heading_texts) > 0
 
     def test_docx_content_has_tables(

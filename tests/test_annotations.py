@@ -23,9 +23,7 @@ def _soup(html: str) -> BeautifulSoup:
 
 def test_find_annotate_paragraph_with_ol() -> None:
     """Finds a <p class="annotate"> followed by an <ol>."""
-    soup = _soup(
-        '<p class="annotate">Text (1)</p><ol><li>Note</li></ol>'
-    )
+    soup = _soup('<p class="annotate">Text (1)</p><ol><li>Note</li></ol>')
     pairs = _find_annotate_blocks(soup)
     assert len(pairs) == 1
     assert pairs[0][0].name == "p"
@@ -41,9 +39,7 @@ def test_find_annotate_ignores_without_ol() -> None:
 
 def test_find_annotate_div() -> None:
     """Finds a <div class="annotate"> followed by an <ol>."""
-    soup = _soup(
-        '<div class="annotate"><p>Text (1)</p></div><ol><li>Note</li></ol>'
-    )
+    soup = _soup('<div class="annotate"><p>Text (1)</p></div><ol><li>Note</li></ol>')
     pairs = _find_annotate_blocks(soup)
     assert len(pairs) == 1
     assert pairs[0][0].name == "div"
@@ -61,18 +57,14 @@ def test_find_multiple_annotate_blocks() -> None:
 
 def test_find_annotate_with_extra_classes() -> None:
     """Finds element with 'annotate' among multiple classes."""
-    soup = _soup(
-        '<p class="custom annotate">Text (1)</p><ol><li>Note</li></ol>'
-    )
+    soup = _soup('<p class="custom annotate">Text (1)</p><ol><li>Note</li></ol>')
     pairs = _find_annotate_blocks(soup)
     assert len(pairs) == 1
 
 
 def test_find_annotate_skips_whitespace_siblings() -> None:
     """Finds <ol> even with whitespace text nodes between."""
-    soup = _soup(
-        '<p class="annotate">Text (1)</p>\n<ol><li>Note</li></ol>'
-    )
+    soup = _soup('<p class="annotate">Text (1)</p>\n<ol><li>Note</li></ol>')
     pairs = _find_annotate_blocks(soup)
     assert len(pairs) == 1
 
@@ -154,9 +146,7 @@ def test_build_basic_annotation_block() -> None:
 
 def test_build_annotation_with_emoji_img() -> None:
     """Preserves <img class="twemoji"> inside annotation items."""
-    soup = _soup(
-        '<ol><li><img class="twemoji" alt="👋"> Hello</li></ol>'
-    )
+    soup = _soup('<ol><li><img class="twemoji" alt="👋"> Hello</li></ol>')
     ol = soup.find("ol")
     block = _build_annotation_block(ol, soup)
     item = block.find("p", class_="annotation-item")
@@ -167,9 +157,7 @@ def test_build_annotation_with_emoji_img() -> None:
 
 def test_build_annotation_with_inline_formatting() -> None:
     """Preserves bold/code inside annotation items."""
-    soup = _soup(
-        "<ol><li><strong>Important</strong> note with <code>code</code></li></ol>"
-    )
+    soup = _soup("<ol><li><strong>Important</strong> note with <code>code</code></li></ol>")
     ol = soup.find("ol")
     block = _build_annotation_block(ol, soup)
     item = block.find("p", class_="annotation-item")
@@ -217,10 +205,7 @@ def test_annotate_without_ol_left_unchanged() -> None:
 
 def test_annotate_preserves_other_classes() -> None:
     """Other CSS classes on the element are preserved after processing."""
-    html = (
-        '<p class="custom annotate extra">Text (1)</p>'
-        "<ol><li>Note</li></ol>"
-    )
+    html = '<p class="custom annotate extra">Text (1)</p><ol><li>Note</li></ol>'
     result = render_annotations(html)
     soup = _soup(result)
     p = soup.find("p")

@@ -82,9 +82,7 @@ def test_convert_ordered_list(tmp_path: Path) -> None:
 
 def test_convert_table(tmp_path: Path) -> None:
     doc, converter = _make_converter(tmp_path)
-    converter.convert(
-        "<table><tr><th>Header</th></tr><tr><td>Cell</td></tr></table>"
-    )
+    converter.convert("<table><tr><th>Header</th></tr><tr><td>Cell</td></tr></table>")
     assert len(doc.tables) == 1
     table = doc.tables[0]
     assert table.cell(0, 0).text == "Header"
@@ -114,10 +112,7 @@ def test_convert_horizontal_rule(tmp_path: Path) -> None:
 def test_convert_admonition(tmp_path: Path) -> None:
     doc, converter = _make_converter(tmp_path)
     converter.convert(
-        '<div class="admonition note">'
-        '<p class="admonition-title">Note</p>'
-        "<p>Content here</p>"
-        "</div>"
+        '<div class="admonition note"><p class="admonition-title">Note</p><p>Content here</p></div>'
     )
     texts = [p.text for p in doc.paragraphs]
     assert "Note" in texts
@@ -134,9 +129,7 @@ def test_convert_definition_list(tmp_path: Path) -> None:
 
 def test_convert_details(tmp_path: Path) -> None:
     doc, converter = _make_converter(tmp_path)
-    converter.convert(
-        "<details><summary>More info</summary><p>Details here</p></details>"
-    )
+    converter.convert("<details><summary>More info</summary><p>Details here</p></details>")
     texts = [p.text for p in doc.paragraphs]
     assert "More info" in texts
 
@@ -311,11 +304,7 @@ def test_convert_task_list_checked(tmp_path: Path) -> None:
     """Task list with checked item renders checkbox symbol."""
     doc, converter = _make_converter(tmp_path)
     converter.convert(
-        '<ul>'
-        '<li class="task-list-item">'
-        '<input type="checkbox" checked> Done task'
-        '</li>'
-        '</ul>'
+        '<ul><li class="task-list-item"><input type="checkbox" checked> Done task</li></ul>'
     )
     full_text = " ".join(p.text for p in doc.paragraphs)
     assert "\u2611" in full_text  # ☑
@@ -325,11 +314,7 @@ def test_convert_task_list_unchecked(tmp_path: Path) -> None:
     """Task list with unchecked item renders empty checkbox symbol."""
     doc, converter = _make_converter(tmp_path)
     converter.convert(
-        '<ul>'
-        '<li class="task-list-item">'
-        '<input type="checkbox"> Pending task'
-        '</li>'
-        '</ul>'
+        '<ul><li class="task-list-item"><input type="checkbox"> Pending task</li></ul>'
     )
     full_text = " ".join(p.text for p in doc.paragraphs)
     assert "\u2610" in full_text  # ☐
@@ -339,11 +324,7 @@ def test_convert_task_list_skips_label_and_input(tmp_path: Path) -> None:
     """Task list items skip label and input elements in inline content."""
     doc, converter = _make_converter(tmp_path)
     converter.convert(
-        '<ul>'
-        '<li class="task-list-item">'
-        '<label><input type="checkbox"> My task</label>'
-        '</li>'
-        '</ul>'
+        '<ul><li class="task-list-item"><label><input type="checkbox"> My task</label></li></ul>'
     )
     para = doc.paragraphs[0]
     # The checkbox symbol should appear, and label/input should not duplicate
@@ -353,13 +334,7 @@ def test_convert_task_list_skips_label_and_input(tmp_path: Path) -> None:
 def test_convert_nested_list(tmp_path: Path) -> None:
     """Nested lists are rendered with increased indent level."""
     doc, converter = _make_converter(tmp_path)
-    converter.convert(
-        '<ul>'
-        '<li>Parent'
-        '  <ul><li>Child</li></ul>'
-        '</li>'
-        '</ul>'
-    )
+    converter.convert("<ul><li>Parent  <ul><li>Child</li></ul></li></ul>")
     texts = [p.text.strip() for p in doc.paragraphs]
     assert "Parent" in texts
     assert "Child" in texts

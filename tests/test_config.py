@@ -105,9 +105,7 @@ def test_env_override_invalid_color_raises(monkeypatch: pytest.MonkeyPatch) -> N
 def test_document_owner_from_yaml(tmp_path: Path) -> None:
     """document_owner is loaded from YAML config."""
     cfg = tmp_path / "leafpress.yml"
-    cfg.write_text(
-        'company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "Jane Smith"\n'
-    )
+    cfg.write_text('company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "Jane Smith"\n')
     config = load_config(cfg)
     assert config.document_owner == "Jane Smith"
 
@@ -122,14 +120,10 @@ def test_document_owner_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.document_owner == "Env Owner"
 
 
-def test_document_owner_env_overrides_yaml(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_document_owner_env_overrides_yaml(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Env var takes precedence over YAML value."""
     cfg = tmp_path / "leafpress.yml"
-    cfg.write_text(
-        'company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "YAML Owner"\n'
-    )
+    cfg.write_text('company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "YAML Owner"\n')
     monkeypatch.setenv("LEAFPRESS_DOCUMENT_OWNER", "Env Owner")
     config = load_config(cfg)
     assert config.document_owner == "Env Owner"
@@ -141,9 +135,7 @@ def test_document_owner_env_overrides_yaml(
 def test_review_cycle_from_yaml(tmp_path: Path) -> None:
     """review_cycle is loaded from YAML config."""
     cfg = tmp_path / "leafpress.yml"
-    cfg.write_text(
-        'company_name: "Test"\nproject_name: "Docs"\nreview_cycle: "Quarterly"\n'
-    )
+    cfg.write_text('company_name: "Test"\nproject_name: "Docs"\nreview_cycle: "Quarterly"\n')
     config = load_config(cfg)
     assert config.review_cycle == "Quarterly"
 
@@ -158,14 +150,10 @@ def test_review_cycle_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.review_cycle == "Annual"
 
 
-def test_review_cycle_env_overrides_yaml(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_review_cycle_env_overrides_yaml(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Env var takes precedence over YAML value."""
     cfg = tmp_path / "leafpress.yml"
-    cfg.write_text(
-        'company_name: "Test"\nproject_name: "Docs"\nreview_cycle: "Quarterly"\n'
-    )
+    cfg.write_text('company_name: "Test"\nproject_name: "Docs"\nreview_cycle: "Quarterly"\n')
     monkeypatch.setenv("LEAFPRESS_REVIEW_CYCLE", "Annual")
     config = load_config(cfg)
     assert config.review_cycle == "Annual"
@@ -174,9 +162,7 @@ def test_review_cycle_env_overrides_yaml(
 # --- .env file loading tests ---
 
 
-def test_dotenv_loads_config_values(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dotenv_loads_config_values(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A .env file populates LEAFPRESS_* env vars for config_from_env()."""
     monkeypatch.delenv("LEAFPRESS_COMPANY_NAME", raising=False)
     monkeypatch.delenv("LEAFPRESS_PROJECT_NAME", raising=False)
@@ -220,9 +206,7 @@ def test_dotenv_no_override_preserves_shell_env(
     assert config.subtitle == "From Dotenv"  # .env fills the gap
 
 
-def test_dotenv_missing_file_is_noop(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_dotenv_missing_file_is_noop(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """load_dotenv with a nonexistent file does not crash or set values."""
     monkeypatch.delenv("LEAFPRESS_COMPANY_NAME", raising=False)
     monkeypatch.delenv("LEAFPRESS_PROJECT_NAME", raising=False)

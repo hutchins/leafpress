@@ -176,9 +176,7 @@ def test_render_mermaid_blocks_multiple_different(tmp_path: Path) -> None:
 # --- end-to-end pipeline test ---
 
 
-def test_pipeline_renders_mermaid_in_fixture(
-    sample_mkdocs_dir: Path, tmp_path: Path
-) -> None:
+def test_pipeline_renders_mermaid_in_fixture(sample_mkdocs_dir: Path, tmp_path: Path) -> None:
     """The sample fixture contains a mermaid block; verify it becomes an <img>."""
     renderer = MarkdownRenderer(
         extensions=["fenced_code"],

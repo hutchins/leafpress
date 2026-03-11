@@ -20,9 +20,7 @@ def test_empty_diagram_sources(
     sample_branding_config: Path,
 ) -> None:
     """Config exists but has no diagram sources configured."""
-    result = runner.invoke(
-        cli, ["fetch-diagrams", "--config", str(sample_branding_config)]
-    )
+    result = runner.invoke(cli, ["fetch-diagrams", "--config", str(sample_branding_config)])
     assert result.exit_code == 0
     assert "No diagram sources" in result.output
 
@@ -46,9 +44,7 @@ def test_successful_fetch(
     mock_load_config.return_value = branding
     mock_fetch.return_value = [tmp_path / "a.svg"]
 
-    result = runner.invoke(
-        cli, ["fetch-diagrams", "--config", str(sample_branding_config)]
-    )
+    result = runner.invoke(cli, ["fetch-diagrams", "--config", str(sample_branding_config)])
 
     assert result.exit_code == 0
     mock_fetch.assert_called_once()

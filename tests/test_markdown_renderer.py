@@ -58,9 +58,7 @@ def test_mermaid_blocks_rendered_when_output_dir_set(
         mermaid_output_dir=tmp_path,
     )
     mock_html = "<img"
-    with patch(
-        "leafpress.mermaid.render_mermaid_blocks", return_value=mock_html
-    ) as mock_render:
+    with patch("leafpress.mermaid.render_mermaid_blocks", return_value=mock_html) as mock_render:
         html = renderer.render(
             "```mermaid\ngraph TD\n    A --> B\n```",
             sample_mkdocs_dir / "docs" / "index.md",

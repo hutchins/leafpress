@@ -57,7 +57,12 @@ def _make_pptx(tmp_path: Path, slides: list[dict]) -> Path:
             rows_count = len(table_data)
             cols_count = len(table_data[0]) if table_data else 0
             tbl = slide.shapes.add_table(
-                rows_count, cols_count, Inches(1), Inches(3), Inches(6), Inches(2),
+                rows_count,
+                cols_count,
+                Inches(1),
+                Inches(3),
+                Inches(6),
+                Inches(2),
             ).table
             for r, row_data in enumerate(table_data):
                 for c, cell_text in enumerate(row_data):
@@ -136,10 +141,13 @@ def _make_image_pptx(tmp_path: Path) -> Path:
 
 def test_import_basic_slides(tmp_path: Path) -> None:
     """Basic slides with title and body text are converted."""
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "Introduction", "body": "Welcome to the presentation."},
-        {"title": "Details", "body": "Here are the details."},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "Introduction", "body": "Welcome to the presentation."},
+            {"title": "Details", "body": "Here are the details."},
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False)
     md = result.markdown_path.read_text()
     assert "## Introduction" in md
@@ -150,10 +158,13 @@ def test_import_basic_slides(tmp_path: Path) -> None:
 
 def test_slide_titles_as_h2(tmp_path: Path) -> None:
     """Each slide gets an H2 heading from its title."""
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "First Slide"},
-        {"title": "Second Slide"},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "First Slide"},
+            {"title": "Second Slide"},
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False)
     md = result.markdown_path.read_text()
     assert md.count("## ") == 2
@@ -185,9 +196,12 @@ def test_bold_italic_formatting(tmp_path: Path) -> None:
 
 def test_multiple_body_paragraphs(tmp_path: Path) -> None:
     """Multiple body paragraphs are all extracted."""
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "Multi", "body": ["Line one", "Line two", "Line three"]},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "Multi", "body": ["Line one", "Line two", "Line three"]},
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False)
     md = result.markdown_path.read_text()
     assert "Line one" in md
@@ -197,16 +211,19 @@ def test_multiple_body_paragraphs(tmp_path: Path) -> None:
 
 def test_table_extraction(tmp_path: Path) -> None:
     """Tables are converted to pipe-style markdown."""
-    pptx_path = _make_pptx(tmp_path, [
-        {
-            "title": "Data",
-            "table": [
-                ["Name", "Value"],
-                ["Alpha", "100"],
-                ["Beta", "200"],
-            ],
-        },
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {
+                "title": "Data",
+                "table": [
+                    ["Name", "Value"],
+                    ["Alpha", "100"],
+                    ["Beta", "200"],
+                ],
+            },
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False)
     md = result.markdown_path.read_text()
     assert "| Name" in md
@@ -227,9 +244,12 @@ def test_image_extraction(tmp_path: Path) -> None:
 
 def test_speaker_notes_as_blockquote(tmp_path: Path) -> None:
     """Speaker notes are included as blockquotes."""
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "Noted", "notes": "Remember to explain this carefully."},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "Noted", "notes": "Remember to explain this carefully."},
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False)
     md = result.markdown_path.read_text()
     assert "> Remember to explain this carefully." in md
@@ -237,9 +257,12 @@ def test_speaker_notes_as_blockquote(tmp_path: Path) -> None:
 
 def test_no_notes_flag(tmp_path: Path) -> None:
     """include_notes=False omits speaker notes."""
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "Noted", "notes": "Secret notes here."},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "Noted", "notes": "Secret notes here."},
+        ],
+    )
     result = import_pptx(pptx_path, extract_images=False, include_notes=False)
     md = result.markdown_path.read_text()
     assert "Secret notes here" not in md
@@ -338,9 +361,12 @@ def test_cli_pptx_integration(tmp_path: Path) -> None:
 
     from leafpress.cli import cli
 
-    pptx_path = _make_pptx(tmp_path, [
-        {"title": "CLI Test", "body": "Content here."},
-    ])
+    pptx_path = _make_pptx(
+        tmp_path,
+        [
+            {"title": "CLI Test", "body": "Content here."},
+        ],
+    )
     runner = CliRunner()
     result = runner.invoke(cli, ["import", str(pptx_path), "-o", str(tmp_path / "out.md")])
     assert result.exit_code == 0
