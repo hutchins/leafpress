@@ -1,0 +1,1 @@
+"""Consolidated Markdown export renderer."""

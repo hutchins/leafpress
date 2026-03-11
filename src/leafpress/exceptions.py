@@ -31,3 +31,7 @@ class DocxImportError(LeafpressError):
 
 class PptxImportError(LeafpressError):
     """Error during PPTX-to-Markdown import."""
+
+
+class XlsxImportError(LeafpressError):
+    """Error during XLSX-to-Markdown import."""
