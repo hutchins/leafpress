@@ -5,14 +5,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2e7d32.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
 [![CI](https://github.com/hutchins/leafpress/actions/workflows/ci.yml/badge.svg)](https://github.com/hutchins/leafpress/actions/workflows/ci.yml)
 
-Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding.
+Convert MkDocs sites to PDF, Word, HTML, ODT, EPUB, and Markdown documents with branding.
 
 **[Documentation](https://leafpress.dev/)** · **[GitHub](https://github.com/hutchins/leafpress)** · **[PyPI](https://pypi.org/project/leafpress/)**
 
 ## Features
 
-- Generate **PDF**, **DOCX**, **HTML**, **ODT**, and **EPUB** output from any MkDocs project
-- **Document import** — convert Word (`.docx`) and PowerPoint (`.pptx`) files to Markdown, including batch import (`leafpress import *.docx *.pptx`)
+- Generate **PDF**, **DOCX**, **HTML**, **ODT**, **EPUB**, and **Markdown** output from any MkDocs project
+- **Document import** — convert Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files to Markdown, including batch import (`leafpress import *.docx *.pptx *.xlsx`)
 - **Monorepo support** — combine multiple MkDocs projects into a single document with per-project metadata overrides
 - **Mermaid diagrams** — fenced `mermaid` code blocks rendered as inline SVGs
 - **Diagram fetching** — pull diagrams from URLs and Lucidchart API with caching
@@ -58,21 +58,23 @@ leafpress convert
 # Convert to PDF + DOCX with branding
 leafpress convert /path/to/project -f both -c leafpress.yml
 
-# Convert to EPUB, HTML, or ODT
+# Convert to EPUB, HTML, ODT, or consolidated Markdown
 leafpress convert /path/to/project -f epub
 leafpress convert /path/to/project -f html
 leafpress convert /path/to/project -f odt
+leafpress convert /path/to/project -f markdown
 
-# Convert to all formats (PDF, DOCX, HTML, ODT, EPUB)
+# Convert to all formats (PDF, DOCX, HTML, ODT, EPUB, Markdown)
 leafpress convert /path/to/project -f all -c leafpress.yml
 
 # Convert from a remote git repo
 leafpress convert https://github.com/org/repo -b main -f pdf
 
-# Import Word or PowerPoint documents to Markdown
+# Import Word, PowerPoint, or Excel documents to Markdown
 leafpress import report.docx
 leafpress import deck.pptx
-leafpress import *.docx *.pptx -o docs/
+leafpress import data.xlsx
+leafpress import *.docx *.pptx *.xlsx -o docs/
 
 # Check your environment
 leafpress doctor
@@ -165,3 +167,27 @@ uv sync --group dev
 uv run pytest tests/ -v
 uv run ruff check src/
 ```
+
+### Installing globally from a local checkout
+
+LeafPress requires Python 3.13+. To install as a standalone tool from your local repo:
+
+```bash
+uv tool install '/path/to/leafpress[all]' --force --python 3.13
+```
+
+If Python 3.13 isn't installed yet, `uv` can fetch it automatically:
+
+```bash
+uv python install 3.13
+uv tool install '/path/to/leafpress[all]' --force --python 3.13
+```
+
+To update after making local changes, uninstall first to avoid caching:
+
+```bash
+uv tool uninstall leafpress
+uv tool install '/path/to/leafpress[all]' --python 3.13
+```
+
+After installation, `leafpress` is available globally — run `leafpress ui --show` from anywhere.

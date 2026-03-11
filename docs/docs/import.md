@@ -1,16 +1,17 @@
 # Document Import
 
-LeafPress can import Word (`.docx`) and PowerPoint (`.pptx`) files and convert them to Markdown. This is useful for migrating existing documents into an MkDocs project.
+LeafPress can import Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files and convert them to Markdown. This is useful for migrating existing documents into an MkDocs project.
 
 ```bash
 leafpress import report.docx
 leafpress import deck.pptx
+leafpress import data.xlsx
 
 # Import multiple files at once — mix and match formats
-leafpress import *.docx *.pptx
+leafpress import *.docx *.pptx *.xlsx
 
 # Send all output to a directory
-leafpress import *.docx *.pptx -o docs/
+leafpress import *.docx *.pptx *.xlsx -o docs/
 ```
 
 See the [CLI Reference](cli.md#import) for all flags and examples.
@@ -115,11 +116,56 @@ The following PowerPoint features are **not currently supported** and will be si
 
 ---
 
+## Excel Import (XLSX)
+
+Excel spreadsheets are converted using the [openpyxl](https://openpyxl.readthedocs.io/) library. Each worksheet becomes a section with a Markdown table.
+
+### What's supported
+
+| Feature | How it's handled |
+|---------|-----------------|
+| Multiple sheets | Each sheet becomes a `## Sheet Name` section |
+| Header row | First row treated as the table header |
+| Text values | Rendered as-is |
+| Numbers | Integers and floats rendered as strings (whole-number floats drop the `.0`) |
+| Dates / times | Formatted as `YYYY-MM-DD` or `HH:MM:SS` |
+| Empty cells | Rendered as blank table cells |
+| Pipe characters | Escaped to `\|` so they don't break table syntax |
+| Empty sheets | Skipped silently |
+
+### Example output
+
+A sheet named "Servers" with three columns produces:
+
+```markdown
+## Servers
+
+| Host     | Role     | CPU |
+| -------- | -------- | --- |
+| web-01   | frontend | 4   |
+| db-01    | database | 8   |
+```
+
+### Limitations
+
+| Feature | Reason |
+|---------|--------|
+| **Merged cells** | Merged regions are not unmerged — only the top-left cell value is read. |
+| **Formulas** | Cell values are read in data-only mode — you see computed results, not formula text. Cells that have never been calculated in Excel may appear blank. |
+| **Charts / images** | Embedded charts and images are not extracted. |
+| **Conditional formatting / colors** | Visual-only formatting has no Markdown equivalent. |
+| **Multiple header rows** | Only the first row is treated as the header. |
+
+!!! tip
+    For best results, save your Excel file in Excel before importing — this ensures all formula results are cached. LeafPress reads cached values, not formulas.
+
+---
+
 ## Common options
 
 ### Image extraction
 
-Both importers extract embedded images to an `assets/` directory next to the output file. To skip image extraction:
+The Word and PowerPoint importers extract embedded images to an `assets/` directory next to the output file. To skip image extraction:
 
 ```bash
 leafpress import report.docx --no-extract-images
@@ -141,7 +187,7 @@ leafpress import deck.pptx -o docs/
 When importing multiple files, `--output` must be a directory (or omitted):
 
 ```bash
-leafpress import *.docx *.pptx -o docs/
+leafpress import *.docx *.pptx *.xlsx -o docs/
 ```
 
 ### Batch import
@@ -150,10 +196,10 @@ You can pass multiple files in a single command. Formats can be mixed freely —
 
 ```bash
 # Import everything in one shot
-leafpress import report.docx proposal.docx slides.pptx
+leafpress import report.docx proposal.docx slides.pptx data.xlsx
 
 # Use shell globs to grab all supported files
-leafpress import *.docx *.pptx
+leafpress import *.docx *.pptx *.xlsx
 
 # Combine with other options
 leafpress import *.docx --code-styles "Code Block" --no-extract-images

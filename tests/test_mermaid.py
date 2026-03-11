@@ -526,3 +526,70 @@ def test_pipeline_renders_mermaid_in_fixture(sample_mkdocs_dir: Path, tmp_path: 
     # A PNG should have been written
     pngs = list(tmp_path.glob("mermaid-*.png"))
     assert len(pngs) == 1
+
+
+def test_mermaid_source_not_in_rendered_output(tmp_path: Path) -> None:
+    """Mermaid source text like 'flowchart TD' must not appear in rendered HTML."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    md_file = docs_dir / "test.md"
+    md_file.write_text(
+        "# Test\n\n"
+        "```mermaid\n"
+        "flowchart TD\n"
+        "    CLI --> SR\n"
+        "    SR --> PL\n"
+        "```\n"
+    )
+
+    renderer = MarkdownRenderer(
+        extensions=["pymdownx.superfences"],
+        docs_dir=docs_dir,
+        mermaid_output_dir=tmp_path / "mermaid",
+    )
+
+    with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
+        html = renderer.render(md_file.read_text(), md_file)
+
+    assert "<img" in html
+    assert "flowchart TD" not in html
+    assert "CLI -->" not in html
+
+
+def test_mermaid_with_python_name_config(tmp_path: Path) -> None:
+    """Mermaid renders even when mkdocs.yml has !!python/name: format strings."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    md_file = docs_dir / "test.md"
+    md_file.write_text(
+        "```mermaid\n"
+        "graph LR\n"
+        "    A --> B\n"
+        "```\n"
+    )
+
+    # Simulate the config that comes from yaml.safe_load of a mkdocs.yml
+    # with !!python/name: tags (unresolved as raw strings)
+    renderer = MarkdownRenderer(
+        extensions=[
+            {
+                "pymdownx.superfences": {
+                    "custom_fences": [
+                        {
+                            "name": "mermaid",
+                            "class": "mermaid",
+                            "format": "!!python/name:pymdownx.superfences.fence_code_format",
+                        }
+                    ]
+                }
+            }
+        ],
+        docs_dir=docs_dir,
+        mermaid_output_dir=tmp_path / "mermaid",
+    )
+
+    with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
+        html = renderer.render(md_file.read_text(), md_file)
+
+    assert "<img" in html
+    assert "graph LR" not in html

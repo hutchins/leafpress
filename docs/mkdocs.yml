@@ -19,6 +19,7 @@ nav:
     - HTML Output: html.md
     - ODT Output: odt.md
     - EPUB Output: epub.md
+    - Markdown Output: markdown.md
   - Deployment:
     - CI / CD Pipelines: ci.md
     - Docker: docker.md

@@ -7,7 +7,23 @@
 
 ## Install LeafPress
 
-The base install supports DOCX, HTML, ODT, EPUB output and DOCX import — no system dependencies required.
+To use LeafPress as a **CLI tool or desktop UI**, install it globally with `uv tool` or `pipx`. To use it as a **Python library** in a project, use `uv add` or `pip install`.
+
+### Base
+
+DOCX, HTML, ODT, EPUB output and document import — no system dependencies required.
+
+=== "uv tool"
+
+    ```bash
+    uv tool install leafpress
+    ```
+
+=== "pipx"
+
+    ```bash
+    pipx install leafpress
+    ```
 
 === "uv"
 
@@ -21,15 +37,21 @@ The base install supports DOCX, HTML, ODT, EPUB output and DOCX import — no sy
     pip install leafpress
     ```
 
-=== "pipx (global CLI)"
-
-    ```bash
-    pipx install leafpress
-    ```
-
 ### With PDF Support
 
 PDF output requires WeasyPrint and its system libraries (Pango, HarfBuzz — see below).
+
+=== "uv tool"
+
+    ```bash
+    uv tool install 'leafpress[pdf]'
+    ```
+
+=== "pipx"
+
+    ```bash
+    pipx install 'leafpress[pdf]'
+    ```
 
 === "uv"
 
@@ -43,15 +65,21 @@ PDF output requires WeasyPrint and its system libraries (Pango, HarfBuzz — see
     pip install 'leafpress[pdf]'
     ```
 
-=== "pipx"
-
-    ```bash
-    pipx install 'leafpress[pdf]'
-    ```
-
 ### With Desktop UI
 
 The menu bar / system tray app requires PyQt6:
+
+=== "uv tool"
+
+    ```bash
+    uv tool install 'leafpress[ui]'
+    ```
+
+=== "pipx"
+
+    ```bash
+    pipx install 'leafpress[ui]'
+    ```
 
 === "uv"
 
@@ -65,15 +93,21 @@ The menu bar / system tray app requires PyQt6:
     pip install 'leafpress[ui]'
     ```
 
+### Everything
+
+All optional features (PDF + UI):
+
+=== "uv tool"
+
+    ```bash
+    uv tool install 'leafpress[all]'
+    ```
+
 === "pipx"
 
     ```bash
-    pipx install 'leafpress[ui]'
+    pipx install 'leafpress[all]'
     ```
-
-### Everything
-
-Install all optional features (PDF + UI):
 
 === "uv"
 
@@ -85,12 +119,6 @@ Install all optional features (PDF + UI):
 
     ```bash
     pip install 'leafpress[all]'
-    ```
-
-=== "pipx"
-
-    ```bash
-    pipx install 'leafpress[all]'
     ```
 
 ## WeasyPrint System Dependencies

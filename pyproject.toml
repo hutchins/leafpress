@@ -4,8 +4,8 @@ build-backend = "uv_build"
 
 [project]
 name = "leafpress"
-version = "0.4.0"
-description = "Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding"
+version = "0.5.0"
+description = "Convert MkDocs sites to PDF, Word, HTML, ODT, EPUB, and Markdown documents with branding"
 readme = "README.md"
 authors = [{name = "Shane Hutchins", email = "hutchins@users.noreply.github.com"}]
 maintainers = [
@@ -45,6 +45,7 @@ dependencies = [
     "mammoth>=1.8",
     "markdownify>=1.0",
     "python-pptx>=1.0.0",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

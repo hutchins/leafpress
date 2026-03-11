@@ -10,7 +10,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 |---------|-------------|
 | [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB |
 | [`doctor`](#doctor) | Check your environment and optional dependency status |
-| [`import`](#import) | Import Word or PowerPoint documents to Markdown |
+| [`import`](#import) | Import Word, PowerPoint, or Excel documents to Markdown |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
 | [`fetch-diagrams`](#fetch-diagrams) | Fetch diagrams from external sources (URLs, Lucidchart) |
