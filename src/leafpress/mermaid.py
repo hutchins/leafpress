@@ -42,9 +42,7 @@ def render_mermaid(source: str, dest: Path, timeout: int = 30) -> Path:
 
     content_type = resp.headers.get("Content-Type", "")
     if "image" not in content_type:
-        raise DiagramError(
-            f"mermaid.ink returned unexpected content type '{content_type}'"
-        )
+        raise DiagramError(f"mermaid.ink returned unexpected content type '{content_type}'")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(resp.content)

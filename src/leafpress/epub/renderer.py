@@ -46,11 +46,7 @@ class EpubRenderer:
         book = epub.EpubBook()
 
         # Metadata
-        site_name = (
-            self._branding.project_name
-            if self._branding
-            else self._mkdocs_cfg.site_name
-        )
+        site_name = self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
         book.set_identifier(str(uuid.uuid4()))
         book.set_title(site_name)
         book.set_language("en")
@@ -86,6 +82,7 @@ class EpubRenderer:
                 author=self._branding.author if self._branding else "",
                 author_email=self._branding.author_email if self._branding else "",
                 document_owner=self._branding.document_owner if self._branding else "",
+                review_cycle=self._branding.review_cycle if self._branding else "",
                 date=now.strftime("%B %d, %Y"),
             )
             cover_chapter = epub.EpubHtml(
@@ -94,9 +91,7 @@ class EpubRenderer:
                 lang="en",
             )
             cover_chapter.content = self._wrap_html(cover_html, css_item)
-            cover_chapter.add_link(
-                href="style/leafpress.css", rel="stylesheet", type="text/css"
-            )
+            cover_chapter.add_link(href="style/leafpress.css", rel="stylesheet", type="text/css")
             book.add_item(cover_chapter)
             spine.append(cover_chapter)
 
@@ -118,9 +113,7 @@ class EpubRenderer:
             if item.path is None:
                 # Flush previous section
                 if current_section_name and current_section_items:
-                    toc_items.append(
-                        (epub.Section(current_section_name), current_section_items)
-                    )
+                    toc_items.append((epub.Section(current_section_name), current_section_items))
                 current_section_name = item.title
                 current_section_items = []
                 continue
@@ -142,24 +135,18 @@ class EpubRenderer:
             body += self._replace_checkboxes(html_content)
 
             chapter.content = self._wrap_html(body, css_item)
-            chapter.add_link(
-                href="style/leafpress.css", rel="stylesheet", type="text/css"
-            )
+            chapter.add_link(href="style/leafpress.css", rel="stylesheet", type="text/css")
             book.add_item(chapter)
             spine.append(chapter)
             current_section_items.append(chapter)
 
         # Flush last section
         if current_section_name and current_section_items:
-            toc_items.append(
-                (epub.Section(current_section_name), current_section_items)
-            )
+            toc_items.append((epub.Section(current_section_name), current_section_items))
         elif current_section_items:
             # Pages without sections — add as direct links
             for ch in current_section_items:
-                toc_items.append(
-                    epub.Link(ch.file_name, ch.title, ch.file_name.replace(".", "_"))
-                )
+                toc_items.append(epub.Link(ch.file_name, ch.title, ch.file_name.replace(".", "_")))
 
         # Footer chapter
         footer_parts: list[str] = []
@@ -178,9 +165,7 @@ class EpubRenderer:
         footer_chapter.content = self._wrap_html(
             f'<footer class="lp-footer">{footer_text}</footer>', css_item
         )
-        footer_chapter.add_link(
-            href="style/leafpress.css", rel="stylesheet", type="text/css"
-        )
+        footer_chapter.add_link(href="style/leafpress.css", rel="stylesheet", type="text/css")
         book.add_item(footer_chapter)
         spine.append(footer_chapter)
 

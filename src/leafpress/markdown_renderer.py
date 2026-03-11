@@ -16,25 +16,25 @@ BASELINE_EXTENSIONS = ["meta", "toc", "tables"]
 
 # Common Material/MkDocs icon shortcodes mapped to unicode equivalents
 _MATERIAL_ICON_MAP: dict[str, str] = {
-    ":material-download:": "\u2B07",  # ⬇
-    ":material-upload:": "\u2B06",  # ⬆
-    ":material-dns-outline:": "\U0001F5A7",  # 🖧
+    ":material-download:": "\u2b07",  # ⬇
+    ":material-upload:": "\u2b06",  # ⬆
+    ":material-dns-outline:": "\U0001f5a7",  # 🖧
     ":material-check:": "\u2714",  # ✔
     ":material-close:": "\u2716",  # ✖
-    ":material-alert:": "\u26A0",  # ⚠
+    ":material-alert:": "\u26a0",  # ⚠
     ":material-information:": "\u2139",
-    ":material-star:": "\u2B50",  # ⭐
+    ":material-star:": "\u2b50",  # ⭐
     ":material-heart:": "\u2764",  # ❤
-    ":material-link:": "\U0001F517",  # 🔗
-    ":material-file:": "\U0001F4C4",  # 📄
-    ":material-folder:": "\U0001F4C1",  # 📁
+    ":material-link:": "\U0001f517",  # 🔗
+    ":material-file:": "\U0001f4c4",  # 📄
+    ":material-folder:": "\U0001f4c1",  # 📁
     ":material-cog:": "\u2699",  # ⚙
-    ":material-lock:": "\U0001F512",  # 🔒
-    ":material-eye:": "\U0001F441",  # 👁
-    ":material-pencil:": "\u270F",  # ✏
-    ":material-delete:": "\U0001F5D1",  # 🗑
-    ":material-search:": "\U0001F50D",  # 🔍
-    ":material-home:": "\U0001F3E0",  # 🏠
+    ":material-lock:": "\U0001f512",  # 🔒
+    ":material-eye:": "\U0001f441",  # 👁
+    ":material-pencil:": "\u270f",  # ✏
+    ":material-delete:": "\U0001f5d1",  # 🗑
+    ":material-search:": "\U0001f50d",  # 🔍
+    ":material-home:": "\U0001f3e0",  # 🏠
     ":material-email:": "\u2709",  # ✉
 }
 

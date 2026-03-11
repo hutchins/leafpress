@@ -23,8 +23,7 @@ class TestYamlSafety:
         """leafpress.yml is parsed with yaml.safe_load — !!python/object is rejected."""
         malicious = tmp_path / "leafpress.yml"
         malicious.write_text(
-            "company_name: !!python/object/apply:os.system ['echo pwned']\n"
-            "project_name: test\n"
+            "company_name: !!python/object/apply:os.system ['echo pwned']\nproject_name: test\n"
         )
         with pytest.raises(ConfigError):
             load_config(malicious)
@@ -32,20 +31,14 @@ class TestYamlSafety:
     def test_config_rejects_python_name_tag(self, tmp_path: Path) -> None:
         """!!python/name: tags must not execute in config loading."""
         malicious = tmp_path / "leafpress.yml"
-        malicious.write_text(
-            "company_name: !!python/name:os.system\n"
-            "project_name: test\n"
-        )
+        malicious.write_text("company_name: !!python/name:os.system\nproject_name: test\n")
         with pytest.raises(ConfigError):
             load_config(malicious)
 
     def test_config_rejects_python_module_tag(self, tmp_path: Path) -> None:
         """!!python/module: tags must not execute."""
         malicious = tmp_path / "leafpress.yml"
-        malicious.write_text(
-            "company_name: !!python/module:os\n"
-            "project_name: test\n"
-        )
+        malicious.write_text("company_name: !!python/module:os\nproject_name: test\n")
         with pytest.raises(ConfigError):
             load_config(malicious)
 
@@ -95,11 +88,7 @@ class TestPathTraversal:
         project.mkdir()
 
         config_file = project / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            "logo_path: ../secret.png\n"
-        )
+        config_file.write_text("company_name: Test\nproject_name: Test\nlogo_path: ../secret.png\n")
 
         cfg = load_config(config_file)
         resolved = Path(cfg.logo_path).resolve()
@@ -121,11 +110,7 @@ class TestPathTraversal:
         project.mkdir()
 
         config_file = project / "leafpress.yml"
-        config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            f"logo_path: {secret}\n"
-        )
+        config_file.write_text(f"company_name: Test\nproject_name: Test\nlogo_path: {secret}\n")
 
         # Currently this is allowed — document the behavior
         cfg = load_config(config_file)
@@ -135,9 +120,7 @@ class TestPathTraversal:
         """Null bytes in logo_path should be rejected."""
         config_file = tmp_path / "leafpress.yml"
         config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            'logo_path: "logo\x00.png"\n'
+            'company_name: Test\nproject_name: Test\nlogo_path: "logo\x00.png"\n'
         )
         with pytest.raises(ConfigError):
             load_config(config_file)
@@ -146,9 +129,7 @@ class TestPathTraversal:
         """file:// URIs in logo_path should not be treated as remote URLs."""
         config_file = tmp_path / "leafpress.yml"
         config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            "logo_path: file:///etc/passwd\n"
+            "company_name: Test\nproject_name: Test\nlogo_path: file:///etc/passwd\n"
         )
         # file:// should NOT be treated like http:// — it should go through
         # local file validation and fail because the path doesn't exist
@@ -165,10 +146,7 @@ class TestPathTraversal:
 
         config_file = project / "leafpress.yml"
         config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            "docx:\n"
-            "  template_path: ../evil.docx\n"
+            "company_name: Test\nproject_name: Test\ndocx:\n  template_path: ../evil.docx\n"
         )
 
         cfg = load_config(config_file)
@@ -183,9 +161,7 @@ class TestPathTraversal:
 
         config_file = tmp_path / "leafpress.yml"
         config_file.write_text(
-            "company_name: Test\n"
-            "project_name: Test\n"
-            "logo_path: assets/logo.png\n"
+            "company_name: Test\nproject_name: Test\nlogo_path: assets/logo.png\n"
         )
 
         cfg = load_config(config_file)

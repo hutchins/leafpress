@@ -81,9 +81,7 @@ def fetch_lucidchart(
             f.write(resp.content)
         return dest
     except requests.RequestException as e:
-        raise DiagramError(
-            f"Failed to export Lucidchart document {document_id}: {e}"
-        ) from e
+        raise DiagramError(f"Failed to export Lucidchart document {document_id}: {e}") from e
 
 
 def fetch_diagrams(
@@ -107,8 +105,7 @@ def fetch_diagrams(
 
         if not source.url and not source.lucidchart:
             console.print(
-                f"  [yellow]Skipping[/yellow] {source.dest}: "
-                "no 'url' or 'lucidchart' specified"
+                f"  [yellow]Skipping[/yellow] {source.dest}: no 'url' or 'lucidchart' specified"
             )
             continue
 

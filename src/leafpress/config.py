@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from leafpress.exceptions import ConfigError
 
@@ -74,6 +74,27 @@ class DiagramsConfig(BaseModel):
     sources: list[DiagramSource] = Field(default_factory=list)
 
 
+class ProjectEntry(BaseModel):
+    """A sub-project in a monorepo configuration."""
+
+    path: str | None = Field(default=None, description="Local path to mkdocs.yml dir")
+    url: str | None = Field(default=None, description="Git URL to clone")
+    branch: str | None = Field(default=None, description="Git branch (url only)")
+    author: str | None = None
+    author_email: str | None = None
+    document_owner: str | None = None
+    review_cycle: str | None = None
+    subtitle: str | None = None
+
+    @model_validator(mode="after")
+    def validate_source(self) -> ProjectEntry:
+        if not self.path and not self.url:
+            raise ValueError("Project entry must have either 'path' or 'url'")
+        if self.path and self.url:
+            raise ValueError("Project entry cannot have both 'path' and 'url'")
+        return self
+
+
 class BrandingConfig(BaseModel):
     """Top-level leafpress branding configuration."""
 
@@ -87,6 +108,7 @@ class BrandingConfig(BaseModel):
     author: str | None = None
     author_email: str | None = None
     document_owner: str | None = None
+    review_cycle: str | None = None
     copyright_text: str | None = None
     primary_color: str = Field(
         default="#1a73e8",
@@ -101,6 +123,22 @@ class BrandingConfig(BaseModel):
     docx: DocxOptions = Field(default_factory=DocxOptions)
     watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
     diagrams: DiagramsConfig = Field(default_factory=DiagramsConfig)
+    projects: list[ProjectEntry] = Field(
+        default_factory=list,
+        description="Monorepo: list of sub-project directories containing mkdocs.yml",
+    )
+
+    @field_validator("projects", mode="before")
+    @classmethod
+    def normalize_projects(cls, v: list) -> list:
+        """Accept both simple path strings and full dicts."""
+        result = []
+        for item in v:
+            if isinstance(item, str):
+                result.append({"path": item})
+            else:
+                result.append(item)
+        return result
 
     @field_validator("primary_color", "accent_color")
     @classmethod
@@ -132,6 +170,7 @@ _STR_FIELDS = [
     ("author", "LEAFPRESS_AUTHOR"),
     ("author_email", "LEAFPRESS_AUTHOR_EMAIL"),
     ("document_owner", "LEAFPRESS_DOCUMENT_OWNER"),
+    ("review_cycle", "LEAFPRESS_REVIEW_CYCLE"),
     ("copyright_text", "LEAFPRESS_COPYRIGHT_TEXT"),
     ("primary_color", "LEAFPRESS_PRIMARY_COLOR"),
     ("accent_color", "LEAFPRESS_ACCENT_COLOR"),
@@ -242,6 +281,7 @@ project_name: "Project Documentation"
 # author: "Engineering Team"
 # author_email: "team@example.com"
 # document_owner: "Engineering Team"
+# review_cycle: "Quarterly"
 # primary_color: "#1a73e8"
 # accent_color: "#ffffff"
 
@@ -278,4 +318,11 @@ pdf:
 #     - lucidchart: abc123-document-id
 #       dest: docs/assets/diagrams/network.png
 #       page: 1
+
+# projects:                   # monorepo: render multiple MkDocs projects as chapters
+#   - services/api
+#   - services/frontend
+#   - path: shared/docs        # detailed form with per-project metadata
+#     author: "Docs Team"
+#     document_owner: "Jane Smith"
 """

@@ -25,6 +25,9 @@
         {% if document_owner %}
         <p class="cover-owner">Document Owner: {{ document_owner }}</p>
         {% endif %}
+        {% if review_cycle %}
+        <p class="cover-review">Review Cycle: {{ review_cycle }}</p>
+        {% endif %}
         <p class="cover-date">{{ date }}</p>
     </div>
 </div>

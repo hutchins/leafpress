@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from docx import Document as DocxDocument
+from pptx import Presentation
 from typer.testing import CliRunner
 
 from leafpress.cli import cli
@@ -52,9 +54,14 @@ def test_convert_with_watermark(sample_mkdocs_dir: Path, tmp_output: Path) -> No
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
-            "--watermark", "DRAFT",
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
+            "--watermark",
+            "DRAFT",
         ],
     )
     assert result.exit_code == 0
@@ -64,8 +71,12 @@ def test_convert_with_local_time(sample_mkdocs_dir: Path, tmp_output: Path) -> N
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
             "--local-time",
         ],
     )
@@ -76,9 +87,14 @@ def test_convert_no_cover_no_toc(sample_mkdocs_dir: Path, tmp_output: Path) -> N
     result = runner.invoke(
         cli,
         [
-            "convert", str(sample_mkdocs_dir),
-            "-f", "pdf", "-o", str(tmp_output),
-            "--no-cover-page", "--no-toc",
+            "convert",
+            str(sample_mkdocs_dir),
+            "-f",
+            "pdf",
+            "-o",
+            str(tmp_output),
+            "--no-cover-page",
+            "--no-toc",
         ],
     )
     assert result.exit_code == 0
@@ -87,3 +103,80 @@ def test_convert_no_cover_no_toc(sample_mkdocs_dir: Path, tmp_output: Path) -> N
 def test_info_nonexistent_source() -> None:
     result = runner.invoke(cli, ["info", "/nonexistent/path"])
     assert result.exit_code == 1
+
+
+# --- Multi-file import tests ---
+
+
+def _make_docx(path: Path, title: str = "Test") -> Path:
+    """Create a minimal DOCX file."""
+    doc = DocxDocument()
+    doc.add_heading(title, level=1)
+    doc.save(str(path))
+    return path
+
+
+def _make_pptx(path: Path, title: str = "Slides") -> Path:
+    """Create a minimal PPTX file."""
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
+    slide.shapes.title.text = title
+    prs.save(str(path))
+    return path
+
+
+def test_import_multiple_docx(tmp_path: Path) -> None:
+    """Import multiple DOCX files in one command."""
+    f1 = _make_docx(tmp_path / "a.docx", "Doc A")
+    f2 = _make_docx(tmp_path / "b.docx", "Doc B")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    result = runner.invoke(cli, ["import", str(f1), str(f2), "-o", str(out)])
+    assert result.exit_code == 0
+    assert (out / "a.md").exists()
+    assert (out / "b.md").exists()
+    assert result.output.count("Done!") == 2
+
+
+def test_import_mixed_formats(tmp_path: Path) -> None:
+    """Import a mix of DOCX and PPTX files."""
+    docx = _make_docx(tmp_path / "report.docx", "Report")
+    pptx = _make_pptx(tmp_path / "deck.pptx", "Deck")
+    out = tmp_path / "out"
+    out.mkdir()
+
+    result = runner.invoke(cli, ["import", str(docx), str(pptx), "-o", str(out)])
+    assert result.exit_code == 0
+    assert (out / "report.md").exists()
+    assert (out / "deck.md").exists()
+
+
+def test_import_multiple_output_file_rejected(tmp_path: Path) -> None:
+    """Using -o with a file path and multiple inputs is an error."""
+    f1 = _make_docx(tmp_path / "a.docx")
+    f2 = _make_docx(tmp_path / "b.docx")
+
+    result = runner.invoke(cli, ["import", str(f1), str(f2), "-o", str(tmp_path / "single.md")])
+    assert result.exit_code == 1
+    assert "directory" in result.output.lower()
+
+
+def test_import_partial_failure(tmp_path: Path) -> None:
+    """One bad file doesn't stop other files from being imported."""
+    good = _make_docx(tmp_path / "good.docx", "Good")
+    bad = tmp_path / "missing.docx"
+    out = tmp_path / "out"
+    out.mkdir()
+
+    result = runner.invoke(cli, ["import", str(good), str(bad), "-o", str(out)])
+    assert result.exit_code == 1  # overall failure
+    assert (out / "good.md").exists()  # first file succeeded
+    assert "1 file(s) failed" in result.output
+
+
+def test_import_single_file_still_works(sample_docx: Path, tmp_output: Path) -> None:
+    """Single file argument still works (backwards compat)."""
+    result = runner.invoke(cli, ["import", str(sample_docx), "-o", str(tmp_output)])
+    assert result.exit_code == 0
+    assert "Done!" in result.output

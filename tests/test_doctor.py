@@ -38,19 +38,23 @@ def test_check_result_defaults() -> None:
 
 def test_doctor_report_all_passed() -> None:
     """all_passed is True when every check passes."""
-    report = DoctorReport(checks=[
-        CheckResult(name="a", passed=True),
-        CheckResult(name="b", passed=True),
-    ])
+    report = DoctorReport(
+        checks=[
+            CheckResult(name="a", passed=True),
+            CheckResult(name="b", passed=True),
+        ]
+    )
     assert report.all_passed is True
 
 
 def test_doctor_report_not_all_passed() -> None:
     """all_passed is False when any check fails."""
-    report = DoctorReport(checks=[
-        CheckResult(name="a", passed=True),
-        CheckResult(name="b", passed=False),
-    ])
+    report = DoctorReport(
+        checks=[
+            CheckResult(name="a", passed=True),
+            CheckResult(name="b", passed=False),
+        ]
+    )
     assert report.all_passed is False
 
 
@@ -523,8 +527,10 @@ def test_doctor_cli_exit_code_zero_all_pass() -> None:
         platform_info="test",
         checks=[CheckResult(name="test", passed=True)],
     )
-    with patch("leafpress.doctor.run_doctor", return_value=all_pass), \
-         patch("leafpress.doctor.print_report"):
+    with (
+        patch("leafpress.doctor.run_doctor", return_value=all_pass),
+        patch("leafpress.doctor.print_report"),
+    ):
         result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 0
 
@@ -537,8 +543,10 @@ def test_doctor_cli_exit_code_one_on_failure() -> None:
         platform_info="test",
         checks=[CheckResult(name="broken", passed=False)],
     )
-    with patch("leafpress.doctor.run_doctor", return_value=has_fail), \
-         patch("leafpress.doctor.print_report"):
+    with (
+        patch("leafpress.doctor.run_doctor", return_value=has_fail),
+        patch("leafpress.doctor.print_report"),
+    ):
         result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 1
 

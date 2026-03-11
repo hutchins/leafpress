@@ -22,6 +22,29 @@ class ImageHandler:
     def saved_images(self) -> list[Path]:
         return list(self._saved_images)
 
+    def save_image(self, image_bytes: bytes, content_type: str) -> str:
+        """Save image bytes to disk and return the relative markdown path.
+
+        Args:
+            image_bytes: Raw image data.
+            content_type: MIME type (e.g. "image/png").
+
+        Returns:
+            Relative path string for use in markdown (e.g. "assets/image-001-abc123.png").
+        """
+        ext = _extension_for_content_type(content_type)
+
+        self._counter += 1
+        content_hash = hashlib.sha256(image_bytes).hexdigest()[:12]
+        filename = f"image-{self._counter:03d}-{content_hash}{ext}"
+
+        self._assets_dir.mkdir(parents=True, exist_ok=True)
+        image_path = self._assets_dir / filename
+        image_path.write_bytes(image_bytes)
+        self._saved_images.append(image_path)
+
+        return f"assets/{filename}"
+
     def handle_image(self, image) -> dict[str, str]:
         """Mammoth image conversion callback.
 
@@ -34,18 +57,8 @@ class ImageHandler:
         with image.open() as img_file:
             image_bytes = img_file.read()
 
-        ext = _extension_for_content_type(image.content_type)
-
-        self._counter += 1
-        content_hash = hashlib.sha256(image_bytes).hexdigest()[:12]
-        filename = f"image-{self._counter:03d}-{content_hash}{ext}"
-
-        self._assets_dir.mkdir(parents=True, exist_ok=True)
-        image_path = self._assets_dir / filename
-        image_path.write_bytes(image_bytes)
-        self._saved_images.append(image_path)
-
-        return {"src": f"assets/{filename}"}
+        src = self.save_image(image_bytes, image.content_type)
+        return {"src": src}
 
 
 def _extension_for_content_type(content_type: str) -> str:

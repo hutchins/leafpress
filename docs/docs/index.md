@@ -52,6 +52,12 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
+<span class="feature-card__icon">:material-book-multiple:</span>
+<p class="feature-card__title">Monorepo Support</p>
+<p class="feature-card__desc">Combine multiple MkDocs projects into one document — local paths or git URLs with per-project metadata.</p>
+</div>
+
+<div class="feature-card" markdown>
 <span class="feature-card__icon">:material-image-sync-outline:</span>
 <p class="feature-card__title">Diagram Fetching</p>
 <p class="feature-card__desc">Pull diagrams from URLs or Lucidchart before converting — with built-in caching.</p>
@@ -59,8 +65,8 @@ hide:
 
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-file-word-box:</span>
-<p class="feature-card__title">Word Import</p>
-<p class="feature-card__desc">Import Word documents to Markdown with image extraction and code block detection.</p>
+<p class="feature-card__title">Document Import</p>
+<p class="feature-card__desc">Import Word and PowerPoint files to Markdown with image extraction, code block detection, tables, and speaker notes.</p>
 </div>
 
 <div class="feature-card" markdown>

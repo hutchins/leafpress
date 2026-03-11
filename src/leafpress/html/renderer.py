@@ -52,9 +52,7 @@ class HtmlRenderer:
             cover_html = cover_tmpl.render(
                 company_name=(self._branding.company_name if self._branding else ""),
                 project_name=(
-                    self._branding.project_name
-                    if self._branding
-                    else self._mkdocs_cfg.site_name
+                    self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
                 ),
                 subtitle=self._branding.subtitle if self._branding else "",
                 logo_path=self._resolve_logo_uri(),
@@ -62,6 +60,7 @@ class HtmlRenderer:
                 author=self._branding.author if self._branding else "",
                 author_email=self._branding.author_email if self._branding else "",
                 document_owner=self._branding.document_owner if self._branding else "",
+                review_cycle=self._branding.review_cycle if self._branding else "",
                 date=now.strftime("%B %d, %Y"),
             )
 
@@ -100,17 +99,12 @@ class HtmlRenderer:
             from markupsafe import escape
 
             watermark_html = (
-                f'<div class="lp-watermark">'
-                f"{escape(self._branding.watermark.text)}</div>"
+                f'<div class="lp-watermark">{escape(self._branding.watermark.text)}</div>'
             )
 
         # Render full document
         doc_tmpl = self._jinja.get_template("document.html.j2")
-        site_name = (
-            self._branding.project_name
-            if self._branding
-            else self._mkdocs_cfg.site_name
-        )
+        site_name = self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
         full_html = doc_tmpl.render(
             site_name=site_name,
             css=Markup(css),

@@ -11,6 +11,7 @@ nav:
     - Configuration: configuration.md
   - Usage:
     - CLI Reference: cli.md
+    - Document Import: import.md
     - Desktop UI: ui.md
   - Output Formats:
     - PDF Output: pdf.md
@@ -29,6 +30,7 @@ nav:
     - Diagrams: diagrams.md
   - Project:
     - About: about.md
+    - Architecture: architecture.md
     - Changelog: changelog.md
 
 # Repository

@@ -61,6 +61,7 @@ class PdfRenderer:
                     author=self._branding.author if self._branding else "",
                     author_email=self._branding.author_email if self._branding else "",
                     document_owner=self._branding.document_owner if self._branding else "",
+                    review_cycle=self._branding.review_cycle if self._branding else "",
                     date=now.strftime("%B %d, %Y"),
                 )
             )
@@ -105,9 +106,7 @@ class PdfRenderer:
         if self._branding and self._branding.watermark.text:
             from markupsafe import escape
 
-            watermark_div = (
-                f'<div class="watermark">{escape(self._branding.watermark.text)}</div>'
-            )
+            watermark_div = f'<div class="watermark">{escape(self._branding.watermark.text)}</div>'
         return (
             '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n'
             f"<body>\n{watermark_div}\n{body}\n</body>\n</html>"

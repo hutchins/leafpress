@@ -92,10 +92,7 @@ class TestNavPagesExist:
     def test_no_orphan_markdown_files(self, mkdocs_config: dict) -> None:
         """Every .md file in docs/ should be referenced in nav (except 404.md)."""
         nav_paths = set(_extract_nav_paths(mkdocs_config["nav"]))
-        md_files = {
-            p.relative_to(DOCS_DIR).as_posix()
-            for p in DOCS_DIR.rglob("*.md")
-        }
+        md_files = {p.relative_to(DOCS_DIR).as_posix() for p in DOCS_DIR.rglob("*.md")}
         excluded = {"404.md"}
         orphans = md_files - nav_paths - excluded
         assert not orphans, f"Markdown files not in nav: {orphans}"
