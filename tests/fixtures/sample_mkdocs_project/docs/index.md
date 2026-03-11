@@ -22,3 +22,12 @@ def hello():
 |----------|----------|
 | Cell 1   | Cell 2   |
 | Cell 3   | Cell 4   |
+
+## Diagram
+
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[OK]
+    B -->|No| D[End]
+```

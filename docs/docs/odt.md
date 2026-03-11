@@ -40,6 +40,9 @@ The ODT output includes:
 | Lists (bullet, numbered) | Yes |
 | Blockquotes | Yes |
 | Images (local files) | Yes |
+| Admonitions | Yes |
+| Mermaid diagrams | Yes |
+| Annotations | Yes |
 | Page footer | Yes |
 
 ## Options

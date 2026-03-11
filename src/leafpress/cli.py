@@ -62,8 +62,9 @@ def main(
 
 @cli.command()
 def convert(
-    source: str = typer.Argument(
-        help="Path to local MkDocs directory or a git repo URL.",
+    source: str | None = typer.Argument(
+        None,
+        help="Path to local MkDocs directory or a git repo URL. Auto-detected if omitted.",
     ),
     output: Path = typer.Option(
         Path("output"),
@@ -141,6 +142,13 @@ def convert(
     )
 
     try:
+        if source is None:
+            from leafpress.project import detect_project
+
+            detected = detect_project()
+            source = str(detected)
+            console.print(f"[dim]Detected project: {detected}[/dim]")
+
         if fetch_diagrams_flag and config:
             from leafpress.config import load_config as _load_config
             from leafpress.diagrams import fetch_diagrams as _do_fetch
@@ -204,8 +212,9 @@ def init(
 
 @cli.command()
 def info(
-    source: str = typer.Argument(
-        help="Path to MkDocs directory or git URL.",
+    source: str | None = typer.Argument(
+        None,
+        help="Path to MkDocs directory or git URL. Auto-detected if omitted.",
     ),
     branch: str | None = typer.Option(
         None,
@@ -216,6 +225,13 @@ def info(
 ) -> None:
     """Display detected MkDocs site info."""
     try:
+        if source is None:
+            from leafpress.project import detect_project
+
+            detected = detect_project()
+            source = str(detected)
+            console.print(f"[dim]Detected project: {detected}[/dim]")
+
         with resolve_source(source, branch) as project_dir:
             # Find config
             config_file = None
@@ -286,12 +302,17 @@ def doctor(
         "--verbose",
         help="Also check core dependencies (normally guaranteed to be installed).",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Show captured error output from failed checks for troubleshooting.",
+    ),
 ) -> None:
     """Check your environment and show the status of optional dependencies."""
     from leafpress.doctor import print_report, run_doctor
 
     report = run_doctor(verbose=verbose)
-    print_report(report, console)
+    print_report(report, console, debug=debug)
     if not report.all_passed:
         raise typer.Exit(code=1)
 

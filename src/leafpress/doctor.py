@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import platform
 import shutil
 import sys
+from contextlib import redirect_stderr
 from dataclasses import dataclass, field
 
 from rich.console import Console
@@ -44,6 +46,7 @@ class CheckResult:
     version: str | None = None
     message: str = ""
     install_hint: str = ""
+    debug_output: str = ""
 
 
 @dataclass
@@ -94,8 +97,12 @@ def _check_core_dep(pip_name: str, import_name: str) -> CheckResult:
 
 def _check_weasyprint_package() -> CheckResult:
     """Check if WeasyPrint Python package is installed."""
+    # Capture stderr: WeasyPrint prints noisy error messages before raising
+    # OSError when system libs (cairo, pango) are missing.
+    captured = io.StringIO()
     try:
-        import weasyprint
+        with redirect_stderr(captured):
+            import weasyprint
 
         ver = getattr(weasyprint, "__version__", "installed")
         return CheckResult(name="WeasyPrint", passed=True, version=str(ver))
@@ -113,13 +120,16 @@ def _check_weasyprint_package() -> CheckResult:
             passed=False,
             message=f"Installed but system libs failed: {e}",
             install_hint=_weasyprint_syslib_hint(),
+            debug_output=captured.getvalue(),
         )
 
 
 def _check_weasyprint_system_libs() -> CheckResult | None:
     """Check if WeasyPrint system libraries (cairo, pango, etc.) work."""
+    captured = io.StringIO()
     try:
-        import weasyprint  # noqa: F401
+        with redirect_stderr(captured):
+            import weasyprint  # noqa: F401
     except ImportError:
         # Package not installed — skip system lib check
         return None
@@ -130,6 +140,7 @@ def _check_weasyprint_system_libs() -> CheckResult | None:
             passed=False,
             message=str(e),
             install_hint=_weasyprint_syslib_hint(),
+            debug_output=captured.getvalue(),
         )
 
     try:
@@ -250,17 +261,22 @@ def run_doctor(*, verbose: bool = False) -> DoctorReport:
     return report
 
 
-def _extras_line() -> str:
+def _extras_line(report: DoctorReport) -> str:
     """Build a summary line showing which extras are installed."""
+    # Reuse already-computed check results instead of re-importing
+    extra_names = {"WeasyPrint": "pdf", "PyQt6": "ui"}
     parts: list[str] = []
-    for extra, check_fn in [("pdf", _check_weasyprint_package), ("ui", _check_pyqt6)]:
-        result = check_fn()
-        mark = "[green]✓[/green]" if result.passed else "[red]✗[/red]"
-        parts.append(f"{extra} {mark}")
+    for check in report.checks:
+        extra = extra_names.get(check.name)
+        if extra:
+            mark = "[green]✓[/green]" if check.passed else "[red]✗[/red]"
+            parts.append(f"{extra} {mark}")
     return "Extras: " + "  ".join(parts)
 
 
-def print_report(report: DoctorReport, console: Console) -> None:
+def print_report(
+    report: DoctorReport, console: Console, *, debug: bool = False
+) -> None:
     """Render a DoctorReport to the console with Rich formatting."""
     # Header
     console.print(
@@ -268,7 +284,7 @@ def print_report(report: DoctorReport, console: Console) -> None:
             f"[bold]leafpress[/bold] {escape(report.leafpress_version)}\n"
             f"Python {escape(report.python_version)}\n"
             f"{escape(report.platform_info)}\n"
-            f"{_extras_line()}",
+            f"{_extras_line(report)}",
             title="[bold]leafpress doctor[/bold]",
             border_style="blue",
         )
@@ -298,6 +314,20 @@ def print_report(report: DoctorReport, console: Console) -> None:
             for line in check.install_hint.splitlines():
                 console.print(f"    {escape(line)}")
             console.print()
+
+    # Debug output for failed checks
+    if debug:
+        debug_checks = [c for c in report.checks if not c.passed and c.debug_output]
+        if debug_checks:
+            console.print("\n[bold cyan]Debug output:[/bold cyan]\n")
+            for check in debug_checks:
+                console.print(f"  [bold]{escape(check.name)}[/bold]")
+                console.print(
+                    Panel(
+                        escape(check.debug_output.strip()),
+                        border_style="dim",
+                    )
+                )
 
     # Summary
     if report.all_passed:

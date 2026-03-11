@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -108,10 +109,12 @@ def convert(
         if git_info:
             console.print(f"  [green]Version:[/green] {git_info.format_version_string()}")
 
-        # Initialize markdown renderer
+        # Initialize markdown renderer with temp dir for mermaid images
+        mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
         renderer = MarkdownRenderer(
             extensions=mkdocs_cfg.markdown_extensions,
             docs_dir=mkdocs_cfg.docs_dir,
+            mermaid_output_dir=mermaid_dir,
         )
 
         # Flatten nav

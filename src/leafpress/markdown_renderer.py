@@ -71,8 +71,10 @@ class MarkdownRenderer:
         self,
         extensions: list[str | dict[str, Any]],
         docs_dir: Path,
+        mermaid_output_dir: Path | None = None,
     ) -> None:
         self._docs_dir = docs_dir
+        self._mermaid_output_dir = mermaid_output_dir
         self._extension_names: list[str] = []
         self._extension_configs: dict[str, dict[str, Any]] = {}
         self._parse_extensions(extensions)
@@ -138,6 +140,8 @@ class MarkdownRenderer:
         html = self._md.convert(md_content)
         html = self._resolve_relative_assets(html, source_path)
         html = self._resolve_emoji_shortcodes(html)
+        html = self._render_annotations(html)
+        html = self._render_mermaid_blocks(html)
         return html
 
     def _resolve_relative_assets(self, html: str, source_path: Path) -> str:
@@ -182,3 +186,18 @@ class MarkdownRenderer:
         html = re.sub(r":(?:material|fontawesome|octicons)[\w-]+:", "", html)
 
         return html
+
+    def _render_annotations(self, html: str) -> str:
+        """Render Material for MkDocs annotation blocks as footnote-style references."""
+        from leafpress.annotations import render_annotations
+
+        return render_annotations(html)
+
+    def _render_mermaid_blocks(self, html: str) -> str:
+        """Render mermaid code blocks to PNG images."""
+        if self._mermaid_output_dir is None:
+            return html
+
+        from leafpress.mermaid import render_mermaid_blocks
+
+        return render_mermaid_blocks(html, self._mermaid_output_dir)

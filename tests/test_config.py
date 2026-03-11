@@ -39,6 +39,7 @@ def test_config_defaults() -> None:
     assert config.footer.include_branch is False
     assert config.pdf.page_size == "A4"
     assert config.docx.template_path is None
+    assert config.document_owner is None
 
 
 # --- env var tests ---
@@ -94,3 +95,39 @@ def test_env_override_invalid_color_raises(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("LEAFPRESS_PRIMARY_COLOR", "notacolor")
     with pytest.raises(ValidationError):
         config_from_env()
+
+
+# --- document_owner tests ---
+
+
+def test_document_owner_from_yaml(tmp_path: Path) -> None:
+    """document_owner is loaded from YAML config."""
+    cfg = tmp_path / "leafpress.yml"
+    cfg.write_text(
+        'company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "Jane Smith"\n'
+    )
+    config = load_config(cfg)
+    assert config.document_owner == "Jane Smith"
+
+
+def test_document_owner_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LEAFPRESS_DOCUMENT_OWNER env var overrides YAML."""
+    for k, v in _REQUIRED.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setenv("LEAFPRESS_DOCUMENT_OWNER", "Env Owner")
+    config = config_from_env()
+    assert config is not None
+    assert config.document_owner == "Env Owner"
+
+
+def test_document_owner_env_overrides_yaml(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Env var takes precedence over YAML value."""
+    cfg = tmp_path / "leafpress.yml"
+    cfg.write_text(
+        'company_name: "Test"\nproject_name: "Docs"\ndocument_owner: "YAML Owner"\n'
+    )
+    monkeypatch.setenv("LEAFPRESS_DOCUMENT_OWNER", "Env Owner")
+    config = load_config(cfg)
+    assert config.document_owner == "Env Owner"

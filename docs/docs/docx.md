@@ -60,9 +60,10 @@ leafpress converts the following Markdown/HTML elements to DOCX:
 | `kbd` | Monospace run |
 | Emoji images | Unicode emoji character (from `alt` attribute) |
 | Admonition blocks | Styled paragraph with title |
+| Mermaid diagrams | Inline image (rendered via [mermaid.ink](https://mermaid.ink)) |
+| Annotations | Superscript references with footnote block |
 
 ## Limitations
 
 - Remote images (except those already fetched by the renderer) are skipped in DOCX output
 - Complex CSS styling (custom colors, gradients) is not preserved in DOCX
-- Mermaid diagrams are rendered as SVG in PDF but may appear as placeholder text in DOCX

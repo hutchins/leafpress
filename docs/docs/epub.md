@@ -36,6 +36,8 @@ The EPUB output includes:
 | Images | Yes |
 | Code blocks | Yes |
 | Watermark text | Yes |
+| Mermaid diagrams | Yes |
+| Annotations | Yes |
 
 ## Options
 

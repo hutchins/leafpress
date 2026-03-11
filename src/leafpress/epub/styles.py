@@ -142,6 +142,32 @@ details {{
 
 summary {{ font-weight: 600; }}
 
+/* Annotations (Material for MkDocs) */
+.annotation-ref {{
+    color: {primary};
+    font-weight: 600;
+    font-size: 0.8em;
+    vertical-align: super;
+}}
+
+.annotation-list {{
+    border-top: 1px solid #e0e0e0;
+    margin-top: 1em;
+    padding-top: 0.5em;
+    font-size: 0.9em;
+    color: #555;
+}}
+
+.annotation-item {{
+    margin-bottom: 0.25em;
+}}
+
+.annotation-item sup {{
+    color: {primary};
+    font-weight: 600;
+    margin-right: 0.25em;
+}}
+
 /* Footer */
 .lp-footer {{
     margin-top: 3em;
