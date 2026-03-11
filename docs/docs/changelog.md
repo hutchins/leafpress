@@ -1,27 +1,31 @@
 # Changelog
 
-## 0.4.0 — 2026-03-10
+## 0.4.0 — 2026-03-11
 
 ### Features
 
-- **Monorepo support** — list multiple MkDocs projects in `leafpress.yml` under `projects`; each project renders as a chapter of a single combined document with one cover page and unified TOC; per-project metadata overrides (author, document_owner, review_cycle, subtitle)
+- **Monorepo support** — list multiple MkDocs projects in `leafpress.yml` under `projects`; each project renders as a chapter of a single combined document with one cover page and unified TOC; per-project metadata overrides (author, document_owner, review_cycle, subtitle); supports git URL projects with optional branch
 - **PowerPoint import** — `leafpress import deck.pptx` converts presentations to Markdown; slide titles become H2 headings, speaker notes render as blockquotes, tables and images are extracted; `--notes/--no-notes` flag to toggle speaker notes
+- **Multi-file import** — `leafpress import *.docx *.pptx` processes multiple files in one command with mixed format support and partial failure handling
 - **`review_cycle` config field** — new optional field displayed on cover page of all output formats; configurable via `LEAFPRESS_REVIEW_CYCLE` env var
-- **Architecture documentation** — new [Architecture](architecture.md) page with pipeline flowchart and contributor guide
 
 ### Tests
 
 - 19 new PPTX import tests (slides, formatting, tables, images, notes, CLI integration)
 - 17 new monorepo tests (page collection, chapter headings, nav bumping, per-project metadata, config normalization)
+- 5 new multi-file import CLI tests (multiple DOCX, mixed formats, output validation, partial failure, backwards compat)
+- 3 new dotenv loading tests
 - 2 new `bump_nav_levels` tests
 - 3 new `review_cycle` config tests
-- 429 total tests
+- 444 total tests
 
 ### Docs
 
-- New [Architecture](architecture.md) page with Mermaid flowchart of the rendering pipeline
+- New [Document Import](import.md) page with supported/unsupported feature tables for Word and PowerPoint
+- New [Architecture](architecture.md) page with pipeline flowcharts, module map, and key dependencies
 - [Configuration](configuration.md) updated with monorepo support section and `review_cycle` field
-- [CLI reference](cli.md) updated with PPTX import support, monorepo example, and `--notes` flag
+- [CLI reference](cli.md) updated with multi-file import, PPTX support, monorepo example, and `--notes` flag
+- [About](about.md) updated with source control migration messaging
 
 ---
 
