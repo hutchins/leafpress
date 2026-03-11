@@ -9,8 +9,11 @@ import pytest
 from git import Repo
 
 from leafpress.exceptions import SourceError
-from leafpress.project import _find_git_root, _find_mkdocs_dir, detect_project
-
+from leafpress.project import (
+    _find_git_root,
+    _find_mkdocs_dir,
+    detect_project,
+)
 
 # --- _find_git_root ---
 
@@ -141,16 +144,20 @@ def test_detect_finds_yaml_extension(tmp_path: Path) -> None:
 
 def test_detect_raises_when_not_found(tmp_path: Path) -> None:
     """Raises SourceError when no mkdocs.yml is found anywhere."""
-    with patch("leafpress.project._find_git_root", return_value=None):
-        with pytest.raises(SourceError, match="No mkdocs.yml found"):
-            detect_project(cwd=tmp_path)
+    with (
+        patch("leafpress.project._find_git_root", return_value=None),
+        pytest.raises(SourceError, match=r"No mkdocs\.yml found"),
+    ):
+        detect_project(cwd=tmp_path)
 
 
 def test_detect_raises_helpful_message(tmp_path: Path) -> None:
     """Error message suggests specifying a source path."""
-    with patch("leafpress.project._find_git_root", return_value=None):
-        with pytest.raises(SourceError, match="leafpress convert /path/to/project"):
-            detect_project(cwd=tmp_path)
+    with (
+        patch("leafpress.project._find_git_root", return_value=None),
+        pytest.raises(SourceError, match="leafpress convert /path/to/project"),
+    ):
+        detect_project(cwd=tmp_path)
 
 
 def test_detect_deduplicates_cwd_equals_git_root(tmp_path: Path) -> None:

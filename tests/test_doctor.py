@@ -387,7 +387,11 @@ def test_print_report_debug_shows_captured_output() -> None:
                 passed=False,
                 message="System libs failed",
                 install_hint="brew install cairo",
-                debug_output="** (weasyprint) cannot open libcairo.so\nTraceback (most recent call last):\n  OSError: cannot load library",
+                debug_output=(
+                    "** (weasyprint) cannot open libcairo.so\n"
+                    "Traceback (most recent call last):\n"
+                    "  OSError: cannot load library"
+                ),
             ),
         ],
     )

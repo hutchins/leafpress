@@ -55,21 +55,25 @@ def test_render_mermaid_success(tmp_path: Path) -> None:
 
 def test_render_mermaid_http_error(tmp_path: Path) -> None:
     dest = tmp_path / "diagram.png"
-    with patch(
-        "leafpress.mermaid.requests.get",
-        return_value=_FakeResponse(status_code=400),
+    with (
+        patch(
+            "leafpress.mermaid.requests.get",
+            return_value=_FakeResponse(status_code=400),
+        ),
+        pytest.raises(DiagramError, match="Failed to render mermaid"),
     ):
-        with pytest.raises(DiagramError, match="Failed to render mermaid"):
-            render_mermaid(SAMPLE_MERMAID, dest)
+        render_mermaid(SAMPLE_MERMAID, dest)
 
 
 def test_render_mermaid_bad_content_type(tmp_path: Path) -> None:
     resp = _FakeResponse()
     resp.headers = {"Content-Type": "text/html"}
     dest = tmp_path / "diagram.png"
-    with patch("leafpress.mermaid.requests.get", return_value=resp):
-        with pytest.raises(DiagramError, match="unexpected content type"):
-            render_mermaid(SAMPLE_MERMAID, dest)
+    with (
+        patch("leafpress.mermaid.requests.get", return_value=resp),
+        pytest.raises(DiagramError, match="unexpected content type"),
+    ):
+        render_mermaid(SAMPLE_MERMAID, dest)
 
 
 # --- _find_mermaid_blocks ---
