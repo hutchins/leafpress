@@ -27,3 +27,7 @@ class DiagramError(LeafpressError):
 
 class DocxImportError(LeafpressError):
     """Error during DOCX-to-Markdown import."""
+
+
+class PptxImportError(LeafpressError):
+    """Error during PPTX-to-Markdown import."""

@@ -44,6 +44,7 @@ dependencies = [
     "ebooklib>=0.18",
     "mammoth>=1.8",
     "markdownify>=1.0",
+    "python-pptx>=1.0.0",
 ]
 
 [project.optional-dependencies]

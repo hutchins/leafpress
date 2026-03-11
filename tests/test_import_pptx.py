@@ -1,0 +1,364 @@
+"""Tests for PPTX to Markdown import converter."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from pptx import Presentation
+from pptx.util import Inches
+
+from leafpress.exceptions import PptxImportError
+from leafpress.importer.converter_pptx import (
+    _runs_to_markdown,
+    _table_to_markdown,
+    import_pptx,
+)
+
+# --- helpers ---
+
+
+def _make_pptx(tmp_path: Path, slides: list[dict]) -> Path:
+    """Create a PPTX file from slide definitions.
+
+    Each slide dict can have:
+        title: str
+        body: str | list[str]
+        notes: str
+        table: list[list[str]]  (rows of cells)
+    """
+    prs = Presentation()
+    for slide_data in slides:
+        layout = prs.slide_layouts[1]  # Title and Content
+        slide = prs.slides.add_slide(layout)
+
+        if "title" in slide_data:
+            slide.shapes.title.text = slide_data["title"]
+
+        if "body" in slide_data:
+            body_placeholder = slide.placeholders[1]
+            tf = body_placeholder.text_frame
+            tf.clear()
+            body = slide_data["body"]
+            if isinstance(body, str):
+                body = [body]
+            for i, text in enumerate(body):
+                if i == 0:
+                    tf.paragraphs[0].text = text
+                else:
+                    tf.add_paragraph().text = text
+
+        if "notes" in slide_data:
+            notes_slide = slide.notes_slide
+            notes_slide.notes_text_frame.text = slide_data["notes"]
+
+        if "table" in slide_data:
+            table_data = slide_data["table"]
+            rows_count = len(table_data)
+            cols_count = len(table_data[0]) if table_data else 0
+            tbl = slide.shapes.add_table(
+                rows_count, cols_count, Inches(1), Inches(3), Inches(6), Inches(2),
+            ).table
+            for r, row_data in enumerate(table_data):
+                for c, cell_text in enumerate(row_data):
+                    tbl.cell(r, c).text = cell_text
+
+    path = tmp_path / "test.pptx"
+    prs.save(path)
+    return path
+
+
+def _make_formatted_pptx(tmp_path: Path) -> Path:
+    """Create a PPTX with bold/italic formatting."""
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text = "Formatted"
+
+    tf = slide.placeholders[1].text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    run_bold = p.add_run()
+    run_bold.text = "bold text"
+    run_bold.font.bold = True
+    run_normal = p.add_run()
+    run_normal.text = " and "
+    run_italic = p.add_run()
+    run_italic.text = "italic text"
+    run_italic.font.italic = True
+
+    path = tmp_path / "formatted.pptx"
+    prs.save(path)
+    return path
+
+
+def _make_image_pptx(tmp_path: Path) -> Path:
+    """Create a PPTX with an embedded image."""
+    import struct
+
+    # Minimal valid 1x1 red PNG
+    def _make_png() -> bytes:
+        signature = b"\x89PNG\r\n\x1a\n"
+
+        def _chunk(chunk_type: bytes, data: bytes) -> bytes:
+            import zlib
+
+            length = struct.pack(">I", len(data))
+            crc = struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
+            return length + chunk_type + data + crc
+
+        import zlib
+
+        ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+        raw_row = b"\x00\xff\x00\x00"  # filter byte + RGB
+        idat_data = zlib.compress(raw_row)
+        return (
+            signature
+            + _chunk(b"IHDR", ihdr_data)
+            + _chunk(b"IDAT", idat_data)
+            + _chunk(b"IEND", b"")
+        )
+
+    img_path = tmp_path / "red.png"
+    img_path.write_bytes(_make_png())
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text = "With Image"
+    slide.shapes.add_picture(str(img_path), Inches(1), Inches(2), Inches(2), Inches(2))
+
+    path = tmp_path / "with_image.pptx"
+    prs.save(path)
+    return path
+
+
+# --- import_pptx tests ---
+
+
+def test_import_basic_slides(tmp_path: Path) -> None:
+    """Basic slides with title and body text are converted."""
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "Introduction", "body": "Welcome to the presentation."},
+        {"title": "Details", "body": "Here are the details."},
+    ])
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "## Introduction" in md
+    assert "Welcome to the presentation." in md
+    assert "## Details" in md
+    assert "Here are the details." in md
+
+
+def test_slide_titles_as_h2(tmp_path: Path) -> None:
+    """Each slide gets an H2 heading from its title."""
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "First Slide"},
+        {"title": "Second Slide"},
+    ])
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert md.count("## ") == 2
+    assert "## First Slide" in md
+    assert "## Second Slide" in md
+
+
+def test_untitled_slide_fallback(tmp_path: Path) -> None:
+    """Slides without titles get '## Slide N' heading."""
+    prs = Presentation()
+    # Use blank layout (index 6) which has no title placeholder
+    prs.slides.add_slide(prs.slide_layouts[6])
+    path = tmp_path / "untitled.pptx"
+    prs.save(path)
+
+    result = import_pptx(path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "## Slide 1" in md
+
+
+def test_bold_italic_formatting(tmp_path: Path) -> None:
+    """Bold and italic formatting is preserved."""
+    pptx_path = _make_formatted_pptx(tmp_path)
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "**bold text**" in md
+    assert "*italic text*" in md
+
+
+def test_multiple_body_paragraphs(tmp_path: Path) -> None:
+    """Multiple body paragraphs are all extracted."""
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "Multi", "body": ["Line one", "Line two", "Line three"]},
+    ])
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "Line one" in md
+    assert "Line two" in md
+    assert "Line three" in md
+
+
+def test_table_extraction(tmp_path: Path) -> None:
+    """Tables are converted to pipe-style markdown."""
+    pptx_path = _make_pptx(tmp_path, [
+        {
+            "title": "Data",
+            "table": [
+                ["Name", "Value"],
+                ["Alpha", "100"],
+                ["Beta", "200"],
+            ],
+        },
+    ])
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "| Name" in md
+    assert "| Alpha" in md
+    assert "| Beta" in md
+    assert "---" in md  # separator row
+
+
+def test_image_extraction(tmp_path: Path) -> None:
+    """Embedded images are extracted to assets/ and referenced in markdown."""
+    pptx_path = _make_image_pptx(tmp_path)
+    result = import_pptx(pptx_path)
+    md = result.markdown_path.read_text()
+    assert "![](assets/" in md
+    assert len(result.images) == 1
+    assert result.images[0].exists()
+
+
+def test_speaker_notes_as_blockquote(tmp_path: Path) -> None:
+    """Speaker notes are included as blockquotes."""
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "Noted", "notes": "Remember to explain this carefully."},
+    ])
+    result = import_pptx(pptx_path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert "> Remember to explain this carefully." in md
+
+
+def test_no_notes_flag(tmp_path: Path) -> None:
+    """include_notes=False omits speaker notes."""
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "Noted", "notes": "Secret notes here."},
+    ])
+    result = import_pptx(pptx_path, extract_images=False, include_notes=False)
+    md = result.markdown_path.read_text()
+    assert "Secret notes here" not in md
+
+
+def test_empty_presentation(tmp_path: Path) -> None:
+    """Empty presentation produces minimal output."""
+    prs = Presentation()
+    path = tmp_path / "empty.pptx"
+    prs.save(path)
+    result = import_pptx(path, extract_images=False)
+    md = result.markdown_path.read_text()
+    assert md.strip() == ""
+
+
+def test_output_path_default(tmp_path: Path) -> None:
+    """Default output uses same stem as input."""
+    pptx_path = _make_pptx(tmp_path, [{"title": "Test"}])
+    result = import_pptx(pptx_path, extract_images=False)
+    assert result.markdown_path == tmp_path / "test.md"
+
+
+def test_output_path_explicit(tmp_path: Path) -> None:
+    """Explicit output path is respected."""
+    pptx_path = _make_pptx(tmp_path, [{"title": "Test"}])
+    out = tmp_path / "custom" / "output.md"
+    result = import_pptx(pptx_path, output_path=out, extract_images=False)
+    assert result.markdown_path == out
+    assert out.exists()
+
+
+def test_output_path_directory(tmp_path: Path) -> None:
+    """Directory output creates <stem>.md inside it."""
+    pptx_path = _make_pptx(tmp_path, [{"title": "Test"}])
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    result = import_pptx(pptx_path, output_path=out_dir, extract_images=False)
+    assert result.markdown_path == out_dir / "test.md"
+
+
+def test_invalid_file_raises(tmp_path: Path) -> None:
+    """Wrong extension raises PptxImportError."""
+    txt_file = tmp_path / "notes.txt"
+    txt_file.write_text("hello")
+    with pytest.raises(PptxImportError, match=r"Not a \.pptx file"):
+        import_pptx(txt_file)
+
+
+def test_missing_file_raises(tmp_path: Path) -> None:
+    """Nonexistent file raises PptxImportError."""
+    with pytest.raises(PptxImportError, match="File not found"):
+        import_pptx(tmp_path / "nonexistent.pptx")
+
+
+# --- unit tests for helpers ---
+
+
+def test_table_to_markdown_pipe_format() -> None:
+    """_table_to_markdown produces correct pipe table."""
+    from unittest.mock import MagicMock
+
+    table = MagicMock()
+    row1 = MagicMock()
+    row1.cells = [MagicMock(text="H1"), MagicMock(text="H2")]
+    row2 = MagicMock()
+    row2.cells = [MagicMock(text="a"), MagicMock(text="b")]
+    table.rows = [row1, row2]
+
+    md = _table_to_markdown(table)
+    assert "| H1" in md
+    assert "| a" in md
+    assert "---" in md
+
+
+def test_runs_to_markdown_plain() -> None:
+    """Plain text runs are joined."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "hello world"
+    run.font.bold = False
+    run.font.italic = False
+    run.hyperlink = None
+    para.runs = [run]
+
+    assert _runs_to_markdown(para) == "hello world"
+
+
+# --- CLI integration ---
+
+
+def test_cli_pptx_integration(tmp_path: Path) -> None:
+    """End-to-end CLI import of a PPTX file."""
+    from typer.testing import CliRunner
+
+    from leafpress.cli import cli
+
+    pptx_path = _make_pptx(tmp_path, [
+        {"title": "CLI Test", "body": "Content here."},
+    ])
+    runner = CliRunner()
+    result = runner.invoke(cli, ["import", str(pptx_path), "-o", str(tmp_path / "out.md")])
+    assert result.exit_code == 0
+    assert "Done!" in result.output
+    assert (tmp_path / "out.md").exists()
+    md = (tmp_path / "out.md").read_text()
+    assert "## CLI Test" in md
+
+
+def test_cli_unsupported_format(tmp_path: Path) -> None:
+    """CLI rejects unsupported file types."""
+    from typer.testing import CliRunner
+
+    from leafpress.cli import cli
+
+    txt_file = tmp_path / "notes.txt"
+    txt_file.write_text("hello")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["import", str(txt_file)])
+    assert result.exit_code == 1
+    assert "Unsupported file type" in result.output
