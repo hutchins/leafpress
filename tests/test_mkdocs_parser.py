@@ -7,6 +7,7 @@ import pytest
 from leafpress.exceptions import ConfigError
 from leafpress.mkdocs_parser import (
     NavItem,
+    bump_nav_levels,
     flatten_nav,
     parse_mkdocs_config,
 )
@@ -49,6 +50,26 @@ def test_flatten_nav() -> None:
     assert flat[1].title == "Section"
     assert flat[2].title == "Page A"
     assert flat[3].title == "Page B"
+
+
+def test_bump_nav_levels() -> None:
+    items = [
+        NavItem(title="Home", path=Path("index.md"), level=0),
+        NavItem(title="Section", path=None, level=0),
+        NavItem(title="Page A", path=Path("a.md"), level=1),
+    ]
+    bumped = bump_nav_levels(items)
+    assert bumped[0].level == 1
+    assert bumped[1].level == 1
+    assert bumped[2].level == 2
+    # Original items are unchanged
+    assert items[0].level == 0
+
+
+def test_bump_nav_levels_custom_increment() -> None:
+    items = [NavItem(title="Page", path=Path("p.md"), level=0)]
+    bumped = bump_nav_levels(items, increment=3)
+    assert bumped[0].level == 3
 
 
 def test_parse_missing_config(tmp_path: Path) -> None:

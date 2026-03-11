@@ -61,6 +61,7 @@ class PdfRenderer:
                     author=self._branding.author if self._branding else "",
                     author_email=self._branding.author_email if self._branding else "",
                     document_owner=self._branding.document_owner if self._branding else "",
+                    review_cycle=self._branding.review_cycle if self._branding else "",
                     date=now.strftime("%B %d, %Y"),
                 )
             )

@@ -174,3 +174,16 @@ def flatten_nav(items: list[NavItem]) -> list[NavItem]:
         if item.children:
             result.extend(flatten_nav(item.children))
     return result
+
+
+def bump_nav_levels(items: list[NavItem], increment: int = 1) -> list[NavItem]:
+    """Return new NavItems with levels incremented (for monorepo chapter nesting)."""
+    return [
+        NavItem(
+            title=item.title,
+            path=item.path,
+            children=item.children,
+            level=item.level + increment,
+        )
+        for item in items
+    ]

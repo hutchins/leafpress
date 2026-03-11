@@ -198,6 +198,14 @@ class DocxRenderer:
             run.font.size = Pt(11)
             run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
+        # Review cycle
+        if self._branding and self._branding.review_cycle:
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run(f"Review Cycle: {self._branding.review_cycle}")
+            run.font.size = Pt(11)
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+
         # Version and date
         for _ in range(4):
             doc.add_paragraph()

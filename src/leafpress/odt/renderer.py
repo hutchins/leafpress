@@ -288,6 +288,12 @@ class OdtRenderer:
             p.addText(f"Document Owner: {self._branding.document_owner}")
             doc.text.addElement(p)
 
+        # Review cycle
+        if self._branding and self._branding.review_cycle:
+            p = P(stylename="CoverMeta")
+            p.addText(f"Review Cycle: {self._branding.review_cycle}")
+            doc.text.addElement(p)
+
         # Version
         if self._git_info:
             p = P(stylename="CoverMeta")
