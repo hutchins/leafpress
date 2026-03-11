@@ -10,7 +10,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 |---------|-------------|
 | [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB |
 | [`doctor`](#doctor) | Check your environment and optional dependency status |
-| [`import`](#import) | Import a Word document and convert it to Markdown |
+| [`import`](#import) | Import Word or PowerPoint documents to Markdown |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
 | [`fetch-diagrams`](#fetch-diagrams) | Fetch diagrams from external sources (URLs, Lucidchart) |
@@ -96,7 +96,11 @@ leafpress convert . -c leafpress.yml --fetch-diagrams
 # No cover page, open after conversion
 leafpress convert . --no-cover-page --open
 
-# Use a specific mkdocs.yml (monorepo)
+# Monorepo — combine multiple MkDocs projects into one document
+# (requires "projects" in leafpress.yml, see Configuration > Monorepo support)
+leafpress convert /path/to/monorepo -c leafpress.yml -f pdf
+
+# Use a specific mkdocs.yml
 leafpress convert /path/to/project --mkdocs-config /path/to/docs/mkdocs.yml
 ```
 
@@ -157,40 +161,53 @@ leafpress doctor --debug
 
 ## `import`
 
-Import a Word document and convert it to Markdown.
+Import one or more Word or PowerPoint documents and convert them to Markdown.
 
 ```bash
-leafpress import DOCX_FILE [OPTIONS]
+leafpress import FILES... [OPTIONS]
 ```
 
 **Arguments**
 
 | Argument | Description |
 |----------|-------------|
-| `DOCX_FILE` | Path to the `.docx` file to import |
+| `FILES...` | One or more `.docx` or `.pptx` files to import. You can mix formats in a single command. |
 
 **Options**
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--output`, `-o` | `<docx-stem>.md` | Output `.md` file path or directory |
+| `--output`, `-o` | `<stem>.md` | Output `.md` file path or directory. Must be a directory when importing multiple files. |
 | `--extract-images` / `--no-extract-images` | `--extract-images` | Extract embedded images to an `assets/` folder |
-| `--code-styles` | _(none)_ | Comma-separated Word style names to treat as code blocks |
+| `--code-styles` | _(none)_ | Comma-separated Word style names to treat as code blocks (DOCX only) |
+| `--notes` / `--no-notes` | `--notes` | Include speaker notes as blockquotes (PPTX only) |
 
 **Examples**
 
 ```bash
-# Import a Word document to Markdown (creates report.md alongside report.docx)
+# Import a single Word document (creates report.md alongside report.docx)
 leafpress import report.docx
 
-# Specify output path
+# Import a PowerPoint presentation
+leafpress import deck.pptx
+
+# Import multiple files at once
+leafpress import report.docx deck.pptx notes.docx
+
+# Import all Word and PowerPoint files in a directory
+leafpress import *.docx *.pptx
+
+# Output all results to a directory
+leafpress import *.docx *.pptx -o docs/
+
+# Import PPTX without speaker notes
+leafpress import deck.pptx --no-notes
+
+# Specify output path for a single file
 leafpress import report.docx -o docs/report.md
 
-# Output to a directory (creates dir/report.md)
-leafpress import report.docx -o docs/
-
 # Skip image extraction
-leafpress import report.docx --no-extract-images
+leafpress import deck.pptx --no-extract-images
 
 # Treat custom Word styles as code blocks
 leafpress import report.docx --code-styles "Code Block,Source Code"
