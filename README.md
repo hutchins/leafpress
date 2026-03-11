@@ -5,35 +5,46 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2e7d32.svg)](https://github.com/hutchins/leafpress/blob/main/LICENSE)
 [![CI](https://github.com/hutchins/leafpress/actions/workflows/ci.yml/badge.svg)](https://github.com/hutchins/leafpress/actions/workflows/ci.yml)
 
-Convert MkDocs sites to PDF, Word, HTML, and ODT documents with branding.
+Convert MkDocs sites to PDF, Word, HTML, ODT, and EPUB documents with branding.
 
 **[Documentation](https://leafpress.dev/)** · **[GitHub](https://github.com/hutchins/leafpress)** · **[PyPI](https://pypi.org/project/leafpress/)**
 
 ## Features
 
-- Generate **PDF**, **DOCX**, **HTML**, and **ODT** output from any MkDocs project
-- Cover page, table of contents, and branded footer
+- Generate **PDF**, **DOCX**, **HTML**, **ODT**, and **EPUB** output from any MkDocs project
+- **Document import** — convert Word (`.docx`) and PowerPoint (`.pptx`) files to Markdown, including batch import (`leafpress import *.docx *.pptx`)
+- **Monorepo support** — combine multiple MkDocs projects into a single document with per-project metadata overrides
+- **Mermaid diagrams** — fenced `mermaid` code blocks rendered as inline SVGs
+- **Diagram fetching** — pull diagrams from URLs and Lucidchart API with caching
+- Cover page, table of contents, branded footer, and **watermark overlay**
 - Logo, colors, and metadata via a simple `leafpress.yml` config
 - Git version info (tag, branch, commit) embedded in output
-- Convert from **local paths** or **remote git URLs**
+- Convert from **local paths** or **remote git URLs** (including monorepo git URL projects)
+- **`leafpress doctor`** — diagnose your environment and optional dependencies
 - **Desktop UI** — macOS/Linux/Windows menu bar app
 - **CI-friendly** — configure entirely via `LEAFPRESS_*` environment variables
 
 ## Installation
 
 ```bash
-# uv
+# Base install (DOCX, HTML, ODT, EPUB output + document import)
 uv add leafpress
-
-# pip
 pip install leafpress
+
+# With PDF output (WeasyPrint)
+uv add 'leafpress[pdf]'
+pip install 'leafpress[pdf]'
 
 # With desktop UI (PyQt6)
 uv add 'leafpress[ui]'
 pip install 'leafpress[ui]'
+
+# Everything
+uv add 'leafpress[all]'
+pip install 'leafpress[all]'
 ```
 
-WeasyPrint requires system libraries on Linux — see [Installation docs](https://leafpress.dev/installation) for details.
+WeasyPrint requires system libraries on Linux — see [Installation docs](https://leafpress.dev/installation) for details. Run `leafpress doctor` to check your environment.
 
 ## Quick Start
 
@@ -41,21 +52,30 @@ WeasyPrint requires system libraries on Linux — see [Installation docs](https:
 # Generate a starter branding config
 leafpress init
 
-# Convert to PDF
-leafpress convert /path/to/mkdocs/project
+# Convert to PDF (auto-detects project in current directory)
+leafpress convert
 
 # Convert to PDF + DOCX with branding
 leafpress convert /path/to/project -f both -c leafpress.yml
 
-# Convert to HTML or ODT
+# Convert to EPUB, HTML, or ODT
+leafpress convert /path/to/project -f epub
 leafpress convert /path/to/project -f html
 leafpress convert /path/to/project -f odt
 
-# Convert to all formats (PDF, DOCX, HTML, ODT)
+# Convert to all formats (PDF, DOCX, HTML, ODT, EPUB)
 leafpress convert /path/to/project -f all -c leafpress.yml
 
 # Convert from a remote git repo
 leafpress convert https://github.com/org/repo -b main -f pdf
+
+# Import Word or PowerPoint documents to Markdown
+leafpress import report.docx
+leafpress import deck.pptx
+leafpress import *.docx *.pptx -o docs/
+
+# Check your environment
+leafpress doctor
 
 # Show site info (pages, nav, git status)
 leafpress info /path/to/project
@@ -90,7 +110,7 @@ jobs:
         run: sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0
 
       - name: Install leafpress
-        run: pip install leafpress
+        run: pip install 'leafpress[pdf]'
 
       - name: Convert docs to PDF
         env:

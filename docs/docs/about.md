@@ -2,7 +2,7 @@
 
 ## What is LeafPress?
 
-LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, and ODT files — complete with cover pages, tables of contents, version info, and your organization's branding.
+LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, ODT, and EPUB files — complete with cover pages, tables of contents, version info, and your organization's branding.
 
 ## Why LeafPress?
 
