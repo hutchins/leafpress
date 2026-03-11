@@ -190,6 +190,14 @@ class DocxRenderer:
                 run.font.size = Pt(10)
                 run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
+        # Document owner
+        if self._branding and self._branding.document_owner:
+            para = doc.add_paragraph()
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = para.add_run(f"Document Owner: {self._branding.document_owner}")
+            run.font.size = Pt(11)
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+
         # Version and date
         for _ in range(4):
             doc.add_paragraph()

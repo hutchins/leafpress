@@ -2,6 +2,9 @@
 
 leafpress can fetch diagrams from external sources — URLs or Lucidchart — and save them locally before converting your MkDocs site. This keeps your documentation builds reproducible without committing large binary assets to version control.
 
+!!! tip "Mermaid diagrams"
+    If your diagrams are written as Mermaid code blocks in Markdown, you don't need the fetch workflow — LeafPress renders them automatically. See [Markdown Extensions → Mermaid diagrams](extensions.md#mermaid-diagrams) for details.
+
 ## Configuration
 
 Add a `diagrams` section to your `leafpress.yml`:

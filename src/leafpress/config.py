@@ -86,6 +86,7 @@ class BrandingConfig(BaseModel):
     subtitle: str | None = None
     author: str | None = None
     author_email: str | None = None
+    document_owner: str | None = None
     copyright_text: str | None = None
     primary_color: str = Field(
         default="#1a73e8",
@@ -130,6 +131,7 @@ _STR_FIELDS = [
     ("subtitle", "LEAFPRESS_SUBTITLE"),
     ("author", "LEAFPRESS_AUTHOR"),
     ("author_email", "LEAFPRESS_AUTHOR_EMAIL"),
+    ("document_owner", "LEAFPRESS_DOCUMENT_OWNER"),
     ("copyright_text", "LEAFPRESS_COPYRIGHT_TEXT"),
     ("primary_color", "LEAFPRESS_PRIMARY_COLOR"),
     ("accent_color", "LEAFPRESS_ACCENT_COLOR"),
@@ -239,6 +241,7 @@ project_name: "Project Documentation"
 # subtitle: "Internal Documentation"
 # author: "Engineering Team"
 # author_email: "team@example.com"
+# document_owner: "Engineering Team"
 # primary_color: "#1a73e8"
 # accent_color: "#ffffff"
 

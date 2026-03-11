@@ -24,6 +24,7 @@ logo_path: "./logo.png"         # local path (relative to this file) or https://
 subtitle: "Internal Documentation"
 author: "Engineering Team"
 author_email: "team@example.com"
+document_owner: "Jane Smith"    # shown on cover page
 copyright_text: "Copyright © 2026 Acme Corp"
 
 # Colors (6-digit hex)
@@ -88,6 +89,7 @@ diagrams:
 | `subtitle` | string | `null` | Subtitle shown on cover page |
 | `author` | string | `null` | Author name |
 | `author_email` | string | `null` | Author email |
+| `document_owner` | string | `null` | Document owner shown on cover page |
 | `copyright_text` | string | `null` | Copyright line on cover page |
 | `primary_color` | hex string | `#1a73e8` | Primary brand color (6-digit hex) |
 | `accent_color` | hex string | `#ffffff` | Accent/background color (6-digit hex) |
@@ -159,6 +161,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_SUBTITLE` | `subtitle` |
 | `LEAFPRESS_AUTHOR` | `author` |
 | `LEAFPRESS_AUTHOR_EMAIL` | `author_email` |
+| `LEAFPRESS_DOCUMENT_OWNER` | `document_owner` |
 | `LEAFPRESS_COPYRIGHT_TEXT` | `copyright_text` |
 | `LEAFPRESS_PRIMARY_COLOR` | `primary_color` |
 | `LEAFPRESS_ACCENT_COLOR` | `accent_color` |

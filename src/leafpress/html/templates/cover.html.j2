@@ -16,6 +16,9 @@
         {% if author or author_email %}
         <p>{{ author }}{% if author and author_email %} &lt;{{ author_email }}&gt;{% elif author_email %}{{ author_email }}{% endif %}</p>
         {% endif %}
+        {% if document_owner %}
+        <p>Document Owner: {{ document_owner }}</p>
+        {% endif %}
         <p>{{ date }}</p>
     </div>
 </div>

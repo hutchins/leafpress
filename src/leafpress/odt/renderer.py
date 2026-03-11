@@ -282,6 +282,12 @@ class OdtRenderer:
             p.addText(self._branding.subtitle)
             doc.text.addElement(p)
 
+        # Document owner
+        if self._branding and self._branding.document_owner:
+            p = P(stylename="CoverMeta")
+            p.addText(f"Document Owner: {self._branding.document_owner}")
+            doc.text.addElement(p)
+
         # Version
         if self._git_info:
             p = P(stylename="CoverMeta")

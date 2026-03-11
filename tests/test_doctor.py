@@ -128,6 +128,29 @@ def test_weasyprint_package_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "brew" in result.install_hint or "apt" in result.install_hint
 
 
+def test_weasyprint_package_oserror_captures_debug_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError path captures stderr into debug_output field."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "weasyprint":
+            # Simulate WeasyPrint printing to stderr before raising
+            import sys as _sys
+
+            _sys.stderr.write("** (weasyprint) cannot open libcairo.so\n")
+            raise OSError("cannot load library 'libcairo'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    result = _check_weasyprint_package()
+    assert result.passed is False
+    assert "libcairo" in result.debug_output
+
+
 def test_weasyprint_syslibs_oserror_at_import(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fails with syslib hint when import weasyprint raises OSError."""
     import builtins
@@ -145,6 +168,29 @@ def test_weasyprint_syslibs_oserror_at_import(monkeypatch: pytest.MonkeyPatch) -
     assert result.passed is False
     assert "libcairo" in result.message
     assert "brew" in result.install_hint or "apt" in result.install_hint
+
+
+def test_weasyprint_syslibs_oserror_captures_debug_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """System libs OSError path captures stderr into debug_output field."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "weasyprint":
+            import sys as _sys
+
+            _sys.stderr.write("** (weasyprint) missing libpango\n")
+            raise OSError("cannot load library 'libpango'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    result = _check_weasyprint_system_libs()
+    assert result is not None
+    assert result.passed is False
+    assert "libpango" in result.debug_output
 
 
 def test_weasyprint_package_present(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -324,6 +370,88 @@ def test_print_report_no_crash() -> None:
     assert "WeasyPrint" in output
 
 
+def test_print_report_debug_shows_captured_output() -> None:
+    """debug=True renders debug_output for failed checks."""
+    import io
+
+    from rich.console import Console
+
+    report = DoctorReport(
+        leafpress_version="0.3.0",
+        python_version="3.13.2",
+        platform_info="Darwin 24.6.0 (arm64)",
+        checks=[
+            CheckResult(name="Python", passed=True, version="3.13.2"),
+            CheckResult(
+                name="WeasyPrint",
+                passed=False,
+                message="System libs failed",
+                install_hint="brew install cairo",
+                debug_output="** (weasyprint) cannot open libcairo.so\nTraceback (most recent call last):\n  OSError: cannot load library",
+            ),
+        ],
+    )
+    buf = io.StringIO()
+    console = Console(file=buf, force_terminal=False, width=120)
+    print_report(report, console, debug=True)
+    output = buf.getvalue()
+    assert "Debug output" in output
+    assert "cannot open libcairo" in output
+
+
+def test_print_report_no_debug_hides_captured_output() -> None:
+    """debug=False (default) does not render debug_output section."""
+    import io
+
+    from rich.console import Console
+
+    report = DoctorReport(
+        leafpress_version="0.3.0",
+        python_version="3.13.2",
+        platform_info="Darwin 24.6.0 (arm64)",
+        checks=[
+            CheckResult(
+                name="WeasyPrint",
+                passed=False,
+                message="System libs failed",
+                debug_output="secret stderr noise",
+            ),
+        ],
+    )
+    buf = io.StringIO()
+    console = Console(file=buf, force_terminal=False, width=120)
+    print_report(report, console)
+    output = buf.getvalue()
+    assert "Debug output" not in output
+    assert "secret stderr noise" not in output
+
+
+def test_print_report_debug_skips_when_no_debug_output() -> None:
+    """debug=True does not crash when failed checks have no debug_output."""
+    import io
+
+    from rich.console import Console
+
+    report = DoctorReport(
+        leafpress_version="0.3.0",
+        python_version="3.13.2",
+        platform_info="Darwin 24.6.0 (arm64)",
+        checks=[
+            CheckResult(
+                name="PyQt6",
+                passed=False,
+                message="Not installed",
+            ),
+        ],
+    )
+    buf = io.StringIO()
+    console = Console(file=buf, force_terminal=False, width=120)
+    print_report(report, console, debug=True)
+    output = buf.getvalue()
+    # No debug section rendered because PyQt6 has no debug_output
+    assert "Debug output" not in output
+
+
 # --- CLI integration ---
 
 
@@ -339,6 +467,48 @@ def test_doctor_cli_verbose() -> None:
     result = runner.invoke(cli, ["doctor", "--verbose"])
     assert "typer" in result.output
     assert "rich" in result.output
+
+
+def test_doctor_cli_debug_flag() -> None:
+    """leafpress doctor --debug passes debug=True to print_report."""
+    has_fail = DoctorReport(
+        leafpress_version="0.2.2",
+        python_version="3.13.2",
+        platform_info="test",
+        checks=[
+            CheckResult(
+                name="WeasyPrint",
+                passed=False,
+                message="System libs failed",
+                debug_output="stderr captured here",
+            ),
+        ],
+    )
+    with patch("leafpress.doctor.run_doctor", return_value=has_fail):
+        result = runner.invoke(cli, ["doctor", "--debug"])
+    assert "Debug output" in result.output
+    assert "stderr captured here" in result.output
+
+
+def test_doctor_cli_no_debug_flag_hides_debug() -> None:
+    """leafpress doctor without --debug does not show debug output."""
+    has_fail = DoctorReport(
+        leafpress_version="0.2.2",
+        python_version="3.13.2",
+        platform_info="test",
+        checks=[
+            CheckResult(
+                name="WeasyPrint",
+                passed=False,
+                message="System libs failed",
+                debug_output="should be hidden",
+            ),
+        ],
+    )
+    with patch("leafpress.doctor.run_doctor", return_value=has_fail):
+        result = runner.invoke(cli, ["doctor"])
+    assert "Debug output" not in result.output
+    assert "should be hidden" not in result.output
 
 
 def test_doctor_cli_exit_code_zero_all_pass() -> None:

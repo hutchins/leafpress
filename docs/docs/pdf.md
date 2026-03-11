@@ -64,7 +64,8 @@ leafpress renders the same Markdown extensions configured in `mkdocs.yml`:
 - Admonitions (`!!! note`, `!!! warning`, etc.)
 - Task lists
 - Emoji (rendered as inline text or small images)
-- Mermaid diagrams (rendered as SVG)
+- Mermaid diagrams (rendered as images via [mermaid.ink](https://mermaid.ink))
+- Annotations (rendered as footnote-style references)
 - Strikethrough, superscript, subscript
 - Definition lists, footnotes
 

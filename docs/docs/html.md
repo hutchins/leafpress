@@ -37,6 +37,8 @@ The HTML output includes:
 | Images | Yes |
 | Code blocks | Yes |
 | Emoji shortcodes | Yes |
+| Mermaid diagrams | Yes |
+| Annotations | Yes |
 
 ## Options
 

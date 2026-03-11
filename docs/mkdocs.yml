@@ -23,6 +23,7 @@ nav:
     - Docker: docker.md
   - Customization:
     - Branding & Styling: branding.md
+    - Markdown Extensions: extensions.md
     - Git Integration: git-integration.md
     - Remote Sources: remote-sources.md
     - Diagrams: diagrams.md

@@ -61,6 +61,7 @@ class HtmlRenderer:
                 git_info=self._git_info,
                 author=self._branding.author if self._branding else "",
                 author_email=self._branding.author_email if self._branding else "",
+                document_owner=self._branding.document_owner if self._branding else "",
                 date=now.strftime("%B %d, %Y"),
             )
 

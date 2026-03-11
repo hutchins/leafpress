@@ -31,14 +31,14 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB.
 
 ```bash
-leafpress convert SOURCE [OPTIONS]
+leafpress convert [SOURCE] [OPTIONS]
 ```
 
 **Arguments**
 
 | Argument | Description |
 |----------|-------------|
-| `SOURCE` | Path to a local MkDocs project directory, or a git URL |
+| `SOURCE` | Path to a local MkDocs project directory, or a git URL. **Optional** — auto-detected if omitted (see [Project Auto-Detection](#project-auto-detection)) |
 
 **Options**
 
@@ -60,6 +60,9 @@ leafpress convert SOURCE [OPTIONS]
 **Examples**
 
 ```bash
+# Auto-detect project and convert to PDF
+leafpress convert
+
 # Convert local project to PDF
 leafpress convert /path/to/project
 
@@ -118,6 +121,7 @@ leafpress doctor [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--verbose` | `false` | Also check core dependencies (normally guaranteed to be installed) |
+| `--debug` | `false` | Show captured error output from failed checks for troubleshooting |
 
 **Checks performed**
 
@@ -144,6 +148,9 @@ leafpress doctor
 
 # Include core dependency checks
 leafpress doctor --verbose
+
+# Show captured stderr from failed checks
+leafpress doctor --debug
 ```
 
 ---
@@ -222,14 +229,14 @@ leafpress init /path/to/project
 Display detected MkDocs site info: navigation structure, markdown extensions, and git information.
 
 ```bash
-leafpress info SOURCE [OPTIONS]
+leafpress info [SOURCE] [OPTIONS]
 ```
 
 **Arguments**
 
 | Argument | Description |
 |----------|-------------|
-| `SOURCE` | Path to a local MkDocs directory or git URL |
+| `SOURCE` | Path to a local MkDocs directory or git URL. **Optional** — auto-detected if omitted (see [Project Auto-Detection](#project-auto-detection)) |
 
 **Options**
 
@@ -240,6 +247,10 @@ leafpress info SOURCE [OPTIONS]
 **Example**
 
 ```bash
+# Auto-detect project
+leafpress info
+
+# Explicit path
 leafpress info /path/to/project
 leafpress info https://github.com/org/repo -b main
 ```
@@ -301,3 +312,36 @@ leafpress ui --show
 ```
 
 Requires the `[ui]` extra. See [Desktop UI](ui.md) for installation and usage details.
+
+---
+
+## Project Auto-Detection
+
+When `SOURCE` is omitted from `convert` or `info`, leafpress automatically searches for an MkDocs project:
+
+**Search order:**
+
+1. **Git repo root** — if you're inside a git repository, leafpress checks the repo root for `mkdocs.yml`
+2. **Git root / `docs/`** — checks a `docs/` subdirectory of the repo root
+3. **Current directory** — falls back to CWD if not in a git repo
+4. **CWD / `docs/`** — checks a `docs/` subdirectory of CWD
+
+The first directory containing `mkdocs.yml` (or `mkdocs.yaml`) is used.
+
+**Examples**
+
+```bash
+# Inside a git repo with mkdocs.yml at root
+cd ~/projects/my-docs
+leafpress convert -f pdf
+
+# Inside a git repo with mkdocs.yml in docs/
+cd ~/projects/my-app
+leafpress convert -f all -o dist/
+
+# Not in a git repo — uses CWD
+cd /tmp/some-docs
+leafpress info
+```
+
+If no `mkdocs.yml` is found, leafpress exits with an error and suggests specifying the path explicitly.

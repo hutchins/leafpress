@@ -324,3 +324,30 @@ summary {
 .highlight .s1 { color: #032f62; } /* Literal.String.Single */
 .highlight .ss { color: #005cc5; } /* Literal.String.Symbol */
 .highlight .sr { color: #032f62; } /* Literal.String.Regex */
+
+/* Annotations (Material for MkDocs) */
+.annotation-ref {
+    color: #1a73e8;
+    font-weight: 600;
+    font-size: 0.75em;
+    vertical-align: super;
+    line-height: 0;
+}
+
+.annotation-list {
+    border-top: 1px solid #e0e0e0;
+    margin-top: 12pt;
+    padding-top: 8pt;
+    font-size: 9pt;
+    color: #555;
+}
+
+.annotation-item {
+    margin-bottom: 4pt;
+}
+
+.annotation-item sup {
+    color: #1a73e8;
+    font-weight: 600;
+    margin-right: 4pt;
+}

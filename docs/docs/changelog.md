@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 — 2026-03-10
+
+### Features
+
+- **Project auto-detection** — `leafpress convert` and `leafpress info` now auto-detect the MkDocs project directory when no `source` argument is given; searches git root, `docs/` subdirectory, CWD, and `CWD/docs/` in order
+- **`document_owner` config field** — new optional field in `leafpress.yml` displayed on the cover page of all output formats (PDF, HTML, EPUB, DOCX, ODT); also configurable via `LEAFPRESS_DOCUMENT_OWNER` env var
+- **Mermaid diagram rendering** — fenced `mermaid` code blocks are rendered as inline SVG diagrams in all output formats
+- **Annotation support** — Material for MkDocs-style annotations (`(1)`, `(2)`, etc.) are rendered as numbered footnotes
+- `--debug` flag on `leafpress doctor` for detailed diagnostic output
+
+### Tests
+
+- 18 new project auto-detection tests (git root, docs subdir, CWD fallback, yaml extension, error cases)
+- 3 new `document_owner` config tests (YAML loading, env override, env-over-YAML precedence)
+- 390 total tests
+
+### Docs
+
+- New [Markdown Extensions](extensions.md) page documenting mermaid, annotations, admonitions, tabs, and task lists
+- [CLI reference](cli.md) updated with auto-detection behavior, search order, and examples
+- [Configuration](configuration.md) updated with `document_owner` field and `LEAFPRESS_DOCUMENT_OWNER` env var
+
+---
+
 ## 0.2.2 — 2026-03-10
 
 ### Features
