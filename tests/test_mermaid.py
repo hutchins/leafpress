@@ -5,13 +5,14 @@ from unittest.mock import patch
 
 import pytest
 import requests
-
 from leafpress.exceptions import DiagramError
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mermaid import (
     _find_mermaid_blocks,
+    _sanitize_mermaid_source,
     render_mermaid,
     render_mermaid_blocks,
+    render_mermaid_svg,
 )
 
 # A 1x1 transparent PNG for mocking HTTP responses
@@ -22,22 +23,36 @@ _FAKE_PNG = (
     b"\r\n\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
+_FAKE_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>'
+
 SAMPLE_MERMAID = "graph TD\n    A --> B"
 
 
 class _FakeResponse:
     """Minimal mock for requests.get response."""
 
-    def __init__(self, content: bytes = _FAKE_PNG, status_code: int = 200) -> None:
+    def __init__(
+        self,
+        content: bytes = _FAKE_PNG,
+        status_code: int = 200,
+        content_type: str = "image/png",
+    ) -> None:
         self.content = content
         self.status_code = status_code
-        self.headers = {"Content-Type": "image/png"}
+        self.headers = {"Content-Type": content_type}
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
             from requests.exceptions import HTTPError
 
             raise HTTPError(f"{self.status_code}")
+
+
+def _fake_get_svg_and_png(url: str, **kwargs: object) -> _FakeResponse:
+    """Mock requests.get that returns SVG for /svg/ URLs and PNG for /img/ URLs."""
+    if "/svg/" in url:
+        return _FakeResponse(content=_FAKE_SVG, content_type="image/svg+xml")
+    return _FakeResponse(content=_FAKE_PNG, content_type="image/png")
 
 
 # --- render_mermaid ---
@@ -74,6 +89,32 @@ def test_render_mermaid_bad_content_type(tmp_path: Path) -> None:
         pytest.raises(DiagramError, match="unexpected content type"),
     ):
         render_mermaid(SAMPLE_MERMAID, dest)
+
+
+# --- render_mermaid_svg ---
+
+
+def test_render_mermaid_svg_success(tmp_path: Path) -> None:
+    dest = tmp_path / "diagram.svg"
+    resp = _FakeResponse(content=_FAKE_SVG, content_type="image/svg+xml")
+    with patch("leafpress.mermaid.requests.get", return_value=resp):
+        result = render_mermaid_svg(SAMPLE_MERMAID, dest)
+
+    assert result == dest
+    assert dest.exists()
+    assert dest.read_bytes() == _FAKE_SVG
+
+
+def test_render_mermaid_svg_http_error(tmp_path: Path) -> None:
+    dest = tmp_path / "diagram.svg"
+    with (
+        patch(
+            "leafpress.mermaid.requests.get",
+            return_value=_FakeResponse(status_code=400),
+        ),
+        pytest.raises(DiagramError, match="Failed to render mermaid SVG"),
+    ):
+        render_mermaid_svg(SAMPLE_MERMAID, dest)
 
 
 # --- _find_mermaid_blocks ---
@@ -121,17 +162,21 @@ def test_find_blocks_ignores_regular_code() -> None:
 def test_render_mermaid_blocks_replaces_with_img(tmp_path: Path) -> None:
     html = '<pre><code class="language-mermaid">graph TD\n    A --> B</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
     assert "mermaid-" in result
     assert "<pre>" not in result
+    # Summary message present, no failure warnings
+    assert len(warnings) == 1
+    assert "Rendered 1 mermaid diagram(s)" in warnings[0]
 
 
 def test_render_mermaid_blocks_no_mermaid_passthrough(tmp_path: Path) -> None:
     html = "<p>Hello world</p>"
-    result = render_mermaid_blocks(html, tmp_path)
+    result, warnings = render_mermaid_blocks(html, tmp_path)
     assert result == html
+    assert warnings == []
 
 
 def test_render_mermaid_blocks_keeps_block_on_failure(tmp_path: Path) -> None:
@@ -140,10 +185,35 @@ def test_render_mermaid_blocks_keeps_block_on_failure(tmp_path: Path) -> None:
         "leafpress.mermaid.requests.get",
         side_effect=requests.RequestException("network error"),
     ):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     # Original code block should be preserved
     assert "<code" in result
+    # Summary (index 0) + failure detail (index 1)
+    assert len(warnings) == 2
+    assert "0/1" in warnings[0]
+    assert "failed" in warnings[0]
+    assert "graph TD" in warnings[1]
+
+
+def test_render_mermaid_blocks_keeps_block_on_failure_with_page(tmp_path: Path) -> None:
+    """Warning message includes page name and diagram snippet."""
+    html = '<pre><code class="language-mermaid">flowchart LR\n    A --> B</code></pre>'
+    with patch(
+        "leafpress.mermaid.requests.get",
+        side_effect=requests.RequestException("network error"),
+    ):
+        result, warnings = render_mermaid_blocks(
+            html, tmp_path, source_path=Path("docs/architecture.md")
+        )
+
+    assert "<code" in result
+    # Summary (index 0) + failure detail (index 1)
+    assert len(warnings) == 2
+    assert "architecture.md" in warnings[0]
+    assert "1 failed" in warnings[0]
+    assert "architecture.md" in warnings[1]
+    assert "flowchart LR" in warnings[1]
 
 
 def test_render_mermaid_blocks_deduplication(tmp_path: Path) -> None:
@@ -152,11 +222,14 @@ def test_render_mermaid_blocks_deduplication(tmp_path: Path) -> None:
         '<pre><code class="language-mermaid">graph TD\n    A --> B</code></pre>'
     )
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()) as mock_get:
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     # Same diagram should only be fetched once (second uses cached file)
     assert mock_get.call_count == 1
     assert result.count("<img") == 2
+    # Summary only, no failures
+    assert len(warnings) == 1
+    assert "Rendered 2 mermaid diagram(s)" in warnings[0]
 
 
 def test_render_mermaid_blocks_multiple_different(tmp_path: Path) -> None:
@@ -165,7 +238,7 @@ def test_render_mermaid_blocks_multiple_different(tmp_path: Path) -> None:
         '<pre><code class="language-mermaid">graph LR\n    X --> Y</code></pre>'
     )
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert result.count("<img") == 2
     # Two different diagrams should produce two different files
@@ -186,7 +259,7 @@ def test_render_blocks_flowchart_with_labels(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
     assert "<pre>" not in result
@@ -207,7 +280,7 @@ def test_render_blocks_subgraph(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
     assert "<pre>" not in result
@@ -224,7 +297,7 @@ def test_render_blocks_sequence_diagram(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -243,7 +316,7 @@ def test_render_blocks_class_diagram(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -261,7 +334,7 @@ def test_render_blocks_state_diagram(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -278,7 +351,7 @@ def test_render_blocks_gantt_chart(tmp_path: Path) -> None:
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -288,7 +361,7 @@ def test_render_blocks_special_characters(tmp_path: Path) -> None:
     mermaid_src = 'graph TD\n    A["Node with quotes"] --> B[Node and stuff]'
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -297,12 +370,13 @@ def test_render_blocks_empty_source_skipped(tmp_path: Path) -> None:
     """Empty or whitespace-only mermaid blocks are skipped."""
     html = '<pre><code class="language-mermaid">   \n  \n  </code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()) as mock_get:
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     # Should not call the API for empty content
     mock_get.assert_not_called()
     # Original block preserved (no img replacement)
     assert "<img" not in result
+    assert warnings == []
 
 
 def test_render_blocks_invalid_syntax_preserved(tmp_path: Path) -> None:
@@ -312,11 +386,14 @@ def test_render_blocks_invalid_syntax_preserved(tmp_path: Path) -> None:
         "leafpress.mermaid.requests.get",
         return_value=_FakeResponse(status_code=400),
     ):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     # Block should be preserved on failure
     assert "<code" in result
     assert "<img" not in result
+    # Summary + failure detail
+    assert len(warnings) == 2
+    assert "0/1" in warnings[0]
 
 
 def test_render_blocks_timeout(tmp_path: Path) -> None:
@@ -326,10 +403,13 @@ def test_render_blocks_timeout(tmp_path: Path) -> None:
         "leafpress.mermaid.requests.get",
         side_effect=requests.exceptions.Timeout("Connection timed out"),
     ):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     assert "<code" in result
     assert "<img" not in result
+    # Summary + failure detail
+    assert len(warnings) == 2
+    assert "0/1" in warnings[0]
 
 
 def test_render_blocks_mixed_mermaid_and_code(tmp_path: Path) -> None:
@@ -340,11 +420,14 @@ def test_render_blocks_mixed_mermaid_and_code(tmp_path: Path) -> None:
         '<pre><code class="language-javascript">console.log("hi")</code></pre>'
     )
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, warnings = render_mermaid_blocks(html, tmp_path)
 
     assert result.count("<img") == 1
     assert "print" in result  # python block preserved
     assert "console.log" in result  # javascript block preserved
+    # Summary only, no failures
+    assert len(warnings) == 1
+    assert "Rendered 1 mermaid diagram(s)" in warnings[0]
 
 
 def test_render_blocks_flowchart_lr_direction(tmp_path: Path) -> None:
@@ -352,7 +435,7 @@ def test_render_blocks_flowchart_lr_direction(tmp_path: Path) -> None:
     mermaid_src = "graph LR\n    A[Input] --> B[Process] --> C[Output]"
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        result = render_mermaid_blocks(html, tmp_path)
+        result, _ = render_mermaid_blocks(html, tmp_path)
 
     assert "<img" in result
 
@@ -392,7 +475,7 @@ def test_render_blocks_content_addressed_filename(tmp_path: Path) -> None:
         f'<pre><code class="language-mermaid">{source2}</code></pre>'
     )
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        render_mermaid_blocks(html, tmp_path)
+        render_mermaid_blocks(html, tmp_path)  # warnings unused here
 
     assert (tmp_path / f"mermaid-{digest1}.png").exists()
     assert (tmp_path / f"mermaid-{digest2}.png").exists()
@@ -420,7 +503,7 @@ def test_pipeline_flowchart_fixture(sample_mkdocs_dir: Path, tmp_path: Path) -> 
     )
     md_file = sample_mkdocs_dir / "docs" / "index.md"
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_content, md_file)
+        html, _ = renderer.render(md_content, md_file)
 
     assert "<img" in html
     pngs = list(tmp_path.glob("mermaid-*.png"))
@@ -467,7 +550,7 @@ def test_pipeline_architecture_flowchart(sample_mkdocs_dir: Path, tmp_path: Path
     )
     md_file = sample_mkdocs_dir / "docs" / "index.md"
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_content, md_file)
+        html, _ = renderer.render(md_content, md_file)
 
     assert "<img" in html
     pngs = list(tmp_path.glob("mermaid-*.png"))
@@ -499,7 +582,7 @@ def test_pipeline_import_flowchart(sample_mkdocs_dir: Path, tmp_path: Path) -> N
     )
     md_file = sample_mkdocs_dir / "docs" / "index.md"
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_content, md_file)
+        html, _ = renderer.render(md_content, md_file)
 
     assert "<img" in html
     pngs = list(tmp_path.glob("mermaid-*.png"))
@@ -517,7 +600,7 @@ def test_pipeline_renders_mermaid_in_fixture(sample_mkdocs_dir: Path, tmp_path: 
     md_content = md_file.read_text(encoding="utf-8")
 
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_content, md_file)
+        html, _ = renderer.render(md_content, md_file)
 
     assert "<img" in html
     assert "mermaid-" in html
@@ -549,7 +632,7 @@ def test_mermaid_source_not_in_rendered_output(tmp_path: Path) -> None:
     )
 
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
 
     assert "<img" in html
     assert "flowchart TD" not in html
@@ -589,7 +672,122 @@ def test_mermaid_with_python_name_config(tmp_path: Path) -> None:
     )
 
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
 
     assert "<img" in html
     assert "graph LR" not in html
+
+
+# --- _sanitize_mermaid_source tests ---
+
+
+def test_sanitize_preserves_structural_newlines() -> None:
+    """Newlines between mermaid statements should be preserved."""
+    source = 'graph TD\n    A --> B\n    B --> C'
+    result = _sanitize_mermaid_source(source)
+    assert result == source
+
+
+def test_sanitize_replaces_newlines_in_quoted_labels() -> None:
+    """Newlines inside double-quoted node labels become <br/>."""
+    source = 'graph TD\n    A["Hello\nWorld"] --> B'
+    result = _sanitize_mermaid_source(source)
+    assert result == 'graph TD\n    A["Hello<br/>World"] --> B'
+
+
+def test_sanitize_handles_multiple_quoted_labels() -> None:
+    """Multiple quoted labels with newlines are all fixed."""
+    source = 'graph TD\n    A["Line1\nLine2"] --> B["Foo\nBar"]'
+    result = _sanitize_mermaid_source(source)
+    assert "<br/>" in result
+    assert '"Line1<br/>Line2"' in result
+    assert '"Foo<br/>Bar"' in result
+
+
+def test_sanitize_decodes_html_entities() -> None:
+    """Residual HTML entities are decoded."""
+    source = "graph TD\n    A[&quot;text&quot;] --&gt; B"
+    result = _sanitize_mermaid_source(source)
+    assert "&quot;" not in result
+    assert "&gt;" not in result
+    assert '"text"' in result
+    assert "-->" in result
+
+
+def test_sanitize_replaces_literal_backslash_n() -> None:
+    """Literal \\n text (backslash + n) is converted to <br/>."""
+    source = 'graph TD\n    A["Hello\\nWorld"] --> B'
+    result = _sanitize_mermaid_source(source)
+    assert "\\n" not in result
+    assert "<br/>" in result
+
+
+def test_sanitize_literal_backslash_n_in_unquoted_label() -> None:
+    """Literal \\n in unquoted bracket labels is also converted."""
+    source = "graph TD\n    A[Hello\\nWorld] --> B"
+    result = _sanitize_mermaid_source(source)
+    assert "\\n" not in result
+    assert "Hello<br/>World" in result
+
+
+def test_sanitize_noop_for_clean_source() -> None:
+    """Source without issues passes through unchanged."""
+    source = "graph TD\n    A --> B"
+    assert _sanitize_mermaid_source(source) == source
+
+
+# --- Mermaid diagram count summary ---
+
+
+def test_mermaid_summary_count_single_success(tmp_path: Path) -> None:
+    """A single successful diagram produces a summary with count."""
+    html = '<pre><code class="language-mermaid">graph TD\n    A --> B</code></pre>'
+    with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
+        _, warnings = render_mermaid_blocks(html, tmp_path, source_path=Path("page.md"))
+
+    assert len(warnings) == 1
+    assert warnings[0] == "Rendered 1 mermaid diagram(s) in page.md"
+
+
+def test_mermaid_summary_count_multiple_success(tmp_path: Path) -> None:
+    """Multiple successful diagrams report total count."""
+    html = (
+        '<pre><code class="language-mermaid">graph TD\n    A --> B</code></pre>'
+        '<pre><code class="language-mermaid">graph LR\n    X --> Y</code></pre>'
+    )
+    with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
+        _, warnings = render_mermaid_blocks(html, tmp_path, source_path=Path("multi.md"))
+
+    assert len(warnings) == 1
+    assert warnings[0] == "Rendered 2 mermaid diagram(s) in multi.md"
+
+
+def test_mermaid_summary_count_with_failures(tmp_path: Path) -> None:
+    """Mixed success/failure shows ok/total and failure count."""
+    html = (
+        '<pre><code class="language-mermaid">graph TD\n    A --> B</code></pre>'
+        '<pre><code class="language-mermaid">graph LR\n    X --> Y</code></pre>'
+    )
+    call_count = 0
+
+    def _alternating_response(*args: object, **kwargs: object) -> _FakeResponse:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise requests.RequestException("fail")
+        return _FakeResponse()
+
+    with patch("leafpress.mermaid.requests.get", side_effect=_alternating_response):
+        _, warnings = render_mermaid_blocks(html, tmp_path, source_path=Path("mixed.md"))
+
+    # Summary is first, then failure detail
+    assert "Rendered 1/2 mermaid diagram(s) in mixed.md" in warnings[0]
+    assert "1 failed" in warnings[0]
+    assert len(warnings) == 2
+
+
+def test_mermaid_no_summary_when_no_diagrams(tmp_path: Path) -> None:
+    """No mermaid blocks means no summary message."""
+    html = "<p>Just text</p>"
+    _, warnings = render_mermaid_blocks(html, tmp_path)
+    assert warnings == []

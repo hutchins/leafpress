@@ -11,7 +11,7 @@ def test_basic_rendering(sample_mkdocs_dir: Path) -> None:
         extensions=["tables", "toc"],
         docs_dir=sample_mkdocs_dir / "docs",
     )
-    html = renderer.render("# Hello\n\nWorld", sample_mkdocs_dir / "docs" / "index.md")
+    html, _ = renderer.render("# Hello\n\nWorld", sample_mkdocs_dir / "docs" / "index.md")
     assert "<h1" in html
     assert "Hello" in html
     assert "World" in html
@@ -23,7 +23,7 @@ def test_table_rendering(sample_mkdocs_dir: Path) -> None:
         docs_dir=sample_mkdocs_dir / "docs",
     )
     md = "| A | B |\n|---|---|\n| 1 | 2 |"
-    html = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
+    html, _ = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
     assert "<table" in html
     assert "<th" in html or "<td" in html
 
@@ -34,7 +34,7 @@ def test_code_block_rendering(sample_mkdocs_dir: Path) -> None:
         docs_dir=sample_mkdocs_dir / "docs",
     )
     md = "```python\nprint('hi')\n```"
-    html = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
+    html, _ = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
     assert "<code" in html or "<pre" in html
 
 
@@ -44,7 +44,7 @@ def test_unavailable_extension_skipped(sample_mkdocs_dir: Path) -> None:
         extensions=["nonexistent_extension_xyz"],
         docs_dir=sample_mkdocs_dir / "docs",
     )
-    html = renderer.render("# Test", sample_mkdocs_dir / "docs" / "index.md")
+    html, _ = renderer.render("# Test", sample_mkdocs_dir / "docs" / "index.md")
     assert "Test" in html
 
 
@@ -58,8 +58,9 @@ def test_mermaid_blocks_rendered_when_output_dir_set(
         mermaid_output_dir=tmp_path,
     )
     mock_html = "<img"
-    with patch("leafpress.mermaid.render_mermaid_blocks", return_value=mock_html) as mock_render:
-        html = renderer.render(
+    mock_return = (mock_html, [])
+    with patch("leafpress.mermaid.render_mermaid_blocks", return_value=mock_return) as mock_render:
+        html, _ = renderer.render(
             "```mermaid\ngraph TD\n    A --> B\n```",
             sample_mkdocs_dir / "docs" / "index.md",
         )
@@ -75,5 +76,5 @@ def test_mermaid_blocks_skipped_when_no_output_dir(sample_mkdocs_dir: Path) -> N
         docs_dir=sample_mkdocs_dir / "docs",
     )
     md = "```mermaid\ngraph TD\n    A --> B\n```"
-    html = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
+    html, _ = renderer.render(md, sample_mkdocs_dir / "docs" / "index.md")
     assert "graph TD" in html

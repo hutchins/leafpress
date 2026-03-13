@@ -30,7 +30,7 @@ def test_html_generation(
             html_pages.append((item, ""))
             continue
         md_file = mkdocs_cfg.docs_dir / item.path
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
         html_pages.append((item, html))
 
     html_path = tmp_output / "test.html"
@@ -63,7 +63,7 @@ def test_html_without_branding(
             html_pages.append((item, ""))
             continue
         md_file = mkdocs_cfg.docs_dir / item.path
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
         html_pages.append((item, html))
 
     html_path = tmp_output / "no_branding.html"
