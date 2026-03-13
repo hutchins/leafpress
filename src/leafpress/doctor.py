@@ -384,7 +384,7 @@ def print_report(report: DoctorReport, console: Console, *, debug: bool = False)
 
     # Results table
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Status", width=3, justify="center")
+    table.add_column("Status", justify="center")
     table.add_column("Component")
     table.add_column("Version / Info")
 

@@ -144,6 +144,12 @@ def convert(
             console.print(
                 f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}"
             )
+            if branding.logo_path:
+                logo = branding.logo_path
+                if logo.startswith(("http://", "https://")) or Path(logo).exists():
+                    console.print(f"  [green]✓[/green] Logo: {logo}")
+                else:
+                    console.print(f"  [yellow]⚠[/yellow] Logo not found: {logo}")
             if branding.watermark.text:
                 console.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
 
@@ -175,6 +181,11 @@ def convert(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_dir,
             )
+            for ext, ok in renderer.extension_load_results:
+                if ok:
+                    console.print(f"  [green]✓[/green] Extension: {ext}")
+                else:
+                    console.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
 
             pages = flatten_nav(mkdocs_cfg.nav_items)
             page_count = sum(1 for p in pages if p.path is not None)
@@ -202,7 +213,10 @@ def convert(
                     md_content = md_file.read_text(encoding="utf-8")
                     html, render_warnings = renderer.render(md_content, md_file)
                     for w in render_warnings:
-                        console.print(f"  [yellow]⚠ {w}[/yellow]")
+                        if "failed" in w:
+                            console.print(f"  [yellow]⚠ {w}[/yellow]")
+                        else:
+                            console.print(f"  [green]✓ {w}[/green]")
                     html_pages.append((item, html))
                     progress.update(task, advance=1)
 
@@ -430,6 +444,11 @@ def _collect_monorepo_pages(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_output_dir,
             )
+            for ext, ok in renderer.extension_load_results:
+                if ok:
+                    con.print(f"  [green]✓[/green] Extension: {ext}")
+                else:
+                    con.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
             flat_nav = flatten_nav(mkdocs_cfg.nav_items)
             bumped = bump_nav_levels(flat_nav)
 
@@ -444,7 +463,10 @@ def _collect_monorepo_pages(
                 md_content = md_file.read_text(encoding="utf-8")
                 html, render_warnings = renderer.render(md_content, md_file)
                 for w in render_warnings:
-                    con.print(f"  [yellow]⚠ {w}[/yellow]")
+                    if "failed" in w:
+                        con.print(f"  [yellow]⚠ {w}[/yellow]")
+                    else:
+                        con.print(f"  [green]✓ {w}[/green]")
                 all_pages.append((item, html))
                 total_pages += 1
 
