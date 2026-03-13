@@ -143,9 +143,26 @@ sudo dnf install pango harfbuzz fontconfig
 
 ### macOS
 
-```bash
-brew install pango
-```
+!!! warning "Do not use `brew install weasyprint`"
+    `brew install weasyprint` installs a standalone CLI tool — it does **not** install the system libraries that the Python WeasyPrint package requires. Install the libraries below instead.
+
+=== "Apple Silicon (M1/M2/M3)"
+
+    ```bash
+    brew install cairo pango gdk-pixbuf libffi
+    ```
+
+    If LeafPress still cannot find the libraries, add this to your shell profile (`~/.zshrc` or `~/.bash_profile`) and restart your terminal:
+
+    ```bash
+    export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH
+    ```
+
+=== "Intel Mac"
+
+    ```bash
+    brew install cairo pango gdk-pixbuf libffi
+    ```
 
 ### Windows
 

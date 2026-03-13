@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,8 +20,11 @@ from leafpress.docx.styles import apply_branding_styles
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
-# Register VML namespace for watermark support (must be after docx imports)
+logger = logging.getLogger(__name__)
+
+# Register VML and Office namespaces for watermark support (must be after docx imports)
 nsmap["v"] = "urn:schemas-microsoft-com:vml"
+nsmap["o"] = "urn:schemas-microsoft-com:office:office"
 
 
 class DocxRenderer:
@@ -132,6 +136,10 @@ class DocxRenderer:
             if version_parts:
                 footer_parts.append(" | ".join(version_parts))
 
+        if self._branding is None or self._branding.footer.include_render_date:
+            now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
+
         footer_parts.append("Made with LeafPress · leafpress.dev")
         run = paragraph.add_run(" - ".join(footer_parts))
         run.font.size = Pt(7)
@@ -231,6 +239,13 @@ class DocxRenderer:
         if not self._branding or not self._branding.logo_path:
             return None
         logo = self._branding.logo_path
+        if self._is_svg(logo):
+            logger.warning(
+                "SVG logos are not supported in DOCX output (python-docx only "
+                "supports raster images like PNG/JPEG). Skipping logo: %s",
+                logo,
+            )
+            return None
         if logo.startswith(("http://", "https://")):
             response = requests.get(logo, timeout=30)
             response.raise_for_status()
@@ -239,6 +254,13 @@ class DocxRenderer:
         if path.exists():
             return io.BytesIO(path.read_bytes())
         return None
+
+    @staticmethod
+    def _is_svg(path: str) -> bool:
+        """Check if a path or URL points to an SVG file."""
+        # Strip query string / fragment for URL paths
+        clean = path.split("?")[0].split("#")[0]
+        return clean.lower().endswith(".svg")
 
     def _add_toc_placeholder(self, doc: Document) -> None:
         """Insert a Word TOC field code.
@@ -276,7 +298,11 @@ class DocxRenderer:
         doc.add_page_break()
 
     def _add_watermark(self, doc: Document) -> None:
-        """Add a diagonal text watermark to the document header using WordprocessingML."""
+        """Add a diagonal text watermark to the document header using WordprocessingML.
+
+        Uses VML with a shapetype definition so the OOXML is valid and can be
+        opened by Google Docs / Google Workspace.
+        """
         if not self._branding or not self._branding.watermark.text:
             return
 
@@ -291,6 +317,19 @@ class DocxRenderer:
         paragraph = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
         run = paragraph.add_run()
         pict = OxmlElement("w:pict")
+
+        # shapetype MUST be defined before the shape that references it.
+        # Without this, the OOXML is invalid and Google Docs rejects the file.
+        shapetype = OxmlElement("v:shapetype")
+        shapetype.set("id", "_x0000_t136")
+        shapetype.set("coordsize", "21600,21600")
+        shapetype.set(qn("o:spt"), "136")
+        shapetype.set("adj", "10800")
+        path_el = OxmlElement("v:path")
+        path_el.set("textpathok", "t")
+        path_el.set(qn("o:connecttype"), "none")
+        shapetype.append(path_el)
+        pict.append(shapetype)
 
         shape = OxmlElement("v:shape")
         shape.set("id", "PowerPlusWaterMarkObject")
