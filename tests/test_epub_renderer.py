@@ -27,7 +27,7 @@ def html_pages(sample_mkdocs_config: Path):
             result.append((item, ""))
             continue
         md_file = mkdocs_cfg.docs_dir / item.path
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
         result.append((item, html))
     return result, mkdocs_cfg
 
@@ -53,7 +53,7 @@ def test_epub_generation(
             html_pages.append((item, ""))
             continue
         md_file = mkdocs_cfg.docs_dir / item.path
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
         html_pages.append((item, html))
 
     epub_path = tmp_output / "test.epub"
@@ -83,7 +83,7 @@ def test_epub_without_branding(
             html_pages.append((item, ""))
             continue
         md_file = mkdocs_cfg.docs_dir / item.path
-        html = renderer.render(md_file.read_text(), md_file)
+        html, _ = renderer.render(md_file.read_text(), md_file)
         html_pages.append((item, html))
 
     epub_path = tmp_output / "no_branding.epub"

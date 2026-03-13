@@ -98,6 +98,7 @@ class MarkdownRenderer:
         self._mermaid_output_dir = mermaid_output_dir
         self._extension_names: list[str] = []
         self._extension_configs: dict[str, dict[str, Any]] = {}
+        self.extension_load_results: list[tuple[str, bool]] = []
         self._parse_extensions(extensions)
         self._md = self._build_markdown_instance()
 
@@ -138,8 +139,9 @@ class MarkdownRenderer:
             try:
                 markdown.Markdown(extensions=[ext])
                 valid_extensions.append(ext)
+                self.extension_load_results.append((ext, True))
             except Exception:
-                logger.warning("Skipping unavailable extension: %s", ext)
+                self.extension_load_results.append((ext, False))
 
         # Ensure superfences routes mermaid blocks through our callable formatter.
         # MkDocs configs often use !!python/name: YAML tags for the format function
@@ -161,7 +163,7 @@ class MarkdownRenderer:
             output_format="html",
         )
 
-    def render(self, md_content: str, source_path: Path) -> str:
+    def render(self, md_content: str, source_path: Path) -> tuple[str, list[str]]:
         """Convert a single Markdown string to HTML.
 
         Args:
@@ -169,15 +171,15 @@ class MarkdownRenderer:
             source_path: Path to the .md file (for resolving relative links/images).
 
         Returns:
-            HTML string.
+            Tuple of (HTML string, list of warning messages).
         """
         self._md.reset()
         html = self._md.convert(md_content)
         html = self._resolve_relative_assets(html, source_path)
         html = self._resolve_emoji_shortcodes(html)
         html = self._render_annotations(html)
-        html = self._render_mermaid_blocks(html)
-        return html
+        html, warnings = self._render_mermaid_blocks(html, source_path)
+        return html, warnings
 
     def _resolve_relative_assets(self, html: str, source_path: Path) -> str:
         """Rewrite relative image src and link href to absolute file:// paths."""
@@ -228,11 +230,13 @@ class MarkdownRenderer:
 
         return render_annotations(html)
 
-    def _render_mermaid_blocks(self, html: str) -> str:
+    def _render_mermaid_blocks(
+        self, html: str, source_path: Path
+    ) -> tuple[str, list[str]]:
         """Render mermaid code blocks to PNG images."""
         if self._mermaid_output_dir is None:
-            return html
+            return html, []
 
         from leafpress.mermaid import render_mermaid_blocks
 
-        return render_mermaid_blocks(html, self._mermaid_output_dir)
+        return render_mermaid_blocks(html, self._mermaid_output_dir, source_path)

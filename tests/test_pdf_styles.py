@@ -99,6 +99,19 @@ def test_footer_tag_with_distance() -> None:
     assert "v1.0.0+3" in css
 
 
+def test_footer_render_date_included_when_enabled() -> None:
+    branding = _make_branding()
+    branding.footer.include_render_date = True
+    css = generate_pdf_css(branding, None)
+    assert "Generated" in css
+
+
+def test_footer_render_date_excluded_by_default() -> None:
+    branding = _make_branding()
+    css = generate_pdf_css(branding, None)
+    assert "Generated" not in css
+
+
 def test_first_page_no_headers() -> None:
     css = generate_pdf_css(_make_branding(), _make_git_info())
     assert "@page :first" in css

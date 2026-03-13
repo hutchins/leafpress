@@ -65,5 +65,10 @@ leafpress converts the following Markdown/HTML elements to DOCX:
 
 ## Limitations
 
+- **SVG images are not supported** — `python-docx` only handles raster formats (PNG, JPEG). SVG logos are skipped with a warning; use PNG or JPEG for full compatibility
 - Remote images (except those already fetched by the renderer) are skipped in DOCX output
 - Complex CSS styling (custom colors, gradients) is not preserved in DOCX
+
+## Google Workspace compatibility
+
+LeafPress DOCX files open correctly in Google Docs. If you use the `watermark` branding option, note that Google Docs renders watermarks as best-effort — positioning and opacity may differ slightly from Word.

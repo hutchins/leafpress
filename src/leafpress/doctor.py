@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import io
 import platform
 import shutil
@@ -161,6 +163,82 @@ def _check_weasyprint_system_libs() -> CheckResult | None:
         )
 
 
+# (check_name, ctypes_name, brew_formula, apt_package)
+_WEASYPRINT_SYSLIBS: list[tuple[str, str, str, str]] = [
+    ("cairo", "cairo", "cairo", "libcairo2-dev"),
+    ("pango", "pango-1.0", "pango", "libpango1.0-dev"),
+    ("gdk-pixbuf", "gdk_pixbuf-2.0", "gdk-pixbuf", "libgdk-pixbuf2.0-dev"),
+    ("libffi", "ffi", "libffi", "libffi-dev"),
+]
+
+
+def _find_syslib(ctypes_name: str) -> str | None:
+    """Try to locate a system library. Returns path/name if found, None otherwise."""
+    # Standard search via ctypes
+    found = ctypes.util.find_library(ctypes_name)
+    if found:
+        try:
+            ctypes.CDLL(found)
+            return found
+        except OSError:
+            pass
+
+    # Fallback: try Homebrew prefixes directly (helps inside uv isolated envs)
+    system = platform.system()
+    if system == "Darwin":
+        machine = platform.machine()
+        prefixes = (
+            ["/opt/homebrew/lib", "/usr/local/lib"]
+            if machine == "arm64"
+            else ["/usr/local/lib", "/opt/homebrew/lib"]
+        )
+        candidates = [f"lib{ctypes_name}.dylib", f"lib{ctypes_name}-0.dylib"]
+        for prefix in prefixes:
+            for name in candidates:
+                path = f"{prefix}/{name}"
+                try:
+                    ctypes.CDLL(path)
+                    return path
+                except OSError:
+                    continue
+
+    return None
+
+
+def _check_weasyprint_syslibs_individual() -> list[CheckResult]:
+    """Check each WeasyPrint system library individually."""
+    results: list[CheckResult] = []
+    system = platform.system()
+
+    for display_name, ctypes_name, brew_formula, apt_pkg in _WEASYPRINT_SYSLIBS:
+        path = _find_syslib(ctypes_name)
+        if path:
+            results.append(
+                CheckResult(
+                    name=f"  {display_name}",
+                    passed=True,
+                    version=path if path != display_name else "found",
+                )
+            )
+        else:
+            if system == "Darwin":
+                hint = f"brew install {brew_formula}"
+            elif system == "Linux":
+                hint = f"sudo apt install {apt_pkg}"
+            else:
+                hint = ""
+            results.append(
+                CheckResult(
+                    name=f"  {display_name}",
+                    passed=False,
+                    message="not found",
+                    install_hint=hint,
+                )
+            )
+
+    return results
+
+
 def _pip_cmd() -> str:
     """Detect the pip-like installer the user likely used."""
     if shutil.which("pipx") and "pipx" in (sys.prefix or ""):
@@ -180,7 +258,21 @@ def _weasyprint_syslib_hint() -> str:
     system = platform.system()
     docs = "https://doc.courtbouillon.org/weasyprint/stable/first_steps.html"
     if system == "Darwin":
-        return f"brew install cairo pango gdk-pixbuf libffi\nDocs: {docs}"
+        machine = platform.machine()
+        hint = (
+            "NOTE: 'brew install weasyprint' is NOT correct — that installs a\n"
+            "  standalone CLI tool, not the libraries Python WeasyPrint needs.\n"
+            "  Install the required system libraries instead:\n"
+            "    brew install cairo pango gdk-pixbuf libffi"
+        )
+        if machine == "arm64":
+            hint += (
+                "\n\n  On Apple Silicon, Homebrew installs to /opt/homebrew/lib.\n"
+                "  If WeasyPrint still can't find the libraries, add to your shell profile:\n"
+                "    export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+            )
+        hint += f"\n\nDocs: {docs}"
+        return hint
     if system == "Linux":
         return (
             "sudo apt install libcairo2-dev libpango1.0-dev "
@@ -249,6 +341,8 @@ def run_doctor(*, verbose: bool = False) -> DoctorReport:
     syslib_check = _check_weasyprint_system_libs()
     if syslib_check is not None:
         report.checks.append(syslib_check)
+    for lib_check in _check_weasyprint_syslibs_individual():
+        report.checks.append(lib_check)
 
     # Optional: PyQt6
     report.checks.append(_check_pyqt6())
@@ -290,7 +384,7 @@ def print_report(report: DoctorReport, console: Console, *, debug: bool = False)
 
     # Results table
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Status", width=3, justify="center")
+    table.add_column("Status", justify="center")
     table.add_column("Component")
     table.add_column("Version / Info")
 

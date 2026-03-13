@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,8 @@ from odf.text import H, P, Span
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
+
+logger = logging.getLogger(__name__)
 
 
 class OdtRenderer:
@@ -236,6 +239,9 @@ class OdtRenderer:
             footer_parts.append(self._branding.footer.custom_text)
         if self._git_info:
             footer_parts.append(self._git_info.format_version_string())
+        if self._branding is None or self._branding.footer.include_render_date:
+            now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
         footer_parts.append("Made with LeafPress")
 
         footer_para = P(stylename="Footer")
@@ -248,12 +254,24 @@ class OdtRenderer:
         master.addElement(footer_content)
         doc.masterstyles.addElement(master)
 
+    @staticmethod
+    def _is_svg(path: str) -> bool:
+        """Check if a path or URL points to an SVG file."""
+        clean = path.split("?")[0].split("#")[0]
+        return clean.lower().endswith(".svg")
+
     def _add_cover_page(self, doc: OpenDocumentText) -> None:
         """Add a branded cover page."""
         # Logo
         if self._branding and self._branding.logo_path:
             logo_path = self._branding.logo_path
-            if not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
+            if self._is_svg(logo_path):
+                logger.warning(
+                    "SVG logos are not supported in ODT output (odfpy only "
+                    "supports raster images like PNG/JPEG). Skipping logo: %s",
+                    logo_path,
+                )
+            elif not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
                 self._add_image(doc, Path(logo_path))
 
         # Company
@@ -371,6 +389,12 @@ class OdtRenderer:
             p = P(stylename="Normal")
             p.addText("─" * 40)
             doc.text.addElement(p)
+        elif tag == "img":
+            src = element.get("src", "")
+            if src.startswith("file://"):
+                image_path = Path(src.removeprefix("file://"))
+                if image_path.exists():
+                    self._add_image(doc, image_path)
         elif tag in ("div", "section", "article", "details"):
             for child in element.children:
                 if isinstance(child, Tag):

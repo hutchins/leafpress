@@ -72,3 +72,45 @@ leafpress renders the same Markdown extensions configured in `mkdocs.yml`:
 ## System dependencies
 
 WeasyPrint requires native libraries. See [Installation](installation.md#weasyprint-system-dependencies) for platform-specific setup.
+
+!!! tip "macOS users"
+    Install `cairo pango gdk-pixbuf libffi` via Homebrew — **not** `weasyprint`. On Apple Silicon, you may also need to set `DYLD_LIBRARY_PATH=/opt/homebrew/lib`. Run `leafpress doctor` to check each library individually.
+
+## Troubleshooting
+
+### UnrecognizedImageError
+
+This error occurs when WeasyPrint encounters an image format it cannot decode — most commonly an SVG image when the `librsvg` system library is missing.
+
+**Fix:** Install librsvg for SVG support:
+
+```bash
+# macOS
+brew install librsvg
+
+# Ubuntu / Debian
+sudo apt install librsvg2-dev
+
+# Fedora
+sudo dnf install librsvg2-devel
+```
+
+Alternatively, convert SVG images to PNG before running LeafPress.
+
+### Other image errors
+
+If you see errors mentioning images during PDF rendering:
+
+1. Check that all images referenced in your docs exist at their expected paths
+2. Ensure images are in a supported format (PNG, JPEG, GIF, or SVG with librsvg)
+3. Run `leafpress doctor` to verify your system dependencies are correctly installed
+
+### General rendering failures
+
+Run with `--verbose` for full error details:
+
+```bash
+leafpress convert . --verbose
+```
+
+Use `leafpress doctor` to diagnose missing system libraries:

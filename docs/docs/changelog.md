@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.5.1 — 2026-03-13
+
+### Fixes
+
+- **DOCX watermark — Google Workspace compatibility** — `v:shapetype` definition is now emitted before the `v:shape` that references it; without it the OOXML was technically invalid and Google Docs rejected the file entirely. Affects users with `watermark.text` set in `leafpress.yml`
+- **macOS PDF — WeasyPrint system library detection** — `leafpress doctor` now checks each required library (`cairo`, `pango`, `gdk-pixbuf`, `libffi`) individually and reports the resolved path or a targeted install hint; Apple Silicon users also get a `DYLD_LIBRARY_PATH` hint when libraries are installed but not found
+- **macOS PDF — clearer error messages** — `ImportError` (WeasyPrint not installed) and `OSError` (system libs missing) are now handled separately with distinct, actionable messages; the `OSError` path explicitly warns that `brew install weasyprint` is the wrong command
+
+### Docs
+
+- [Installation](installation.md) — replaced `brew install pango` with full macOS instructions (Apple Silicon / Intel tabs, `DYLD_LIBRARY_PATH` tip, warning against `brew install weasyprint`)
+- [PDF](pdf.md) — added macOS callout with correct brew packages and `leafpress doctor` pointer
+- [DOCX](docx.md) — added Google Workspace compatibility note
+
+---
+
+## 0.5.0 — 2026-03-11
+
+### Features
+
+- **Footer render date** — new `include_render_date` option appends the document generation date to the footer across all output formats; configurable via `leafpress.yml`, `--footer-date` / `--no-footer-date` CLI flags, or `LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE` env var
+- **SVG logo validation** — DOCX and ODT renderers now detect SVG logos and skip them with a clear warning instead of crashing; PDF and HTML continue to support SVG natively
+- **Actionable PDF error messages** — rendering failures (e.g. `UnrecognizedImageError`) now show specific troubleshooting steps: install librsvg, convert SVG to PNG, or run `leafpress doctor`
+- **Pipeline warnings surfaced to console** — `logger.warning()` calls from renderers (SVG logo skip, extension load failures, image embed errors) are now automatically displayed in CLI output as yellow ⚠ messages; `--verbose` additionally surfaces DEBUG-level detail
+- **Mermaid diagram progress** — each page with mermaid diagrams now reports a rendered count (e.g. "Rendered 3 mermaid diagram(s) in overview.md") with failure details if any diagrams fail
+
+### Fixes
+
+- **Mermaid `\n` rendering** — literal `\n` text in mermaid diagram labels is now automatically converted to `<br/>` line breaks; actual newlines inside quoted labels are also handled
+- **DOCX image embed warnings** — `warnings.warn()` calls in the DOCX HTML converter are now routed through the standard logger so they appear in CLI output
+
+### Tests
+
+- 26 new tests: `_format_pdf_error` error message branches (3), `_is_svg` detection for DOCX (7) and ODT (5), SVG logo skip integration for DOCX (1) and ODT (1), PDF `RenderError` wrapping (1), `_ConsoleWarningHandler` (3), pipeline verbose param (1), mermaid diagram count summary (4)
+- 526 total tests
+
+### Docs
+
+- [Configuration](configuration.md) updated with `include_render_date` field, env var, and SVG logo compatibility note
+- [Branding](branding.md) updated with SVG logo warning, render date footer option, and CLI override
+- [CLI reference](cli.md) updated with `--footer-date` / `--no-footer-date` flag, and `--verbose` description
+- [PDF](pdf.md) page updated with new Troubleshooting section for image errors
+- [DOCX](docx.md) and [ODT](odt.md) pages updated with SVG limitations
+- [Extensions](extensions.md) updated with mermaid line break tip
+
+---
+
 ## 0.4.0 — 2026-03-11
 
 ### Features

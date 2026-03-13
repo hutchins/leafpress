@@ -117,6 +117,11 @@ def convert(
         "--local-time",
         help="Use local timezone for dates instead of UTC.",
     ),
+    footer_render_date: bool | None = typer.Option(
+        None,
+        "--footer-date/--no-footer-date",
+        help="Include the generation date in the footer.",
+    ),
     watermark: str | None = typer.Option(
         None,
         "--watermark",
@@ -173,6 +178,8 @@ def convert(
             include_toc=toc,
             local_time=local_time,
             watermark=watermark,
+            footer_render_date=footer_render_date,
+            verbose=verbose,
         )
 
         if generated:

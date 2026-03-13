@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from importlib.resources import files
 
 from leafpress.config import BrandingConfig
@@ -11,6 +12,7 @@ from leafpress.git_info import GitVersion
 def generate_pdf_css(
     branding: BrandingConfig | None,
     git_info: GitVersion | None,
+    local_time: bool = False,
 ) -> str:
     """Generate complete CSS for PDF rendering via WeasyPrint.
 
@@ -21,7 +23,7 @@ def generate_pdf_css(
     base_css = files("leafpress.pdf.templates").joinpath("base.css").read_text(encoding="utf-8")
 
     # Build @page rules
-    page_css = _build_page_rules(branding, git_info)
+    page_css = _build_page_rules(branding, git_info, local_time=local_time)
 
     # Brand color overrides
     color_css = _build_color_overrides(branding)
@@ -34,6 +36,8 @@ def generate_pdf_css(
 def _build_page_rules(
     branding: BrandingConfig | None,
     git_info: GitVersion | None,
+    *,
+    local_time: bool = False,
 ) -> str:
     """Build CSS @page rules for headers, footers, and page setup."""
     # Page size and margins
@@ -78,6 +82,10 @@ def _build_page_rules(
             version_parts.append(git_info.branch)
         if version_parts:
             footer_parts.append(" | ".join(version_parts))
+
+    if branding is None or branding.footer.include_render_date:
+        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
 
     footer_parts.append("Made with LeafPress · leafpress.dev")
     footer_center = " - ".join(footer_parts)

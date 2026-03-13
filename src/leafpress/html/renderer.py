@@ -90,6 +90,8 @@ class HtmlRenderer:
             footer_parts.append(self._branding.footer.custom_text)
         if self._git_info:
             footer_parts.append(self._git_info.format_version_string())
+        if self._branding is None or self._branding.footer.include_render_date:
+            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
         footer_parts.append("Made with LeafPress")
         footer_text = " &middot; ".join(footer_parts)
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import tempfile
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from rich.progress import (
 )
 
 from leafpress.config import BrandingConfig, ProjectEntry, config_from_env, load_config
-from leafpress.exceptions import LeafpressError, SourceError
+from leafpress.exceptions import LeafpressError, RenderError, SourceError
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
@@ -31,6 +32,23 @@ from leafpress.source import resolve_source
 console = Console()
 
 
+class _ConsoleWarningHandler(logging.Handler):
+    """Route WARNING+ log records to Rich console output.
+
+    Attached temporarily during ``convert()`` so that logger.warning()
+    calls inside renderers (SVG logo skips, extension failures, etc.)
+    are surfaced to the user automatically.
+    """
+
+    def __init__(self, con: Console) -> None:
+        super().__init__(level=logging.WARNING)
+        self._console = con
+
+    def emit(self, record: logging.LogRecord) -> None:
+        msg = self.format(record)
+        self._console.print(f"  [yellow]⚠ {msg}[/yellow]")
+
+
 def convert(
     source: str,
     output_dir: Path,
@@ -42,6 +60,8 @@ def convert(
     include_toc: bool = True,
     local_time: bool = False,
     watermark: str | None = None,
+    footer_render_date: bool | None = None,
+    verbose: bool = False,
 ) -> list[Path]:
     """Main conversion pipeline.
 
@@ -54,11 +74,24 @@ def convert(
         branch: Git branch to clone (only for git URL sources).
         cover_page: Include a cover page.
         include_toc: Include a table of contents.
+        footer_render_date: Override include_render_date in footer config.
+        verbose: Enable verbose output (surfaces DEBUG-level log messages).
 
     Returns:
         List of generated output file paths.
     """
     generated_files: list[Path] = []
+
+    # Attach a handler that routes leafpress logger warnings to the console.
+    # This surfaces logger.warning() calls from renderers (SVG logo skip,
+    # extension failures, etc.) that would otherwise be invisible.
+    _log_handler = _ConsoleWarningHandler(console)
+    if verbose:
+        _log_handler.setLevel(logging.DEBUG)
+    _pkg_logger = logging.getLogger("leafpress")
+    _prev_log_level = _pkg_logger.level
+    _pkg_logger.addHandler(_log_handler)
+    _pkg_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     with resolve_source(source, branch) as project_dir:
         # Load .env from project dir (shell env takes priority via override=False)
@@ -97,10 +130,26 @@ def convert(
                 watermark=WatermarkConfig(text=watermark),
             )
 
+        # CLI --footer-date flag overrides config
+        if footer_render_date is not None and branding:
+            branding = branding.model_copy(
+                update={
+                    "footer": branding.footer.model_copy(
+                        update={"include_render_date": footer_render_date}
+                    )
+                }
+            )
+
         if branding:
             console.print(
                 f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}"
             )
+            if branding.logo_path:
+                logo = branding.logo_path
+                if logo.startswith(("http://", "https://")) or Path(logo).exists():
+                    console.print(f"  [green]✓[/green] Logo: {logo}")
+                else:
+                    console.print(f"  [yellow]⚠[/yellow] Logo not found: {logo}")
             if branding.watermark.text:
                 console.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
 
@@ -132,6 +181,11 @@ def convert(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_dir,
             )
+            for ext, ok in renderer.extension_load_results:
+                if ok:
+                    console.print(f"  [green]✓[/green] Extension: {ext}")
+                else:
+                    console.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
 
             pages = flatten_nav(mkdocs_cfg.nav_items)
             page_count = sum(1 for p in pages if p.path is not None)
@@ -157,7 +211,12 @@ def convert(
                         progress.update(task, advance=1)
                         continue
                     md_content = md_file.read_text(encoding="utf-8")
-                    html = renderer.render(md_content, md_file)
+                    html, render_warnings = renderer.render(md_content, md_file)
+                    for w in render_warnings:
+                        if "failed" in w:
+                            console.print(f"  [yellow]⚠ {w}[/yellow]")
+                        else:
+                            console.print(f"  [green]✓ {w}[/green]")
                     html_pages.append((item, html))
                     progress.update(task, advance=1)
 
@@ -168,12 +227,24 @@ def convert(
         if format in ("pdf", "both", "all"):
             try:
                 from leafpress.pdf.renderer import PdfRenderer
-            except (ImportError, OSError) as e:
+            except ImportError as e:
                 raise LeafpressError(
-                    "PDF output requires WeasyPrint and its system dependencies.\n"
-                    "  Run 'leafpress doctor' to diagnose your environment.\n"
-                    "  Install with: pip install 'leafpress[pdf]'\n"
-                    "  System deps: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html"
+                    "PDF output requires WeasyPrint. Install it with:\n"
+                    "  uv tool install 'leafpress[pdf]'  (or pip install 'leafpress[pdf]')\n"
+                    "  Run 'leafpress doctor' to diagnose your environment."
+                ) from e
+            except OSError as e:
+                raise LeafpressError(
+                    "WeasyPrint is installed but its system libraries could not be loaded.\n"
+                    "  This usually means cairo/pango/gdk-pixbuf are missing or not on the path.\n"
+                    "  macOS:  brew install cairo pango gdk-pixbuf libffi\n"
+                    "          (NOTE: 'brew install weasyprint' is a different package)\n"
+                    "  Apple Silicon: "
+                    "export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH\n"
+                    "  Linux:  sudo apt install libcairo2-dev libpango1.0-dev "
+                    "libgdk-pixbuf2.0-dev libffi-dev\n"
+                    "  Run 'leafpress doctor' for a full diagnosis.\n"
+                    f"  Original error: {e}"
                 ) from e
 
             pdf_path = output_dir / f"{safe_name}.pdf"
@@ -195,13 +266,22 @@ def convert(
             docx_path = output_dir / f"{safe_name}.docx"
             with console.status("[bold blue]Generating DOCX..."):
                 docx_renderer = DocxRenderer(branding, git_info, mkdocs_cfg)
-                docx_renderer.render(
-                    html_pages,
-                    docx_path,
-                    cover_page=cover_page,
-                    include_toc=include_toc,
-                    local_time=local_time,
-                )
+                try:
+                    docx_renderer.render(
+                        html_pages,
+                        docx_path,
+                        cover_page=cover_page,
+                        include_toc=include_toc,
+                        local_time=local_time,
+                    )
+                except LeafpressError:
+                    raise
+                except Exception as exc:
+                    raise RenderError(
+                        f"DOCX rendering failed: {type(exc).__name__}: {exc}\n"
+                        f"  Check that all images are in a supported format (PNG, JPEG).\n"
+                        f"  SVG images are not supported in DOCX output."
+                    ) from exc
             generated_files.append(docx_path)
             console.print(f"  [bold green]DOCX:[/bold green] {docx_path}")
 
@@ -211,13 +291,20 @@ def convert(
             html_path = output_dir / f"{safe_name}.html"
             with console.status("[bold blue]Generating HTML..."):
                 html_renderer = HtmlRenderer(branding, git_info, mkdocs_cfg)
-                html_renderer.render(
-                    html_pages,
-                    html_path,
-                    cover_page=cover_page,
-                    include_toc=include_toc,
-                    local_time=local_time,
-                )
+                try:
+                    html_renderer.render(
+                        html_pages,
+                        html_path,
+                        cover_page=cover_page,
+                        include_toc=include_toc,
+                        local_time=local_time,
+                    )
+                except LeafpressError:
+                    raise
+                except Exception as exc:
+                    raise RenderError(
+                        f"HTML rendering failed: {type(exc).__name__}: {exc}"
+                    ) from exc
             generated_files.append(html_path)
             console.print(f"  [bold green]HTML:[/bold green] {html_path}")
 
@@ -227,13 +314,22 @@ def convert(
             odt_path = output_dir / f"{safe_name}.odt"
             with console.status("[bold blue]Generating ODT..."):
                 odt_renderer = OdtRenderer(branding, git_info, mkdocs_cfg)
-                odt_renderer.render(
-                    html_pages,
-                    odt_path,
-                    cover_page=cover_page,
-                    include_toc=include_toc,
-                    local_time=local_time,
-                )
+                try:
+                    odt_renderer.render(
+                        html_pages,
+                        odt_path,
+                        cover_page=cover_page,
+                        include_toc=include_toc,
+                        local_time=local_time,
+                    )
+                except LeafpressError:
+                    raise
+                except Exception as exc:
+                    raise RenderError(
+                        f"ODT rendering failed: {type(exc).__name__}: {exc}\n"
+                        f"  Check that all images are in a supported format (PNG, JPEG).\n"
+                        f"  SVG images are not supported in ODT output."
+                    ) from exc
             generated_files.append(odt_path)
             console.print(f"  [bold green]ODT:[/bold green] {odt_path}")
 
@@ -243,13 +339,20 @@ def convert(
             epub_path = output_dir / f"{safe_name}.epub"
             with console.status("[bold blue]Generating EPUB..."):
                 epub_renderer = EpubRenderer(branding, git_info, mkdocs_cfg)
-                epub_renderer.render(
-                    html_pages,
-                    epub_path,
-                    cover_page=cover_page,
-                    include_toc=include_toc,
-                    local_time=local_time,
-                )
+                try:
+                    epub_renderer.render(
+                        html_pages,
+                        epub_path,
+                        cover_page=cover_page,
+                        include_toc=include_toc,
+                        local_time=local_time,
+                    )
+                except LeafpressError:
+                    raise
+                except Exception as exc:
+                    raise RenderError(
+                        f"EPUB rendering failed: {type(exc).__name__}: {exc}"
+                    ) from exc
             generated_files.append(epub_path)
             console.print(f"  [bold green]EPUB:[/bold green] {epub_path}")
 
@@ -268,6 +371,10 @@ def convert(
                 )
             generated_files.append(md_export_path)
             console.print(f"  [bold green]Markdown:[/bold green] {md_export_path}")
+
+    # Detach the console warning handler
+    _pkg_logger.removeHandler(_log_handler)
+    _pkg_logger.setLevel(_prev_log_level)
 
     return generated_files
 
@@ -337,6 +444,11 @@ def _collect_monorepo_pages(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_output_dir,
             )
+            for ext, ok in renderer.extension_load_results:
+                if ok:
+                    con.print(f"  [green]✓[/green] Extension: {ext}")
+                else:
+                    con.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
             flat_nav = flatten_nav(mkdocs_cfg.nav_items)
             bumped = bump_nav_levels(flat_nav)
 
@@ -349,7 +461,12 @@ def _collect_monorepo_pages(
                     con.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}")
                     continue
                 md_content = md_file.read_text(encoding="utf-8")
-                html = renderer.render(md_content, md_file)
+                html, render_warnings = renderer.render(md_content, md_file)
+                for w in render_warnings:
+                    if "failed" in w:
+                        con.print(f"  [yellow]⚠ {w}[/yellow]")
+                    else:
+                        con.print(f"  [green]✓ {w}[/green]")
                 all_pages.append((item, html))
                 total_pages += 1
 

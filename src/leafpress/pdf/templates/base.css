@@ -115,6 +115,8 @@ hr {
 img {
     max-width: 100%;
     height: auto;
+    max-height: 650pt;
+    object-fit: contain;
 }
 
 /* Emoji images - render inline at text height */

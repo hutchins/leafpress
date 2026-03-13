@@ -19,6 +19,7 @@ class FooterConfig(BaseModel):
     include_date: bool = True
     include_commit: bool = True
     include_branch: bool = False
+    include_render_date: bool = False
     custom_text: str | None = None
     repo_url: str | None = None
 
@@ -186,6 +187,7 @@ _FOOTER_BOOL_FIELDS = [
     ("include_date", "LEAFPRESS_FOOTER_INCLUDE_DATE"),
     ("include_commit", "LEAFPRESS_FOOTER_INCLUDE_COMMIT"),
     ("include_branch", "LEAFPRESS_FOOTER_INCLUDE_BRANCH"),
+    ("include_render_date", "LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE"),
 ]
 
 _WATERMARK_STR_FIELDS = [
@@ -249,6 +251,24 @@ def config_from_env() -> BrandingConfig | None:
     return _apply_env_overrides(base)
 
 
+def _yaml_hint(problem: str, line: str) -> str:
+    """Return a human-friendly hint based on a PyYAML problem string."""
+    p = problem.lower()
+    if "block end" in p and "scalar" in p:
+        return "Extra character after a quoted value — check for a stray quote at the end of the line."  # noqa: E501
+    if "mapping values are not allowed" in p:
+        return "Unquoted value contains a colon — wrap the value in quotes."
+    if "found character '\\t'" in p or "tab" in p:
+        return "YAML does not allow tabs for indentation — use spaces instead."
+    if "could not find expected ':'" in p:
+        return "Missing colon after a key, or a key is incorrectly indented."
+    if "found duplicate key" in p:
+        return "Duplicate key in the mapping — each key must appear only once."
+    if "expected <block end>" in p:
+        return "Unexpected content — check indentation and that all quoted strings are closed."
+    return "Check for mismatched quotes, missing colons, or incorrect indentation near this line."
+
+
 def load_config(config_path: Path) -> BrandingConfig:
     """Load and validate a leafpress branding config from a YAML file."""
     try:
@@ -265,7 +285,26 @@ def load_config(config_path: Path) -> BrandingConfig:
                 raw["logo_path"] = str(config_path.parent.resolve() / expanded)
         return _apply_env_overrides(BrandingConfig(**raw))
     except yaml.YAMLError as e:
-        raise ConfigError(f"Invalid YAML in {config_path}: {e}") from e
+        mark = getattr(e, "problem_mark", None)
+        if mark is not None:
+            lines = config_path.read_text(encoding="utf-8").splitlines()
+            line_no = mark.line  # 0-indexed
+            col_no = mark.column
+            offending = lines[line_no] if line_no < len(lines) else ""
+            caret = " " * col_no + "^"
+            problem = getattr(e, "problem", str(e))
+            hint = _yaml_hint(problem, offending)
+            msg = (
+                f"Invalid YAML in {config_path} "
+                f"(line {line_no + 1}, column {col_no + 1}):\n"
+                f"  {offending}\n"
+                f"  {caret}\n"
+                f"  {problem}\n"
+                f"  Hint: {hint}"
+            )
+        else:
+            msg = f"Invalid YAML in {config_path}: {e}"
+        raise ConfigError(msg) from e
     except Exception as e:
         if isinstance(e, ConfigError):
             raise
@@ -282,6 +321,7 @@ project_name: "Project Documentation"
 # author_email: "team@example.com"
 # document_owner: "Engineering Team"
 # review_cycle: "Quarterly"
+# copyright_text: "© 2025 Your Company. All rights reserved."
 # primary_color: "#1a73e8"
 # accent_color: "#ffffff"
 
@@ -290,6 +330,7 @@ footer:
   include_date: true
   include_commit: true
   include_branch: false
+  include_render_date: false    # append generation date to footer
   # custom_text: "Confidential"
   # repo_url: "https://github.com/your-org/your-repo"
 
@@ -320,9 +361,15 @@ pdf:
 #       page: 1
 
 # projects:                   # monorepo: render multiple MkDocs projects as chapters
-#   - services/api
+#   - services/api             # simple form: local path to mkdocs.yml directory
 #   - services/frontend
 #   - path: shared/docs        # detailed form with per-project metadata
 #     author: "Docs Team"
+#     author_email: "docs@example.com"
 #     document_owner: "Jane Smith"
+#     review_cycle: "Quarterly"
+#     subtitle: "Shared Libraries"
+#   - url: https://github.com/org/repo  # remote git repo
+#     branch: main
+#     author: "Platform Team"
 """

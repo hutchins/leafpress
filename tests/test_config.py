@@ -91,6 +91,20 @@ def test_env_override_footer_bool(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.footer.include_branch is True
 
 
+def test_include_render_date_default_false() -> None:
+    config = BrandingConfig(company_name="C", project_name="P")
+    assert config.footer.include_render_date is False
+
+
+def test_env_override_include_render_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    for k, v in _REQUIRED.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setenv("LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE", "true")
+    config = config_from_env()
+    assert config is not None
+    assert config.footer.include_render_date is True
+
+
 def test_env_override_invalid_color_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     for k, v in _REQUIRED.items():
         monkeypatch.setenv(k, v)

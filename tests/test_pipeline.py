@@ -1,11 +1,18 @@
 """Tests for the conversion pipeline."""
 
+import logging
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
-
 from leafpress.exceptions import LeafpressError
-from leafpress.pipeline import _find_mkdocs_config, _safe_filename, convert
+from leafpress.pipeline import (
+    _ConsoleWarningHandler,
+    _find_mkdocs_config,
+    _safe_filename,
+    convert,
+)
+from rich.console import Console
 
 
 def test_convert_pdf(
@@ -203,3 +210,67 @@ def test_pdf_missing_error_mentions_pdf_extra(
     msg = str(exc_info.value)
     assert "[pdf]" in msg
     assert "leafpress doctor" in msg
+
+
+# --- _ConsoleWarningHandler ---
+
+
+class TestConsoleWarningHandler:
+    """Tests for the _ConsoleWarningHandler logging handler."""
+
+    def test_handler_emits_warning_to_console(self) -> None:
+        """WARNING-level log records are printed to the console."""
+        con = Console(file=MagicMock())
+        handler = _ConsoleWarningHandler(con)
+
+        record = logging.LogRecord(
+            name="leafpress.test",
+            level=logging.WARNING,
+            pathname="",
+            lineno=0,
+            msg="SVG logos are not supported",
+            args=(),
+            exc_info=None,
+        )
+        handler.emit(record)
+        con.file.write.assert_called()  # type: ignore[union-attr]
+
+    def test_handler_default_level_is_warning(self) -> None:
+        """Handler default level is WARNING, so DEBUG records are filtered."""
+        con = Console(file=MagicMock())
+        handler = _ConsoleWarningHandler(con)
+        assert handler.level == logging.WARNING
+
+    def test_handler_verbose_accepts_debug(self) -> None:
+        """When level is set to DEBUG, debug records pass through."""
+        con = Console(file=MagicMock())
+        handler = _ConsoleWarningHandler(con)
+        handler.setLevel(logging.DEBUG)
+
+        record = logging.LogRecord(
+            name="leafpress.test",
+            level=logging.DEBUG,
+            pathname="",
+            lineno=0,
+            msg="debug detail",
+            args=(),
+            exc_info=None,
+        )
+        # The handler should not filter this record
+        assert handler.filter(record)
+
+
+def test_convert_verbose_param_accepted(
+    sample_mkdocs_config: Path,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    """Verify that verbose=True is accepted without error."""
+    result = convert(
+        source=str(sample_mkdocs_config.parent),
+        output_dir=tmp_output,
+        format="docx",
+        config_path=sample_branding_config,
+        verbose=True,
+    )
+    assert len(result) >= 1
