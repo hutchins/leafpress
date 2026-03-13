@@ -255,7 +255,7 @@ def _yaml_hint(problem: str, line: str) -> str:
     """Return a human-friendly hint based on a PyYAML problem string."""
     p = problem.lower()
     if "block end" in p and "scalar" in p:
-        return "Extra character after a quoted value — check for a stray quote at the end of the line."
+        return "Extra character after a quoted value — check for a stray quote at the end of the line."  # noqa: E501
     if "mapping values are not allowed" in p:
         return "Unquoted value contains a colon — wrap the value in quotes."
     if "found character '\\t'" in p or "tab" in p:
