@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import warnings
+import logging
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -11,6 +11,8 @@ from docx.enum.text import WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+
+logger = logging.getLogger(__name__)
 
 
 class HtmlToDocxConverter:
@@ -197,7 +199,7 @@ class HtmlToDocxConverter:
             try:
                 self._doc.add_picture(str(image_path), width=Inches(5.5))
             except Exception as exc:
-                warnings.warn(f"Could not embed image {src!r}: {exc}", stacklevel=2)
+                logger.warning("Could not embed image %r: %s", src, exc)
                 para = self._doc.add_paragraph()
                 para.add_run(f"[Image: {src}]").italic = True
         else:
