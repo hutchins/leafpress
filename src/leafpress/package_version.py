@@ -5,11 +5,39 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+_VCS_MARKERS = frozenset({".git", ".svn"})
+_DETECTORS = (
+    "_from_pyproject",
+    "_from_cargo",
+    "_from_package_json",
+    "_from_pom_xml",
+    "_from_composer_json",
+    "_from_pubspec_yaml",
+    "_from_csproj",
+)
+
+
+def _candidate_dirs(start: Path) -> list[Path]:
+    """Walk up from start, stopping at a VCS root (.git / .svn) or filesystem root."""
+    dirs: list[Path] = []
+    current = start.resolve()
+    while True:
+        dirs.append(current)
+        if any((current / marker).exists() for marker in _VCS_MARKERS):
+            break
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return dirs
+
 
 def detect_package_version(project_dir: Path) -> str | None:
     """Return the package version from the first recognised manifest file.
 
-    Checks in priority order:
+    Searches project_dir and its parents up to the VCS root (.git or .svn).
+
+    Manifest priority (checked in each directory before moving up):
       1. pyproject.toml  — [project] version  or  [tool.poetry] version
       2. Cargo.toml      — [package] version
       3. package.json    — .version
@@ -20,7 +48,7 @@ def detect_package_version(project_dir: Path) -> str | None:
 
     Returns None if no manifest is found or none contains a version.
     """
-    for fn in (
+    fns = (
         _from_pyproject,
         _from_cargo,
         _from_package_json,
@@ -28,10 +56,12 @@ def detect_package_version(project_dir: Path) -> str | None:
         _from_composer_json,
         _from_pubspec_yaml,
         _from_csproj,
-    ):
-        ver = fn(project_dir)
-        if ver:
-            return ver
+    )
+    for directory in _candidate_dirs(project_dir):
+        for fn in fns:
+            ver = fn(directory)
+            if ver:
+                return ver
     return None
 
 
