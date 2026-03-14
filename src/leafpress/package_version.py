@@ -6,15 +6,6 @@ import json
 from pathlib import Path
 
 _VCS_MARKERS = frozenset({".git", ".svn"})
-_DETECTORS = (
-    "_from_pyproject",
-    "_from_cargo",
-    "_from_package_json",
-    "_from_pom_xml",
-    "_from_composer_json",
-    "_from_pubspec_yaml",
-    "_from_csproj",
-)
 
 
 def _candidate_dirs(start: Path) -> list[Path]:
@@ -161,7 +152,7 @@ def _from_pubspec_yaml(project_dir: Path) -> str | None:
 
 
 def _from_csproj(project_dir: Path) -> str | None:
-    csproj_files = list(project_dir.glob("*.csproj"))
+    csproj_files = sorted(project_dir.glob("*.csproj"))
     if not csproj_files:
         return None
     try:

@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from leafpress.package_version import _candidate_dirs, detect_package_version
-
 
 # ---------------------------------------------------------------------------
 # _candidate_dirs
