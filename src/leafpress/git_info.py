@@ -20,6 +20,7 @@ class GitVersion:
     tag: str | None
     is_dirty: bool
     tag_distance: int | None
+    package_version: str | None = None
 
     def format_version_string(self) -> str:
         """Produce a human-readable version string.
@@ -27,6 +28,8 @@ class GitVersion:
         Examples:
             'v1.2.3 (abc1234, 2025-01-15)'
             'main@abc1234 (2025-01-15, dirty)'
+            '1.2.3 (main@abc1234, 2025-01-15)'
+            'v1.2.3 (abc1234, 2025-01-15) · package: 1.2.4'
         """
         date_str = self.commit_date.strftime("%Y-%m-%d")
         parts: list[str] = []
@@ -37,6 +40,17 @@ class GitVersion:
             else:
                 parts.append(self.tag)
             parts.append(f"({self.commit_hash}, {date_str})")
+
+            # Show package version only when it differs from the git tag
+            if self.package_version:
+                tag_ver = self.tag.lstrip("v")
+                pkg_ver = self.package_version.lstrip("v")
+                if tag_ver != pkg_ver:
+                    parts.append(f"· package: {self.package_version}")
+        elif self.package_version:
+            # No tag — use package version as the primary version
+            parts.append(self.package_version)
+            parts.append(f"({self.branch}@{self.commit_hash}, {date_str})")
         else:
             parts.append(f"{self.branch}@{self.commit_hash}")
             parts.append(f"({date_str})")

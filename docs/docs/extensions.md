@@ -64,6 +64,9 @@ Mermaid rendering requires internet access during conversion. If the service is 
 
 Diagram images are cached by content hash, so identical diagrams across pages are only rendered once.
 
+!!! tip "Line breaks in labels"
+    Use `<br/>` for line breaks in mermaid node labels. LeafPress automatically converts literal `\n` text to `<br/>` for compatibility with the mermaid.ink renderer, so both syntaxes work.
+
 !!! tip "External diagrams"
     For diagrams hosted externally (URLs or Lucidchart), LeafPress can fetch and cache them automatically. See [Diagrams](diagrams.md) for the fetch workflow.
 

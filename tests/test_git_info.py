@@ -39,9 +39,7 @@ def test_version_string_with_tag() -> None:
         tag_distance=0,
     )
     version_str = info.format_version_string()
-    assert "v1.2.3" in version_str
-    assert "abc1234" in version_str
-    assert "2025-01-15" in version_str
+    assert version_str == "v1.2.3 (abc1234, 2025-01-15)"
 
 
 def test_version_string_without_tag() -> None:
@@ -59,8 +57,7 @@ def test_version_string_without_tag() -> None:
         tag_distance=None,
     )
     version_str = info.format_version_string()
-    assert "feature/test@def5678" in version_str
-    assert "[dirty]" in version_str
+    assert version_str == "feature/test@def5678 (2025-03-01) [dirty]"
 
 
 def test_version_string_tag_with_distance() -> None:
@@ -76,7 +73,80 @@ def test_version_string_tag_with_distance() -> None:
         tag_distance=5,
     )
     version_str = info.format_version_string()
-    assert "v2.0.0+5" in version_str
+    assert version_str == "v2.0.0+5 (aaa1111, 2025-06-01)"
+
+
+def test_version_string_no_tag_with_package_version() -> None:
+    """When no tag exists, package version becomes the primary version."""
+    from datetime import datetime, timezone
+
+    info = GitVersion(
+        commit_hash="def5678",
+        commit_hash_full="def5678" * 6 + "de",
+        commit_date=datetime(2025, 3, 1, tzinfo=timezone.utc),
+        branch="develop",
+        tag=None,
+        is_dirty=False,
+        tag_distance=None,
+        package_version="2.0.0",
+    )
+    version_str = info.format_version_string()
+    assert version_str == "2.0.0 (develop@def5678, 2025-03-01)"
+
+
+def test_version_string_tag_matches_package_version() -> None:
+    """When tag and package version match, package version is not shown."""
+    from datetime import datetime, timezone
+
+    info = GitVersion(
+        commit_hash="abc1234",
+        commit_hash_full="abc1234" * 6 + "ab",
+        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        branch="main",
+        tag="v1.2.3",
+        is_dirty=False,
+        tag_distance=0,
+        package_version="1.2.3",
+    )
+    version_str = info.format_version_string()
+    assert version_str == "v1.2.3 (abc1234, 2025-01-15)"
+    assert "package" not in version_str
+
+
+def test_version_string_tag_differs_from_package_version() -> None:
+    """When tag and package version differ, both are shown."""
+    from datetime import datetime, timezone
+
+    info = GitVersion(
+        commit_hash="abc1234",
+        commit_hash_full="abc1234" * 6 + "ab",
+        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        branch="main",
+        tag="v1.2.3",
+        is_dirty=False,
+        tag_distance=0,
+        package_version="1.3.0",
+    )
+    version_str = info.format_version_string()
+    assert version_str == "v1.2.3 (abc1234, 2025-01-15) · package: 1.3.0"
+
+
+def test_version_string_no_tag_package_version_dirty() -> None:
+    """Package version as primary with dirty flag."""
+    from datetime import datetime, timezone
+
+    info = GitVersion(
+        commit_hash="ccc3333",
+        commit_hash_full="ccc3333" * 6 + "cc",
+        commit_date=datetime(2025, 6, 1, tzinfo=timezone.utc),
+        branch="main",
+        tag=None,
+        is_dirty=True,
+        tag_distance=None,
+        package_version="3.0.0",
+    )
+    version_str = info.format_version_string()
+    assert version_str == "3.0.0 (main@ccc3333, 2025-06-01) [dirty]"
 
 
 @patch("leafpress.git_info.Repo")

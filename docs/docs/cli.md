@@ -54,8 +54,9 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--open` | `false` | Open the generated file(s) after conversion |
 | `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
 | `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) |
+| `--footer-date` / `--no-footer-date` | _(config)_ | Include document generation date in footer |
 | `--fetch-diagrams` | `false` | Fetch diagrams from external sources before converting |
-| `--verbose` | `false` | Show full traceback on error |
+| `--verbose` | `false` | Show warnings, debug details, and full traceback on error |
 
 **Examples**
 
@@ -109,6 +110,16 @@ leafpress convert /path/to/project --mkdocs-config /path/to/docs/mkdocs.yml
 leafpress looks for `leafpress.yml` or `leafpress.yaml` in the project root automatically. You only need `--config` if the file is elsewhere.
 
 leafpress also loads a `.env` file from the project root and applies any `LEAFPRESS_*` environment variables on top of the YAML config. See [Configuration](configuration.md#environment-variables).
+
+**Verbose output**
+
+By default, LeafPress surfaces all warnings during conversion — for example, SVG logo skips, missing images, and failed Markdown extensions. Mermaid diagram pages also report how many diagrams were rendered.
+
+Pass `--verbose` to additionally show debug-level detail and full tracebacks on error:
+
+```bash
+leafpress convert . --verbose
+```
 
 ---
 

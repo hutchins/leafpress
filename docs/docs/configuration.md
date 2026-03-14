@@ -38,6 +38,7 @@ footer:
   include_date: true            # show build date (default: true)
   include_commit: true          # show commit hash (default: true)
   include_branch: false         # show branch name (default: false)
+  include_render_date: false    # append generation date to footer
   custom_text: "Confidential"   # optional static footer text
   repo_url: "https://github.com/org/repo"  # link in footer
 
@@ -86,7 +87,7 @@ diagrams:
 |-------|------|---------|-------------|
 | `company_name` | string | — | Company or organization name (required) |
 | `project_name` | string | — | Project or document title (required) |
-| `logo_path` | string | `null` | Path to logo (PNG/SVG/JPEG) or `https://` URL |
+| `logo_path` | string | `null` | Path to logo image or `https://` URL (PNG/JPEG recommended; SVG works in PDF/HTML but not DOCX/ODT) |
 | `subtitle` | string | `null` | Subtitle shown on cover page |
 | `author` | string | `null` | Author name |
 | `author_email` | string | `null` | Author email |
@@ -104,6 +105,7 @@ diagrams:
 | `include_date` | bool | `true` | Include build date |
 | `include_commit` | bool | `true` | Include short commit hash |
 | `include_branch` | bool | `false` | Include branch name |
+| `include_render_date` | bool | `false` | Append document generation date to footer |
 | `custom_text` | string | `null` | Static text appended to footer |
 | `repo_url` | string | `null` | Repository URL linked in footer |
 
@@ -285,6 +287,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_FOOTER_INCLUDE_DATE` | `footer.include_date` |
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` |
+| `LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE` | `footer.include_render_date` |
 | `LEAFPRESS_LOCAL_TIME` | Use local timezone for dates (`true`/`false`, default: `false`) |
 | `LEAFPRESS_WATERMARK_TEXT` | `watermark.text` |
 | `LEAFPRESS_WATERMARK_COLOR` | `watermark.color` |
