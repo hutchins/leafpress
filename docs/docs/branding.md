@@ -24,6 +24,9 @@ Supported formats: PNG, SVG, JPEG.
 
 The logo appears on the cover page. It is scaled to fit within the header area.
 
+!!! warning "SVG logo compatibility"
+    SVG logos render correctly in **PDF** (via Cairo/librsvg) and **HTML** (native browser support). However, **DOCX** and **ODT** formats only support raster images (PNG, JPEG). If an SVG logo is configured, DOCX/ODT output will skip the logo with a warning. For full format compatibility, use a PNG or JPEG logo.
+
 ## Colors
 
 Two color values control the branding palette:
@@ -60,6 +63,7 @@ footer:
   include_date: true            # build date (YYYY-MM-DD)
   include_commit: true          # short commit hash
   include_branch: false         # branch name
+  include_render_date: false    # append "Generated YYYY-MM-DD" to footer
   custom_text: "Confidential"   # static text, always shown if set
   repo_url: "https://github.com/org/repo"  # linked repository URL
 ```
@@ -70,6 +74,19 @@ Footer fields are rendered left-to-right, separated by `·`.
 
 ```
 v1.2.0 · 2026-03-08 · a1b2c3d · Confidential
+```
+
+With `include_render_date: true`:
+
+```
+v1.2.0 · 2026-03-08 · a1b2c3d · Confidential · Generated 2026-03-11
+```
+
+The render date can also be toggled via the CLI:
+
+```bash
+leafpress convert . --footer-date      # enable generation date
+leafpress convert . --no-footer-date   # disable generation date
 ```
 
 ## Environment variable overrides

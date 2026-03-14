@@ -18,8 +18,9 @@ Convert MkDocs sites to PDF, Word, HTML, ODT, EPUB, and Markdown documents with 
 - **Diagram fetching** — pull diagrams from URLs and Lucidchart API with caching
 - Cover page, table of contents, branded footer, and **watermark overlay**
 - Logo, colors, and metadata via a simple `leafpress.yml` config
-- Git version info (tag, branch, commit) embedded in output
+- Git version info (tag, branch, commit) embedded in output — **package version auto-detected** from `pyproject.toml`, `package.json`, `Cargo.toml`, and more
 - Convert from **local paths** or **remote git URLs** (including monorepo git URL projects)
+- **Actionable error messages** — rendering failures show specific fixes (missing libraries, unsupported image formats)
 - **`leafpress doctor`** — diagnose your environment and optional dependencies
 - **Desktop UI** — macOS/Linux/Windows menu bar app
 - **CI-friendly** — configure entirely via `LEAFPRESS_*` environment variables

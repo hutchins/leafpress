@@ -57,6 +57,10 @@ leafpress convert . -f odt \
     -o dist/
 ```
 
+## Limitations
+
+- **SVG images are not supported** — `odfpy` only handles raster formats (PNG, JPEG). SVG logos are skipped with a warning; use PNG or JPEG for full compatibility
+
 ## Compatibility
 
 ODT files can be opened with:
