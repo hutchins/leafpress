@@ -34,6 +34,12 @@ hide:
 </div>
 
 <div class="feature-card" markdown>
+<span class="feature-card__icon">:material-package-variant:</span>
+<p class="feature-card__title">Package Version Detection</p>
+<p class="feature-card__desc">Automatically reads your project version from pyproject.toml, package.json, Cargo.toml, and more — shown alongside git info without any configuration.</p>
+</div>
+
+<div class="feature-card" markdown>
 <span class="feature-card__icon">:material-console:</span>
 <p class="feature-card__title">CLI & Desktop UI</p>
 <p class="feature-card__desc">Use the command line for automation or the desktop app for a visual workflow.</p>

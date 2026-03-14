@@ -52,7 +52,9 @@ Without `fetch-depth: 0`, shallow clones may not have tags, and LeafPress will f
 
 ## Package version detection
 
-LeafPress automatically detects the package version from common manifest files in the project root. No configuration is required.
+LeafPress automatically detects the package version from common manifest files. No configuration is required.
+
+LeafPress searches from the docs directory upward, stopping at the first `.git` or `.svn` directory (the VCS root). This means it works whether your `mkdocs.yml` is at the project root or inside a `docs/` subdirectory.
 
 **Supported manifests (checked in order):**
 
