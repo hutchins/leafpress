@@ -159,3 +159,98 @@ def test_priority_pyproject_over_cargo(tmp_path: Path) -> None:
         '[package]\nname = "myapp"\nversion = "2.0.0"\n'
     )
     assert detect_package_version(tmp_path) == "1.0.0"
+
+
+# ---------------------------------------------------------------------------
+# Error handling — malformed files should return None gracefully
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_pyproject_toml(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pyproject.toml").write_text("this is not valid toml [[[")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_malformed_package_json(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "package.json").write_text("{invalid json")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_malformed_pom_xml(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pom.xml").write_text("<not-closed>")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_malformed_composer_json(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "composer.json").write_text("{bad json")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_malformed_pubspec_yaml(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pubspec.yaml").write_text(":\n  - :\n    - : [")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_malformed_csproj(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "MyApp.csproj").write_text("<not valid xml")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_package_json_missing_version(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "package.json").write_text('{"name": "myapp"}')
+    assert detect_package_version(tmp_path) is None
+
+
+def test_composer_json_missing_version(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "composer.json").write_text('{"name": "org/pkg"}')
+    assert detect_package_version(tmp_path) is None
+
+
+def test_pubspec_yaml_missing_version(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pubspec.yaml").write_text("name: myapp\n")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_pubspec_yaml_non_dict(tmp_path: Path) -> None:
+    """pubspec.yaml that parses as a non-dict should return None."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pubspec.yaml").write_text("- item1\n- item2\n")
+    assert detect_package_version(tmp_path) is None
+
+
+def test_pom_xml_no_namespace(tmp_path: Path) -> None:
+    """pom.xml without a namespace should still detect version."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pom.xml").write_text(
+        '<?xml version="1.0"?>\n'
+        "<project>\n"
+        "  <version>1.0.0</version>\n"
+        "</project>\n"
+    )
+    assert detect_package_version(tmp_path) == "1.0.0"
+
+
+def test_pom_xml_missing_version(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pom.xml").write_text(
+        '<?xml version="1.0"?>\n<project>\n  <groupId>org</groupId>\n</project>\n'
+    )
+    assert detect_package_version(tmp_path) is None
+
+
+def test_csproj_no_version_tag(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "MyApp.csproj").write_text(
+        "<Project>\n  <PropertyGroup>\n    <TargetFramework>net8.0</TargetFramework>\n"
+        "  </PropertyGroup>\n</Project>\n"
+    )
+    assert detect_package_version(tmp_path) is None
