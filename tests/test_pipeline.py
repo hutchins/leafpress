@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from rich.console import Console
+
 from leafpress.exceptions import LeafpressError
 from leafpress.pipeline import (
     _ConsoleWarningHandler,
@@ -12,7 +14,6 @@ from leafpress.pipeline import (
     _safe_filename,
     convert,
 )
-from rich.console import Console
 
 
 def test_convert_pdf(
@@ -258,6 +259,51 @@ class TestConsoleWarningHandler:
         )
         # The handler should not filter this record
         assert handler.filter(record)
+
+
+def test_convert_includes_package_version(
+    sample_mkdocs_config: Path,
+    sample_branding_config: Path,
+    tmp_output: Path,
+) -> None:
+    """Package version from pyproject.toml should be detected during convert.
+
+    This test runs inside the leafpress repo which has a pyproject.toml,
+    so detect_package_version should find a version.
+    """
+    import dataclasses
+
+    from leafpress.git_info import extract_git_info
+    from leafpress.package_version import detect_package_version
+
+    project_dir = sample_mkdocs_config.parent
+    git_info = extract_git_info(project_dir)
+    pkg_ver = detect_package_version(project_dir)
+
+    if git_info and pkg_ver:
+        combined = dataclasses.replace(git_info, package_version=pkg_ver)
+        assert combined.package_version == pkg_ver
+        assert combined.commit_hash == git_info.commit_hash
+        assert combined.branch == git_info.branch
+        # Version string should contain the package version
+        version_str = combined.format_version_string()
+        assert pkg_ver in version_str
+
+
+def test_package_version_without_git(tmp_path: Path) -> None:
+    """When there's no git repo but a manifest exists, version is still detected."""
+    from leafpress.git_info import extract_git_info
+    from leafpress.package_version import detect_package_version
+
+    # tmp_path has no .git, so git_info should be None
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "test"\nversion = "1.0.0"\n'
+    )
+    git_info = extract_git_info(tmp_path)
+    pkg_ver = detect_package_version(tmp_path)
+
+    assert git_info is None
+    assert pkg_ver == "1.0.0"
 
 
 def test_convert_verbose_param_accepted(

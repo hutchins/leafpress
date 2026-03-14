@@ -39,9 +39,7 @@ def test_version_string_with_tag() -> None:
         tag_distance=0,
     )
     version_str = info.format_version_string()
-    assert "v1.2.3" in version_str
-    assert "abc1234" in version_str
-    assert "2025-01-15" in version_str
+    assert version_str == "v1.2.3 (abc1234, 2025-01-15)"
 
 
 def test_version_string_without_tag() -> None:
@@ -59,8 +57,7 @@ def test_version_string_without_tag() -> None:
         tag_distance=None,
     )
     version_str = info.format_version_string()
-    assert "feature/test@def5678" in version_str
-    assert "[dirty]" in version_str
+    assert version_str == "feature/test@def5678 (2025-03-01) [dirty]"
 
 
 def test_version_string_tag_with_distance() -> None:
@@ -76,7 +73,7 @@ def test_version_string_tag_with_distance() -> None:
         tag_distance=5,
     )
     version_str = info.format_version_string()
-    assert "v2.0.0+5" in version_str
+    assert version_str == "v2.0.0+5 (aaa1111, 2025-06-01)"
 
 
 def test_version_string_no_tag_with_package_version() -> None:
