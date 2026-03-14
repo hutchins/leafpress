@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import logging
 import tempfile
 from pathlib import Path
@@ -153,10 +154,17 @@ def convert(
             if branding.watermark.text:
                 console.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
 
-        # Extract git info
+        # Extract git info and package version
         git_info = extract_git_info(project_dir)
+        from leafpress.package_version import detect_package_version
+
+        pkg_ver = detect_package_version(project_dir)
+        if git_info and pkg_ver:
+            git_info = dataclasses.replace(git_info, package_version=pkg_ver)
         if git_info:
             console.print(f"  [green]Version:[/green] {git_info.format_version_string()}")
+        elif pkg_ver:
+            console.print(f"  [green]Version:[/green] {pkg_ver}")
 
         # Initialize temp dir for mermaid images
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
