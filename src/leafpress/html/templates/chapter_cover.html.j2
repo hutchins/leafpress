@@ -1,0 +1,24 @@
+<div class="chapter-cover" id="{{ page_id }}">
+    <h1 class="chapter-title">{{ title }}</h1>
+    {% if subtitle %}
+    <p class="chapter-subtitle">{{ subtitle }}</p>
+    {% endif %}
+
+    <div class="chapter-meta">
+        {% if version %}
+        <p class="chapter-version">v{{ version }}</p>
+        {% endif %}
+        {% if source_label %}
+        <p class="chapter-source">{{ source_label }}</p>
+        {% endif %}
+        {% if author or author_email %}
+        <p class="chapter-author">Author: {{ author }}{% if author and author_email %} &lt;{{ author_email }}&gt;{% elif author_email %}{{ author_email }}{% endif %}</p>
+        {% endif %}
+        {% if document_owner %}
+        <p class="chapter-owner">Document Owner: {{ document_owner }}</p>
+        {% endif %}
+        {% if review_cycle %}
+        <p class="chapter-review">Review Cycle: {{ review_cycle }}</p>
+        {% endif %}
+    </div>
+</div>

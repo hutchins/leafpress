@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
+from jinja2 import Environment, PackageLoader
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -23,6 +24,7 @@ from leafpress.exceptions import LeafpressError, RenderError, SourceError
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
+    MkDocsConfig,
     NavItem,
     bump_nav_levels,
     flatten_nav,
@@ -98,13 +100,7 @@ def convert(
         # Load .env from project dir (shell env takes priority via override=False)
         load_dotenv(project_dir / ".env", override=False)
 
-        # Parse mkdocs.yml
-        with console.status("[bold blue]Parsing MkDocs configuration..."):
-            config_file = mkdocs_config_path or _find_mkdocs_config(project_dir)
-            mkdocs_cfg = parse_mkdocs_config(config_file)
-        console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
-
-        # Load branding config
+        # Load branding config (before mkdocs.yml so monorepo mode can skip it)
         branding: BrandingConfig | None = None
         if config_path:
             branding = load_config(config_path)
@@ -117,6 +113,30 @@ def convert(
                     break
             if branding is None:
                 branding = config_from_env()
+
+        # Parse mkdocs.yml (not required in monorepo mode)
+        is_monorepo = branding is not None and bool(branding.projects)
+        mkdocs_cfg = None
+        if not is_monorepo:
+            with console.status("[bold blue]Parsing MkDocs configuration..."):
+                config_file = mkdocs_config_path or _find_mkdocs_config(project_dir)
+                mkdocs_cfg = parse_mkdocs_config(config_file)
+            console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
+        elif mkdocs_config_path:
+            # Monorepo mode but an explicit mkdocs config was given
+            mkdocs_cfg = parse_mkdocs_config(mkdocs_config_path)
+            console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
+        else:
+            # Monorepo mode without top-level mkdocs.yml — synthesize a minimal config
+            mkdocs_cfg = MkDocsConfig(
+                site_name=branding.project_name,
+                docs_dir=project_dir,
+                nav_items=[],
+                markdown_extensions=[],
+                theme_name=None,
+                extra_css=[],
+                config_path=project_dir / "mkdocs.yml",
+            )
         # CLI --watermark flag overrides config
         if watermark and branding:
             branding = branding.model_copy(
@@ -230,7 +250,13 @@ def convert(
 
         # Generate outputs
         output_dir.mkdir(parents=True, exist_ok=True)
-        safe_name = _safe_filename(mkdocs_cfg.site_name)
+        if mkdocs_cfg:
+            site_name = mkdocs_cfg.site_name
+        elif branding:
+            site_name = branding.project_name
+        else:
+            site_name = "output"
+        safe_name = _safe_filename(site_name)
 
         if format in ("pdf", "both", "all"):
             try:
@@ -434,17 +460,23 @@ def _collect_monorepo_pages(
             mkdocs_file = _find_mkdocs_config(project_dir)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
 
-            con.print(f"  [green]Chapter:[/green] {mkdocs_cfg.site_name} ({source_label})")
+            # Detect per-project version (no walk-up to avoid parent manifests)
+            from leafpress.package_version import detect_package_version
 
-            # Chapter heading
+            package_root = (config_dir / entry.root).resolve() if entry.root else project_dir
+            project_version = detect_package_version(package_root, walk_up=False)
+
+            version_suffix = f" v{project_version}" if project_version else ""
+            con.print(
+                f"  [green]Chapter:[/green] {mkdocs_cfg.site_name}{version_suffix} ({source_label})"
+            )
+
+            # Chapter cover page with metadata
+            chapter_html = _build_chapter_cover(
+                entry, branding, mkdocs_cfg.site_name, source_label, project_version
+            )
             chapter = NavItem(title=mkdocs_cfg.site_name, path=None, level=0)
-            all_pages.append((chapter, ""))
-
-            # Per-project metadata as HTML
-            meta_html = _build_chapter_meta(entry, branding)
-            if meta_html:
-                meta_item = NavItem(title="", path=None, level=0)
-                all_pages.append((meta_item, meta_html))
+            all_pages.append((chapter, chapter_html))
 
             # Render pages with project-specific docs_dir
             renderer = MarkdownRenderer(
@@ -466,7 +498,10 @@ def _collect_monorepo_pages(
                     continue
                 md_file = mkdocs_cfg.docs_dir / item.path
                 if not md_file.exists():
-                    con.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}")
+                    con.print(
+                        f"  [yellow]Warning:[/yellow] File not found:"
+                        f" {item.path} (in {mkdocs_cfg.site_name})"
+                    )
                     continue
                 md_content = md_file.read_text(encoding="utf-8")
                 html, render_warnings = renderer.render(md_content, md_file)
@@ -481,34 +516,34 @@ def _collect_monorepo_pages(
     return all_pages, total_pages
 
 
-def _build_chapter_meta(entry: ProjectEntry, branding: BrandingConfig) -> str:
-    """Build HTML metadata block for a monorepo chapter heading.
+def _build_chapter_cover(
+    entry: ProjectEntry,
+    branding: BrandingConfig,
+    site_name: str,
+    source_label: str,
+    version: str | None = None,
+) -> str:
+    """Build a chapter cover page using the Jinja template.
 
     Uses per-project overrides, falling back to top-level branding values.
-    Returns empty string if no metadata to display.
+    The PDF and HTML renderers share the same template variable contract;
+    the PDF template is used here as the canonical source (renderers that
+    need a different template, e.g. HTML, re-render from the same data
+    via their own template in the page loop).
     """
-    lines: list[str] = []
+    jinja = Environment(
+        loader=PackageLoader("leafpress.pdf", "templates"),
+        autoescape=True,
+    )
+    tmpl = jinja.get_template("chapter_cover.html.j2")
 
-    author = entry.author or branding.author
-    author_email = entry.author_email or branding.author_email
-    if author or author_email:
-        if author and author_email:
-            lines.append(f"<p><em>Author: {author} &lt;{author_email}&gt;</em></p>")
-        elif author:
-            lines.append(f"<p><em>Author: {author}</em></p>")
-        else:
-            lines.append(f"<p><em>Author: {author_email}</em></p>")
-
-    owner = entry.document_owner or branding.document_owner
-    if owner:
-        lines.append(f"<p><em>Document Owner: {owner}</em></p>")
-
-    review = entry.review_cycle or branding.review_cycle
-    if review:
-        lines.append(f"<p><em>Review Cycle: {review}</em></p>")
-
-    subtitle = entry.subtitle or branding.subtitle
-    if subtitle:
-        lines.append(f"<p><em>{subtitle}</em></p>")
-
-    return "\n".join(lines)
+    return tmpl.render(
+        title=site_name,
+        subtitle=entry.subtitle or branding.subtitle or "",
+        source_label=source_label,
+        version=version or "",
+        author=entry.author or branding.author or "",
+        author_email=entry.author_email or branding.author_email or "",
+        document_owner=entry.document_owner or branding.document_owner or "",
+        review_cycle=entry.review_cycle or branding.review_cycle or "",
+    )

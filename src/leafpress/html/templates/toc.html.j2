@@ -4,6 +4,8 @@
         {% for item, html in pages %}
         {% if item.path is not none %}
         <a href="#{{ item.title | lower | replace(' ', '-') | replace('.', '') }}" class="toc-level-{{ item.level }}">{{ item.title }}</a>
+        {% elif item.title and item.level == 0 %}
+        <div class="toc-chapter toc-level-0">{{ item.title }}</div>
         {% elif item.children %}
         <div class="toc-section toc-level-{{ item.level }}">{{ item.title }}</div>
         {% endif %}

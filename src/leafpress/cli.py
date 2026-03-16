@@ -150,11 +150,21 @@ def convert(
 
     try:
         if source is None:
-            from leafpress.project import detect_project
+            # Monorepo mode: if -c config has projects:, use config dir as source
+            if config is not None:
+                from leafpress.config import load_config as _peek_config
 
-            detected = detect_project()
-            source = str(detected)
-            console.print(f"[dim]Detected project: {detected}[/dim]")
+                _peek_branding = _peek_config(config)
+                if _peek_branding.projects:
+                    source = str(config.resolve().parent)
+                    console.print(f"[dim]Monorepo mode: using config directory {source}[/dim]")
+
+            if source is None:
+                from leafpress.project import detect_project
+
+                detected = detect_project()
+                source = str(detected)
+                console.print(f"[dim]Detected project: {detected}[/dim]")
 
         if fetch_diagrams_flag and config:
             from leafpress.config import load_config as _load_config

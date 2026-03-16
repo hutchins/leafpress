@@ -23,10 +23,13 @@ def _candidate_dirs(start: Path) -> list[Path]:
     return dirs
 
 
-def detect_package_version(project_dir: Path) -> str | None:
+def detect_package_version(project_dir: Path, *, walk_up: bool = True) -> str | None:
     """Return the package version from the first recognised manifest file.
 
-    Searches project_dir and its parents up to the VCS root (.git or .svn).
+    Searches project_dir and, when *walk_up* is True (default), its parents
+    up to the VCS root (.git or .svn).  Set *walk_up=False* to search only
+    the given directory — useful for monorepo sub-projects where the parent
+    manifest belongs to a different package.
 
     Manifest priority (checked in each directory before moving up):
       1. pyproject.toml  — [project] version  or  [tool.poetry] version
@@ -48,7 +51,8 @@ def detect_package_version(project_dir: Path) -> str | None:
         _from_pubspec_yaml,
         _from_csproj,
     )
-    for directory in _candidate_dirs(project_dir):
+    dirs = _candidate_dirs(project_dir) if walk_up else [project_dir.resolve()]
+    for directory in dirs:
         for fn in fns:
             ver = fn(directory)
             if ver:

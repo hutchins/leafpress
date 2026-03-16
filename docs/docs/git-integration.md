@@ -80,6 +80,21 @@ v1.2.3 (abc1234, 2026-03-13) · package: 1.3.0
 
 This is most useful when a new release has been cut in the manifest but not yet tagged in git.
 
+## Sub-project version detection
+
+In [monorepo mode](configuration.md#monorepo-support), each sub-project detects its version independently. Unlike the main project, sub-projects **do not walk up** the directory tree — they only search their own directory for manifest files. This prevents a sub-project from accidentally picking up the parent repo's version.
+
+If a sub-project's manifest lives in a different directory than its `mkdocs.yml`, use the `root` field to point to it:
+
+```yaml
+projects:
+  - path: services/api/docs   # location where mkdocs.yml is located
+    root: services/api        # version from services/api/package.json, not services/api/docs
+  - path: services/frontend   # uses services/frontend for version detection (default)
+```
+
+The `root` path is relative to the config file, just like `path`.
+
 ## No git repository
 
 If the project directory is not a git repository, git info is silently omitted from the output. The package version (if detected) is still shown.

@@ -1,4 +1,6 @@
-{% if is_section_header %}
+{% if is_section_header and content %}
+{{ content }}
+{% elif is_section_header %}
 <div class="section-break">
     <h{{ level + 1 }} class="section-title">{{ title }}</h{{ level + 1 }}>
 </div>

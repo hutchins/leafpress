@@ -6,6 +6,10 @@
         <div class="toc-entry toc-level-{{ item.level }}">
             <span class="toc-text">{{ item.title }}</span>
         </div>
+        {% elif item.title and item.level == 0 %}
+        <div class="toc-chapter toc-level-0">
+            <span class="toc-chapter-text">{{ item.title }}</span>
+        </div>
         {% elif item.children %}
         <div class="toc-section toc-level-{{ item.level }}">
             <span class="toc-section-text">{{ item.title }}</span>

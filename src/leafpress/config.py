@@ -81,6 +81,10 @@ class ProjectEntry(BaseModel):
     path: str | None = Field(default=None, description="Local path to mkdocs.yml dir")
     url: str | None = Field(default=None, description="Git URL to clone")
     branch: str | None = Field(default=None, description="Git branch (url only)")
+    root: str | None = Field(
+        default=None,
+        description="Package root dir for version detection (defaults to path)",
+    )
     author: str | None = None
     author_email: str | None = None
     document_owner: str | None = None
@@ -255,7 +259,9 @@ def _yaml_hint(problem: str, line: str) -> str:
     """Return a human-friendly hint based on a PyYAML problem string."""
     p = problem.lower()
     if "block end" in p and "scalar" in p:
-        return "Extra character after a quoted value — check for a stray quote at the end of the line."  # noqa: E501
+        return (
+            "Extra character after a quoted value — check for a stray quote at the end of the line."
+        )
     if "mapping values are not allowed" in p:
         return "Unquoted value contains a colon — wrap the value in quotes."
     if "found character '\\t'" in p or "tab" in p:
@@ -364,6 +370,7 @@ pdf:
 #   - services/api             # simple form: local path to mkdocs.yml directory
 #   - services/frontend
 #   - path: shared/docs        # detailed form with per-project metadata
+#     root: shared              # package root for version detection (defaults to path)
 #     author: "Docs Team"
 #     author_email: "docs@example.com"
 #     document_owner: "Jane Smith"
