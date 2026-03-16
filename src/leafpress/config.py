@@ -260,7 +260,7 @@ def _yaml_hint(problem: str, line: str) -> str:
     p = problem.lower()
     if "block end" in p and "scalar" in p:
         return (
-            "Extra character after a quoted value — check for a stray quote at the end of the line."  # noqa: E501
+            "Extra character after a quoted value — check for a stray quote at the end of the line."
         )
     if "mapping values are not allowed" in p:
         return "Unquoted value contains a colon — wrap the value in quotes."
