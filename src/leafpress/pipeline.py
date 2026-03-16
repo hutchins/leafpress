@@ -460,10 +460,21 @@ def _collect_monorepo_pages(
             mkdocs_file = _find_mkdocs_config(project_dir)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
 
-            con.print(f"  [green]Chapter:[/green] {mkdocs_cfg.site_name} ({source_label})")
+            # Detect per-project version (no walk-up to avoid parent manifests)
+            from leafpress.package_version import detect_package_version
+
+            package_root = (config_dir / entry.root).resolve() if entry.root else project_dir
+            project_version = detect_package_version(package_root, walk_up=False)
+
+            version_suffix = f" v{project_version}" if project_version else ""
+            con.print(
+                f"  [green]Chapter:[/green] {mkdocs_cfg.site_name}{version_suffix} ({source_label})"
+            )
 
             # Chapter cover page with metadata
-            chapter_html = _build_chapter_cover(entry, branding, mkdocs_cfg.site_name, source_label)
+            chapter_html = _build_chapter_cover(
+                entry, branding, mkdocs_cfg.site_name, source_label, project_version
+            )
             chapter = NavItem(title=mkdocs_cfg.site_name, path=None, level=0)
             all_pages.append((chapter, chapter_html))
 
@@ -510,6 +521,7 @@ def _build_chapter_cover(
     branding: BrandingConfig,
     site_name: str,
     source_label: str,
+    version: str | None = None,
 ) -> str:
     """Build a chapter cover page using the Jinja template.
 
@@ -529,6 +541,7 @@ def _build_chapter_cover(
         title=site_name,
         subtitle=entry.subtitle or branding.subtitle or "",
         source_label=source_label,
+        version=version or "",
         author=entry.author or branding.author or "",
         author_email=entry.author_email or branding.author_email or "",
         document_owner=entry.document_owner or branding.document_owner or "",

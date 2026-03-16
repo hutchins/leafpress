@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from leafpress.config import BrandingConfig, ProjectEntry
 from leafpress.exceptions import SourceError
 from leafpress.pipeline import _build_chapter_cover, _collect_monorepo_pages
@@ -417,3 +416,75 @@ def test_monorepo_url_passes_branch(monorepo: Path) -> None:
         )
 
     assert captured_args[0] == ("https://github.com/org/repo", "develop")
+
+
+# --- root field tests ---
+
+
+def test_project_entry_accepts_root() -> None:
+    """ProjectEntry accepts the root field."""
+    entry = ProjectEntry(path="services/api/docs", root="services/api")
+    assert entry.root == "services/api"
+    assert entry.path == "services/api/docs"
+
+
+def test_project_entry_root_defaults_to_none() -> None:
+    """root is None when not specified."""
+    entry = ProjectEntry(path="services/api")
+    assert entry.root is None
+
+
+def test_monorepo_root_used_for_version_detection(monorepo: Path) -> None:
+    """When root is set, version detection uses root dir instead of path dir."""
+    from rich.console import Console
+
+    # Create a project where mkdocs.yml is in a docs/ subdirectory
+    api_root = monorepo / "services" / "api"
+    docs_dir = api_root / "docs"
+    _make_mkdocs_project(docs_dir, "API Service", {"index.md": "Overview"})
+
+    # Put a pyproject.toml with a version in the api root (not in docs/)
+    (api_root / "pyproject.toml").write_text('[project]\nname = "api"\nversion = "2.5.0"\n')
+
+    projects = [
+        ProjectEntry(path="services/api/docs", root="services/api"),
+    ]
+
+    pages, count = _collect_monorepo_pages(
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
+    )
+
+    # The chapter cover should contain the version from root's pyproject.toml
+    cover_html = [html for _, html in pages if html and "chapter-cover" in html]
+    assert len(cover_html) == 1
+    assert "2.5.0" in cover_html[0]
+
+
+def test_monorepo_no_root_uses_path_for_version(monorepo: Path) -> None:
+    """When root is not set, version detection uses the path dir (default)."""
+    from rich.console import Console
+
+    # The standard monorepo fixture has mkdocs.yml at services/api/
+    # Put a pyproject.toml there so version is found via path
+    api_dir = monorepo / "services" / "api"
+    (api_dir / "pyproject.toml").write_text('[project]\nname = "api"\nversion = "1.0.0"\n')
+
+    projects = [
+        ProjectEntry(path="services/api"),  # no root set
+    ]
+
+    pages, count = _collect_monorepo_pages(
+        projects,
+        monorepo,
+        monorepo / "mermaid",
+        _branding(),
+        Console(quiet=True),
+    )
+
+    cover_html = [html for _, html in pages if html and "chapter-cover" in html]
+    assert len(cover_html) == 1
+    assert "1.0.0" in cover_html[0]

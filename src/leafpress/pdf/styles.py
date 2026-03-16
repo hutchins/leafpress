@@ -102,6 +102,21 @@ def _build_page_rules(
         f'"{top_right} \\2014  " string(chapter-name)' if has_chapters else f'"{top_right}"'
     )
 
+    # On TOC pages, no chapter has been set yet, so show project name only
+    # (no dangling em dash). Only needed in monorepo/chapters mode.
+    toc_page_rule = ""
+    if has_chapters:
+        toc_page_rule = f"""
+@page toc {{
+    @top-right {{
+        content: "{top_right}";
+        font-size: 8pt;
+        color: #666;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }}
+}}
+"""
+
     return f"""
 @page {{
     size: {page_size};
@@ -139,7 +154,7 @@ def _build_page_rules(
     @bottom-center {{ content: none; }}
     @bottom-right {{ content: none; }}
 }}
-"""
+{toc_page_rule}"""
 
 
 def _build_watermark_css(branding: BrandingConfig | None) -> str:

@@ -5,6 +5,9 @@
     {% endif %}
 
     <div class="chapter-meta">
+        {% if version %}
+        <p class="chapter-version">v{{ version }}</p>
+        {% endif %}
         {% if source_label %}
         <p class="chapter-source">{{ source_label }}</p>
         {% endif %}

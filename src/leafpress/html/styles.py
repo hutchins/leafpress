@@ -168,6 +168,13 @@ body {{
     margin-bottom: 4px;
 }}
 
+.chapter-cover .chapter-version {{
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 4px;
+}}
+
 .chapter-cover .chapter-source {{
     font-family: "JetBrains Mono", "Source Code Pro", monospace;
     font-size: 12px;

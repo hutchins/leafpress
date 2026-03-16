@@ -249,6 +249,7 @@ summary {
 /* TOC page */
 .toc-page {
     page-break-after: always;
+    page: toc;
 }
 
 .toc-title {
@@ -312,6 +313,13 @@ summary {
 }
 
 .chapter-meta p {
+    margin-bottom: 4pt;
+}
+
+.chapter-version {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #555;
     margin-bottom: 4pt;
 }
 
