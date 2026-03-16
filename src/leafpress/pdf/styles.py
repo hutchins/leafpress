@@ -57,6 +57,7 @@ def _build_page_rules(
     # Header content
     top_left = ""
     top_right = ""
+    has_chapters = branding and branding.projects
     if branding:
         top_left = branding.company_name
         top_right = branding.project_name
@@ -95,6 +96,12 @@ def _build_page_rules(
     top_right = top_right.replace('"', '\\"')
     footer_center = footer_center.replace('"', '\\"')
 
+    # In monorepo mode, show "Project Name — Chapter Name" in the top-right
+    # header. The chapter name updates via CSS string-set on .chapter-title.
+    top_right_content = (
+        f'"{top_right} \\2014  " string(chapter-name)' if has_chapters else f'"{top_right}"'
+    )
+
     return f"""
 @page {{
     size: {page_size};
@@ -107,7 +114,7 @@ def _build_page_rules(
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }}
     @top-right {{
-        content: "{top_right}";
+        content: {top_right_content};
         font-size: 8pt;
         color: #666;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;

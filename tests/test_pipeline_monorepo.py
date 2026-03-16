@@ -9,7 +9,7 @@ import pytest
 
 from leafpress.config import BrandingConfig, ProjectEntry
 from leafpress.exceptions import SourceError
-from leafpress.pipeline import _build_chapter_meta, _collect_monorepo_pages
+from leafpress.pipeline import _build_chapter_cover, _collect_monorepo_pages
 from leafpress.source import ResolvedSource
 
 # --- fixtures ---
@@ -204,36 +204,38 @@ def test_monorepo_missing_mkdocs_raises(tmp_path: Path) -> None:
         )
 
 
-# --- _build_chapter_meta ---
+# --- _build_chapter_cover ---
 
 
-def test_build_chapter_meta_per_project_author() -> None:
+def test_build_chapter_cover_per_project_author() -> None:
     """Per-project author overrides top-level."""
     entry = ProjectEntry(path="x", author="Project Author")
     branding = _branding(author="Global Author")
-    html = _build_chapter_meta(entry, branding)
+    html = _build_chapter_cover(entry, branding, "My Chapter", "x")
     assert "Project Author" in html
     assert "Global Author" not in html
 
 
-def test_build_chapter_meta_inherits_branding() -> None:
+def test_build_chapter_cover_inherits_branding() -> None:
     """Falls back to top-level branding when no per-project override."""
     entry = ProjectEntry(path="x")
     branding = _branding(author="Global Author", document_owner="Global Owner")
-    html = _build_chapter_meta(entry, branding)
+    html = _build_chapter_cover(entry, branding, "My Chapter", "x")
     assert "Global Author" in html
     assert "Global Owner" in html
 
 
-def test_build_chapter_meta_empty_when_no_metadata() -> None:
-    """Returns empty string when no metadata to display."""
+def test_build_chapter_cover_minimal_when_no_metadata() -> None:
+    """Contains title and source but no author/owner fields when absent."""
     entry = ProjectEntry(path="x")
     branding = _branding()
-    html = _build_chapter_meta(entry, branding)
-    assert html == ""
+    html = _build_chapter_cover(entry, branding, "My Chapter", "x")
+    assert "My Chapter" in html
+    assert "Author" not in html
+    assert "Document Owner" not in html
 
 
-def test_build_chapter_meta_all_fields() -> None:
+def test_build_chapter_cover_all_fields() -> None:
     """All metadata fields are rendered."""
     entry = ProjectEntry(
         path="x",
@@ -244,12 +246,24 @@ def test_build_chapter_meta_all_fields() -> None:
         subtitle="Internal API",
     )
     branding = _branding()
-    html = _build_chapter_meta(entry, branding)
+    html = _build_chapter_cover(entry, branding, "Service Docs", "services/api")
     assert "Alice" in html
     assert "alice@corp.com" in html
     assert "Bob" in html
     assert "Quarterly" in html
     assert "Internal API" in html
+    assert "Service Docs" in html
+    assert "services/api" in html
+
+
+def test_build_chapter_cover_has_structured_html() -> None:
+    """Cover page uses structured CSS classes, not raw <p><em> tags."""
+    entry = ProjectEntry(path="x", author="Alice")
+    branding = _branding()
+    html = _build_chapter_cover(entry, branding, "My Chapter", "x")
+    assert "chapter-cover" in html
+    assert "chapter-title" in html
+    assert "chapter-meta" in html
 
 
 # --- config tests ---

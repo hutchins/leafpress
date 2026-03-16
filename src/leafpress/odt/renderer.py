@@ -68,6 +68,10 @@ class OdtRenderer:
             self._add_toc(doc, html_pages)
 
         for item, html_content in html_pages:
+            if item.path is None and html_content:
+                # Chapter cover page with metadata (monorepo mode)
+                self._convert_html(doc, html_content)
+                continue
             if item.path is None:
                 level = min(item.level + 1, 4)
                 heading = H(outlinelevel=level, stylename=f"Heading {level}")
@@ -334,6 +338,13 @@ class OdtRenderer:
                 indent = "    " * item.level
                 p = P(stylename="Normal")
                 p.addText(f"{indent}{item.title}")
+                doc.text.addElement(p)
+            elif item.title and item.level == 0:
+                # Chapter heading (monorepo mode)
+                p = P(stylename="Normal")
+                bold = Span(stylename="Bold")
+                bold.addText(item.title)
+                p.addElement(bold)
                 doc.text.addElement(p)
             elif item.children:
                 p = P(stylename="Normal")

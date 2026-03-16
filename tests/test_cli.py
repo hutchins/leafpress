@@ -3,10 +3,9 @@
 from pathlib import Path
 
 from docx import Document as DocxDocument
+from leafpress.cli import cli
 from pptx import Presentation
 from typer.testing import CliRunner
-
-from leafpress.cli import cli
 
 runner = CliRunner()
 
@@ -180,3 +179,33 @@ def test_import_single_file_still_works(sample_docx: Path, tmp_output: Path) -> 
     result = runner.invoke(cli, ["import", str(sample_docx), "-o", str(tmp_output)])
     assert result.exit_code == 0
     assert "Done!" in result.output
+
+
+def test_convert_monorepo_config_no_mkdocs_required(tmp_path: Path) -> None:
+    """convert -c with projects: should not require mkdocs.yml in cwd."""
+    # Create a sub-project with mkdocs.yml
+    sub = tmp_path / "services" / "api"
+    sub.mkdir(parents=True)
+    (sub / "mkdocs.yml").write_text("site_name: API Docs\nnav:\n  - Home: index.md\n")
+    docs = sub / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text("# API\n\nHello.\n")
+
+    # Create monorepo config in tmp_path (no mkdocs.yml here)
+    config = tmp_path / "leafpress.yml"
+    config.write_text(
+        'company_name: "Test Corp"\n'
+        'project_name: "Monorepo Docs"\n'
+        "projects:\n"
+        "  - services/api\n"
+    )
+
+    out = tmp_path / "output"
+    out.mkdir()
+
+    result = runner.invoke(
+        cli,
+        ["convert", "-c", str(config), "-f", "pdf", "-o", str(out)],
+    )
+    assert "Monorepo mode" in result.output
+    assert result.exit_code == 0

@@ -129,6 +129,50 @@ body {{
 .lp-toc .toc-level-1 {{ padding-left: 20px; }}
 .lp-toc .toc-level-2 {{ padding-left: 40px; }}
 .lp-toc .toc-section {{ font-weight: 700; padding-top: 8px; }}
+.lp-toc .toc-chapter {{
+    font-weight: 700; font-size: 1.1em; padding-top: 12px;
+    margin-top: 8px; border-bottom: 2px solid #333;
+}}
+
+/* Chapter cover pages */
+.chapter-cover {{
+    text-align: center;
+    padding: 60px 20px 40px;
+    border-bottom: 2px solid #e0e0e0;
+    margin: 40px 0;
+}}
+
+.chapter-cover .chapter-title {{
+    font-size: 30px;
+    color: var(--lp-primary);
+    margin-bottom: 8px;
+    border-bottom: none;
+    padding-bottom: 0;
+}}
+
+.chapter-cover .chapter-subtitle {{
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 32px;
+}}
+
+.chapter-cover .chapter-meta {{
+    margin-top: 20px;
+    font-size: 13px;
+    color: #777;
+    border-top: 1px solid #ddd;
+    padding-top: 12px;
+}}
+
+.chapter-cover .chapter-meta p {{
+    margin-bottom: 4px;
+}}
+
+.chapter-cover .chapter-source {{
+    font-family: "JetBrains Mono", "Source Code Pro", monospace;
+    font-size: 12px;
+    color: #999;
+}}
 
 /* Content */
 article.page-content {{
