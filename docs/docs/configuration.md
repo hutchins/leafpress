@@ -221,7 +221,7 @@ projects:
 | `path` | Local directory containing `mkdocs.yml` (use `path` **or** `url`) |
 | `url` | Git URL to clone (use `path` **or** `url`) |
 | `branch` | Git branch to checkout (`url` projects only) |
-| `root` | Package root directory for version detection (defaults to `path`). See [sub-project version detection](#sub-project-version-detection). |
+| `root` | Package root directory for version detection (defaults to `path`). See [sub-project version detection](git-integration.md#sub-project-version-detection). |
 | `author` | Author name for this chapter |
 | `author_email` | Author email for this chapter |
 | `document_owner` | Document owner for this chapter |
