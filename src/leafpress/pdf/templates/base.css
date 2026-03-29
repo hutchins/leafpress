@@ -179,12 +179,8 @@ img.emojione, img.twemoji, img.gemoji {
     margin-right: 4pt;
 }
 
-.task-checkbox-checked {
+.task-checkbox.checked {
     color: #00c853;
-}
-
-.task-checkbox-unchecked {
-    color: #999;
 }
 
 /* Details/summary (rendered expanded in print) */

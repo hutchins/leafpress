@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
 
+from leafpress.base_renderer import make_anchor_id, replace_checkboxes, resolve_logo_uri
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -55,7 +55,7 @@ class HtmlRenderer:
                     self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
                 ),
                 subtitle=self._branding.subtitle if self._branding else "",
-                logo_path=self._resolve_logo_uri(),
+                logo_path=resolve_logo_uri(self._branding),
                 git_info=self._git_info,
                 author=self._branding.author if self._branding else "",
                 author_email=self._branding.author_email if self._branding else "",
@@ -80,7 +80,7 @@ class HtmlRenderer:
                     level=item.level,
                     content=Markup(html_content),
                     is_section_header=(item.path is None),
-                    page_id=self._make_id(item.title),
+                    page_id=make_anchor_id(item.title),
                 )
             )
 
@@ -119,43 +119,7 @@ class HtmlRenderer:
         )
 
         # Post-process checkboxes
-        full_html = self._replace_checkboxes(full_html)
+        full_html = replace_checkboxes(full_html)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(full_html, encoding="utf-8")
-
-    @staticmethod
-    def _make_id(title: str) -> str:
-        """Convert a title to a URL-safe anchor ID."""
-        slug = re.sub(r"[^\w\s-]", "", title.lower())
-        return re.sub(r"[\s]+", "-", slug).strip("-")
-
-    @staticmethod
-    def _replace_checkboxes(html: str) -> str:
-        """Replace <input type='checkbox'> with unicode symbols for static HTML."""
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled checked/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox checked">&#x2611;</span> ',
-            html,
-        )
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox">&#x2610;</span> ',
-            html,
-        )
-        return html
-
-    def _resolve_logo_uri(self) -> str:
-        """Get a URI for the logo, or empty string."""
-        if self._branding and self._branding.logo_path:
-            logo = self._branding.logo_path
-            if logo.startswith(("http://", "https://")):
-                return logo
-            return Path(logo).resolve().as_uri()
-        return ""

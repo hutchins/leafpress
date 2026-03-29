@@ -25,6 +25,19 @@
 
 ---
 
+## 0.6.2 — 2026-03-28
+
+### Refactor
+
+- **BaseRenderer protocol and shared helpers** — extracted `replace_checkboxes()`, `make_anchor_id()`, and `resolve_logo_uri()` from PDF, HTML, and EPUB renderers into a new `base_renderer.py` module, eliminating ~90 lines of duplicated code across renderers
+- **Normalized checkbox CSS classes** — PDF renderer now uses `.task-checkbox.checked` class naming consistent with HTML and EPUB renderers
+
+### Docs
+
+- [Architecture](architecture.md) — added BaseRenderer protocol and shared helpers section, updated module map and "Adding a New Output Format" guide
+
+---
+
 ## 0.5.1 — 2026-03-13
 
 ### Fixes

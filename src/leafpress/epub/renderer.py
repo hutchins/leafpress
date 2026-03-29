@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +9,7 @@ from pathlib import Path
 from ebooklib import epub
 from jinja2 import Environment, PackageLoader
 
+from leafpress.base_renderer import make_anchor_id, replace_checkboxes
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -120,7 +120,7 @@ class EpubRenderer:
 
             chapter_idx += 1
             file_name = f"chapter_{chapter_idx:03d}.xhtml"
-            page_id = self._make_id(item.title)
+            page_id = make_anchor_id(item.title)
 
             chapter = epub.EpubHtml(
                 title=item.title,
@@ -132,7 +132,7 @@ class EpubRenderer:
             body = f'<h1 id="{page_id}">{item.title}</h1>\n'
             if watermark_html:
                 body += watermark_html + "\n"
-            body += self._replace_checkboxes(html_content)
+            body += replace_checkboxes(html_content)
 
             chapter.content = self._wrap_html(body, css_item)
             chapter.add_link(href="style/leafpress.css", rel="stylesheet", type="text/css")
@@ -197,30 +197,3 @@ class EpubRenderer:
             f"<body>\n{body}\n</body>\n"
             "</html>"
         )
-
-    @staticmethod
-    def _make_id(title: str) -> str:
-        """Convert a title to a URL-safe anchor ID."""
-        slug = re.sub(r"[^\w\s-]", "", title.lower())
-        return re.sub(r"[\s]+", "-", slug).strip("-")
-
-    @staticmethod
-    def _replace_checkboxes(html: str) -> str:
-        """Replace <input type='checkbox'> with unicode symbols."""
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled checked/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox checked">&#x2611;</span> ',
-            html,
-        )
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox">&#x2610;</span> ',
-            html,
-        )
-        return html
