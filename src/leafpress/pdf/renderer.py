@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
 from weasyprint import CSS, HTML
 
+from leafpress.base_renderer import replace_checkboxes, resolve_logo_uri
 from leafpress.config import BrandingConfig
 from leafpress.exceptions import RenderError
 from leafpress.git_info import GitVersion
@@ -60,7 +60,7 @@ class PdfRenderer:
                         else self._mkdocs_cfg.site_name
                     ),
                     subtitle=self._branding.subtitle if self._branding else "",
-                    logo_path=self._resolve_logo_uri(),
+                    logo_path=resolve_logo_uri(self._branding),
                     git_info=self._git_info,
                     author=self._branding.author if self._branding else "",
                     author_email=self._branding.author_email if self._branding else "",
@@ -90,7 +90,7 @@ class PdfRenderer:
 
         # Post-process: replace checkbox inputs with unicode for print
         combined = "\n".join(sections_html)
-        combined = self._replace_checkboxes(combined)
+        combined = replace_checkboxes(combined)
 
         # Render with WeasyPrint
         full_html = self._wrap_document(combined)
@@ -118,42 +118,6 @@ class PdfRenderer:
             '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n'
             f"<body>\n{watermark_div}\n{body}\n</body>\n</html>"
         )
-
-    @staticmethod
-    def _replace_checkboxes(html: str) -> str:
-        """Replace <input type="checkbox"> elements with unicode symbols.
-
-        WeasyPrint doesn't render HTML form inputs, so we swap them for
-        print-friendly unicode check/uncheck symbols.
-        """
-        # Checked: ☑  (replaces <input type="checkbox" disabled checked/>)
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled checked/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox task-checkbox-checked">\u2611</span> ',
-            html,
-        )
-        # Unchecked: ☐  (replaces <input type="checkbox" disabled/>)
-        html = re.sub(
-            r'<label class="task-list-control">'
-            r'<input type="checkbox" disabled/>'
-            r'<span class="task-list-indicator"></span>'
-            r"</label>\s*",
-            '<span class="task-checkbox task-checkbox-unchecked">\u2610</span> ',
-            html,
-        )
-        return html
-
-    def _resolve_logo_uri(self) -> str:
-        """Get a URI for the logo (http(s):// or file://), or empty string."""
-        if self._branding and self._branding.logo_path:
-            logo = self._branding.logo_path
-            if logo.startswith(("http://", "https://")):
-                return logo
-            return Path(logo).resolve().as_uri()
-        return ""
 
     @staticmethod
     def _format_pdf_error(exc: Exception) -> str:

@@ -120,6 +120,20 @@ Each sub-project gets its own `MarkdownRenderer` instance, so extension configur
 
 Each renderer receives `list[tuple[NavItem, str]]` (the nav structure paired with rendered HTML per page) plus branding config, git info, and rendering options.
 
+#### BaseRenderer Protocol & Shared Helpers
+
+**Module:** `src/leafpress/base_renderer.py`
+
+All renderers conform to the `BaseRenderer` protocol, which defines the common constructor and `render()` signatures. This module also provides shared helper functions used across multiple renderers:
+
+| Helper | Purpose | Used by |
+|--------|---------|---------|
+| `replace_checkboxes(html)` | Replaces `<input type="checkbox">` elements with unicode symbols (☑/☐) for print-friendly output | PDF, HTML, EPUB |
+| `make_anchor_id(title)` | Converts a title string to a URL-safe anchor ID | HTML, EPUB |
+| `resolve_logo_uri(branding)` | Returns the logo as a `file://` URI or HTTP URL, or empty string | PDF, HTML |
+
+#### Format-Specific Renderers
+
 | Format | Module | Library | Approach |
 |--------|--------|---------|----------|
 | PDF | `src/leafpress/pdf/renderer.py` | WeasyPrint | Jinja2 HTML templates + CSS, rendered to PDF |
@@ -195,6 +209,7 @@ Shared by both importers. `ImageHandler` manages an output directory for extract
 | **Parsing** | `mkdocs_parser.py` | MkDocs config and nav parsing |
 | **Rendering** | `markdown_renderer.py` | Markdown-to-HTML conversion |
 | **Post-processing** | `mermaid.py`, `annotations.py` | Diagram and annotation transforms |
+| **Renderer base** | `base_renderer.py` | Renderer protocol and shared helpers (checkboxes, anchors, logo URIs) |
 | **Output** | `pdf/`, `html/`, `docx/`, `odt/`, `epub/`, `markdown_export/` | Format-specific renderers and templates |
 | **Metadata** | `git_info.py` | Git version extraction |
 | **Diagnostics** | `doctor.py` | Environment health checks |
@@ -203,7 +218,7 @@ Shared by both importers. `ImageHandler` manages an output directory for extract
 
 To add a new output format (e.g., LaTeX):
 
-1. **Create a renderer module** at `src/leafpress/{format}/renderer.py` with a class that accepts `html_pages`, branding config, git info, and rendering options. Implement a `render()` method that produces the output file.
+1. **Create a renderer module** at `src/leafpress/{format}/renderer.py` with a class that satisfies the `BaseRenderer` protocol defined in `src/leafpress/base_renderer.py`. The class must accept `(branding, git_info, mkdocs_cfg)` and implement a `render()` method that produces the output file. Use shared helpers from `base_renderer` (e.g., `replace_checkboxes`, `make_anchor_id`, `resolve_logo_uri`) rather than reimplementing common logic.
 
 2. **Register in `pipeline.py`** — add a branch in the format dispatch logic that instantiates your renderer and calls `render()`.
 
