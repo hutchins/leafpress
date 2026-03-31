@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.0 — 2026-03-31
+
+### Features
+
+- **Asset validation warnings** — missing image references are now detected during rendering and reported as warnings with the page name and path, instead of silently producing blank spots in output
+- **Consistent error messages** — DOCX, HTML, ODT, and EPUB rendering failures now show format-specific actionable guidance following the "what happened → why → how to fix" pattern (matching the existing PDF error messages)
+- **Louder extension load failures** — when a Markdown extension fails to load, the error message is now displayed along with an install suggestion (e.g. `pip install pymdownx`) for missing packages
+
+### Docs
+
+- [Configuration](configuration.md) — added "How navigation levels work" and "Troubleshooting monorepo builds" sections explaining heading level bumping and common error scenarios
+- [Architecture](architecture.md) — added "Monorepo Pipeline" section describing per-project processing, nav level bumping, and chapter cover generation
+- [Extensions](extensions.md) — added "Troubleshooting extension failures" section with common fixes
+- [CLI](cli.md) — updated verbose output description to reflect new warning details
+
+### Tests
+
+- 15 new tests: asset validation tracking (4), extension error message capture (2), error formatter tests for DOCX (2), HTML (3), ODT (2), EPUB (3)
+- 559 total tests
+
+---
+
 ## 0.5.1 — 2026-03-13
 
 ### Fixes

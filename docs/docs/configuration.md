@@ -263,6 +263,30 @@ Each project becomes a top-level chapter in the output. The project's `site_name
 !!! note
     When `projects` is defined, the top-level `mkdocs.yml` in the config directory is **not** used. Each project must have its own `mkdocs.yml`.
 
+### How navigation levels work
+
+Each sub-project's navigation is **bumped one level** when combined into the final document. This ensures all project pages nest under their chapter heading:
+
+| Original level in sub-project | Level in combined document |
+|-------------------------------|----------------------------|
+| h1 (`# Heading`) | h2 |
+| h2 (`## Heading`) | h3 |
+| h3 (`### Heading`) | h4 |
+
+For example, if `services/api/docs/index.md` contains `# Overview`, it renders as an h2 in the combined output — nested under the "API Service" chapter heading (h1).
+
+Section headings from the sub-project's `nav` in `mkdocs.yml` are also bumped. A top-level nav section like `Getting Started` becomes a second-level section under the chapter.
+
+### Troubleshooting monorepo builds
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `File not found: path/to/page.md (in Project)` | Page listed in `nav` but missing from the project's docs directory | Check the `nav` entries in the sub-project's `mkdocs.yml` match actual files |
+| `No mkdocs.yml or mkdocs.yaml found in ...` | Project directory exists but has no MkDocs config | Ensure each project directory listed under `projects` contains a `mkdocs.yml` |
+| `Monorepo project directory not found: ...` | The `path` in `projects` does not exist | Check that paths are relative to the `leafpress.yml` file location |
+| Missing images in a sub-project's output | Relative image paths resolve from the sub-project's `docs/` directory | Use paths relative to each sub-project's `docs/` directory, not the monorepo root |
+| Wrong version shown for a sub-project | Version detected from the wrong `pyproject.toml` or manifest | Use the `root` field to point to the correct package directory — see [sub-project version detection](git-integration.md#sub-project-version-detection) |
+
 ## Environment variables
 
 All config fields can be set or overridden via `LEAFPRESS_*` environment variables. This is the recommended approach for CI/CD pipelines.
