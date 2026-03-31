@@ -52,6 +52,108 @@ class _ConsoleWarningHandler(logging.Handler):
         self._console.print(f"  [yellow]⚠ {msg}[/yellow]")
 
 
+def _format_docx_error(exc: Exception) -> str:
+    """Produce a user-friendly error message for DOCX rendering failures."""
+    exc_name = type(exc).__name__
+    exc_msg = str(exc)
+
+    if "image" in exc_msg.lower() or "image" in exc_name.lower():
+        return (
+            f"DOCX rendering failed due to an image error.\n"
+            f"  Check that all images are in a supported format (PNG, JPEG).\n"
+            f"  SVG images are not supported in DOCX output — convert them to PNG first.\n"
+            f"  Run 'leafpress doctor' to check your environment.\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    return (
+        f"DOCX rendering failed: {exc_name}: {exc_msg}\n"
+        f"  Run 'leafpress doctor' to check your environment.\n"
+        f"  If this persists, please report it at"
+        f" https://github.com/hutchins/leafpress/issues"
+    )
+
+
+def _format_html_error(exc: Exception) -> str:
+    """Produce a user-friendly error message for HTML rendering failures."""
+    exc_name = type(exc).__name__
+    exc_msg = str(exc)
+
+    if "image" in exc_msg.lower() or "image" in exc_name.lower():
+        return (
+            f"HTML rendering failed due to an image error.\n"
+            f"  Check that all referenced images exist and paths are correct.\n"
+            f"  Run 'leafpress doctor' to check your environment.\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    if "template" in exc_msg.lower() or "jinja" in exc_msg.lower():
+        return (
+            f"HTML rendering failed due to a template error.\n"
+            f"  This may indicate a corrupted installation.\n"
+            f"  Try reinstalling: pip install --force-reinstall leafpress\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    return (
+        f"HTML rendering failed: {exc_name}: {exc_msg}\n"
+        f"  Run 'leafpress doctor' to check your environment.\n"
+        f"  If this persists, please report it at"
+        f" https://github.com/hutchins/leafpress/issues"
+    )
+
+
+def _format_odt_error(exc: Exception) -> str:
+    """Produce a user-friendly error message for ODT rendering failures."""
+    exc_name = type(exc).__name__
+    exc_msg = str(exc)
+
+    if "image" in exc_msg.lower() or "image" in exc_name.lower():
+        return (
+            f"ODT rendering failed due to an image error.\n"
+            f"  Check that all images are in a supported format (PNG, JPEG).\n"
+            f"  SVG images are not supported in ODT output — convert them to PNG first.\n"
+            f"  Run 'leafpress doctor' to check your environment.\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    return (
+        f"ODT rendering failed: {exc_name}: {exc_msg}\n"
+        f"  Run 'leafpress doctor' to check your environment.\n"
+        f"  If this persists, please report it at"
+        f" https://github.com/hutchins/leafpress/issues"
+    )
+
+
+def _format_epub_error(exc: Exception) -> str:
+    """Produce a user-friendly error message for EPUB rendering failures."""
+    exc_name = type(exc).__name__
+    exc_msg = str(exc)
+
+    if "image" in exc_msg.lower() or "image" in exc_name.lower():
+        return (
+            f"EPUB rendering failed due to an image error.\n"
+            f"  Check that all images are in a supported format (PNG, JPEG, GIF).\n"
+            f"  EPUB requires images to be embedded — ensure files exist on disk.\n"
+            f"  Run 'leafpress doctor' to check your environment.\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    if "encoding" in exc_msg.lower() or "unicode" in exc_msg.lower():
+        return (
+            f"EPUB rendering failed due to an encoding error.\n"
+            f"  Ensure all Markdown files are saved as UTF-8.\n"
+            f"  Original error: {exc_name}: {exc_msg}"
+        )
+
+    return (
+        f"EPUB rendering failed: {exc_name}: {exc_msg}\n"
+        f"  Run 'leafpress doctor' to check your environment.\n"
+        f"  If this persists, please report it at"
+        f" https://github.com/hutchins/leafpress/issues"
+    )
+
+
 def convert(
     source: str,
     output_dir: Path,
@@ -209,17 +311,25 @@ def convert(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_dir,
             )
-            for ext, ok in renderer.extension_load_results:
+            for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:
                     console.print(f"  [green]✓[/green] Extension: {ext}")
                 else:
-                    console.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
+                    hint = ""
+                    if "No module named" in err_msg:
+                        pkg = ext.split(".")[0]
+                        hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
+                    console.print(
+                        f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
+                        f"\n    Error: {err_msg}{hint}"
+                    )
 
             pages = flatten_nav(mkdocs_cfg.nav_items)
             page_count = sum(1 for p in pages if p.path is not None)
             console.print(f"  [green]Pages:[/green] {page_count} documents to convert\n")
 
             html_pages: list[tuple[NavItem, str]] = []
+            all_unresolved: list[tuple[str, str]] = []
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -245,8 +355,16 @@ def convert(
                             console.print(f"  [yellow]⚠ {w}[/yellow]")
                         else:
                             console.print(f"  [green]✓ {w}[/green]")
+                    all_unresolved.extend(renderer.unresolved_assets)
                     html_pages.append((item, html))
                     progress.update(task, advance=1)
+
+            # Warn about missing assets discovered during rendering
+            if all_unresolved:
+                console.print(f"  [yellow]⚠[/yellow] {len(all_unresolved)} missing asset(s) found:")
+                for page, ref in all_unresolved:
+                    page_name = Path(page).name
+                    console.print(f"    [yellow]•[/yellow] {page_name}: {ref}")
 
         # Generate outputs
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -311,11 +429,7 @@ def convert(
                 except LeafpressError:
                     raise
                 except Exception as exc:
-                    raise RenderError(
-                        f"DOCX rendering failed: {type(exc).__name__}: {exc}\n"
-                        f"  Check that all images are in a supported format (PNG, JPEG).\n"
-                        f"  SVG images are not supported in DOCX output."
-                    ) from exc
+                    raise RenderError(_format_docx_error(exc)) from exc
             generated_files.append(docx_path)
             console.print(f"  [bold green]DOCX:[/bold green] {docx_path}")
 
@@ -336,9 +450,7 @@ def convert(
                 except LeafpressError:
                     raise
                 except Exception as exc:
-                    raise RenderError(
-                        f"HTML rendering failed: {type(exc).__name__}: {exc}"
-                    ) from exc
+                    raise RenderError(_format_html_error(exc)) from exc
             generated_files.append(html_path)
             console.print(f"  [bold green]HTML:[/bold green] {html_path}")
 
@@ -359,11 +471,7 @@ def convert(
                 except LeafpressError:
                     raise
                 except Exception as exc:
-                    raise RenderError(
-                        f"ODT rendering failed: {type(exc).__name__}: {exc}\n"
-                        f"  Check that all images are in a supported format (PNG, JPEG).\n"
-                        f"  SVG images are not supported in ODT output."
-                    ) from exc
+                    raise RenderError(_format_odt_error(exc)) from exc
             generated_files.append(odt_path)
             console.print(f"  [bold green]ODT:[/bold green] {odt_path}")
 
@@ -384,9 +492,7 @@ def convert(
                 except LeafpressError:
                     raise
                 except Exception as exc:
-                    raise RenderError(
-                        f"EPUB rendering failed: {type(exc).__name__}: {exc}"
-                    ) from exc
+                    raise RenderError(_format_epub_error(exc)) from exc
             generated_files.append(epub_path)
             console.print(f"  [bold green]EPUB:[/bold green] {epub_path}")
 
@@ -484,14 +590,22 @@ def _collect_monorepo_pages(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_output_dir,
             )
-            for ext, ok in renderer.extension_load_results:
+            for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:
                     con.print(f"  [green]✓[/green] Extension: {ext}")
                 else:
-                    con.print(f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}")
+                    hint = ""
+                    if "No module named" in err_msg:
+                        pkg = ext.split(".")[0]
+                        hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
+                    con.print(
+                        f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
+                        f"\n    Error: {err_msg}{hint}"
+                    )
             flat_nav = flatten_nav(mkdocs_cfg.nav_items)
             bumped = bump_nav_levels(flat_nav)
 
+            all_unresolved: list[tuple[str, str]] = []
             for item in bumped:
                 if item.path is None:
                     all_pages.append((item, ""))
@@ -510,8 +624,19 @@ def _collect_monorepo_pages(
                         con.print(f"  [yellow]⚠ {w}[/yellow]")
                     else:
                         con.print(f"  [green]✓ {w}[/green]")
+                all_unresolved.extend(renderer.unresolved_assets)
                 all_pages.append((item, html))
                 total_pages += 1
+
+            # Warn about missing assets in this project
+            if all_unresolved:
+                con.print(
+                    f"  [yellow]⚠[/yellow] {len(all_unresolved)}"
+                    f" missing asset(s) in {mkdocs_cfg.site_name}:"
+                )
+                for page, ref in all_unresolved:
+                    page_name = Path(page).name
+                    con.print(f"    [yellow]•[/yellow] {page_name}: {ref}")
 
     return all_pages, total_pages
 

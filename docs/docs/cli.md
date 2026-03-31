@@ -113,7 +113,7 @@ leafpress also loads a `.env` file from the project root and applies any `LEAFPR
 
 **Verbose output**
 
-By default, LeafPress surfaces all warnings during conversion — for example, SVG logo skips, missing images, and failed Markdown extensions. Mermaid diagram pages also report how many diagrams were rendered.
+By default, LeafPress surfaces all warnings during conversion — for example, SVG logo skips, failed Markdown extensions (with install suggestions), and missing image/asset references (listed by page and path). Mermaid diagram pages also report how many diagrams were rendered.
 
 Pass `--verbose` to additionally show debug-level detail and full tracebacks on error:
 

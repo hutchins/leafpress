@@ -5,11 +5,16 @@ from unittest.mock import patch
 
 import pytest
 import requests
+
 from leafpress.exceptions import DiagramError
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mermaid import (
     _find_mermaid_blocks,
+    _is_valid_png,
+    _replace_literal_backslash_n,
+    _replace_newlines_in_quoted_labels,
     _sanitize_mermaid_source,
+    _unescape_html_entities,
     render_mermaid,
     render_mermaid_blocks,
     render_mermaid_svg,
@@ -252,10 +257,7 @@ def test_render_mermaid_blocks_multiple_different(tmp_path: Path) -> None:
 def test_render_blocks_flowchart_with_labels(tmp_path: Path) -> None:
     """Flowchart with node labels, decision nodes, and edge labels."""
     mermaid_src = (
-        "graph TD\n"
-        "    A[Start] --> B{Decision}\n"
-        "    B -->|Yes| C[OK]\n"
-        "    B -->|No| D[End]"
+        "graph TD\n    A[Start] --> B{Decision}\n    B -->|Yes| C[OK]\n    B -->|No| D[End]"
     )
     html = f'<pre><code class="language-mermaid">{mermaid_src}</code></pre>'
     with patch("leafpress.mermaid.requests.get", return_value=_FakeResponse()):
@@ -542,10 +544,10 @@ def test_pipeline_architecture_flowchart(sample_mkdocs_dir: Path, tmp_path: Path
         '    PL --> ODT["ODT Renderer"]\n'
         '    PL --> EPUB["EPUB Renderer"]\n'
         '    PDF --> OUT["Output Files"]\n'
-        '    HTML --> OUT\n'
-        '    DOCX --> OUT\n'
-        '    ODT --> OUT\n'
-        '    EPUB --> OUT\n'
+        "    HTML --> OUT\n"
+        "    DOCX --> OUT\n"
+        "    ODT --> OUT\n"
+        "    EPUB --> OUT\n"
         "```\n"
     )
     md_file = sample_mkdocs_dir / "docs" / "index.md"
@@ -574,10 +576,10 @@ def test_pipeline_import_flowchart(sample_mkdocs_dir: Path, tmp_path: Path) -> N
         '    DOCXI --> MAM["mammoth (HTML to Markdown)"]\n'
         '    PPTXI --> PPT["python-pptx (slides to Markdown)"]\n'
         '    MAM --> IMG["Image Handler (importer/image_handler.py)"]\n'
-        '    PPT --> IMG\n'
+        "    PPT --> IMG\n"
         '    IMG --> |"assets/"| OUT["Output .md + images"]\n'
-        '    MAM --> OUT\n'
-        '    PPT --> OUT\n'
+        "    MAM --> OUT\n"
+        "    PPT --> OUT\n"
         "```\n"
     )
     md_file = sample_mkdocs_dir / "docs" / "index.md"
@@ -616,14 +618,7 @@ def test_mermaid_source_not_in_rendered_output(tmp_path: Path) -> None:
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
     md_file = docs_dir / "test.md"
-    md_file.write_text(
-        "# Test\n\n"
-        "```mermaid\n"
-        "flowchart TD\n"
-        "    CLI --> SR\n"
-        "    SR --> PL\n"
-        "```\n"
-    )
+    md_file.write_text("# Test\n\n```mermaid\nflowchart TD\n    CLI --> SR\n    SR --> PL\n```\n")
 
     renderer = MarkdownRenderer(
         extensions=["pymdownx.superfences"],
@@ -644,12 +639,7 @@ def test_mermaid_with_python_name_config(tmp_path: Path) -> None:
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
     md_file = docs_dir / "test.md"
-    md_file.write_text(
-        "```mermaid\n"
-        "graph LR\n"
-        "    A --> B\n"
-        "```\n"
-    )
+    md_file.write_text("```mermaid\ngraph LR\n    A --> B\n```\n")
 
     # Simulate the config that comes from yaml.safe_load of a mkdocs.yml
     # with !!python/name: tags (unresolved as raw strings)
@@ -678,12 +668,76 @@ def test_mermaid_with_python_name_config(tmp_path: Path) -> None:
     assert "graph LR" not in html
 
 
+# --- _is_valid_png tests ---
+
+
+def test_is_valid_png_with_valid_file(tmp_path: Path) -> None:
+    """A file starting with PNG magic bytes is valid."""
+    f = tmp_path / "valid.png"
+    f.write_bytes(_FAKE_PNG)
+    assert _is_valid_png(f) is True
+
+
+def test_is_valid_png_with_empty_file(tmp_path: Path) -> None:
+    """An empty file is not a valid PNG."""
+    f = tmp_path / "empty.png"
+    f.write_bytes(b"")
+    assert _is_valid_png(f) is False
+
+
+def test_is_valid_png_with_corrupt_file(tmp_path: Path) -> None:
+    """A file with wrong header bytes is not a valid PNG."""
+    f = tmp_path / "corrupt.png"
+    f.write_bytes(b"not a png at all")
+    assert _is_valid_png(f) is False
+
+
+def test_is_valid_png_with_missing_file(tmp_path: Path) -> None:
+    """A non-existent file is not a valid PNG."""
+    assert _is_valid_png(tmp_path / "missing.png") is False
+
+
+def test_corrupt_cache_re_rendered(tmp_path: Path) -> None:
+    """A corrupted cached PNG should be re-rendered."""
+    import hashlib
+
+    source = "graph TD\n    A --> B"
+    digest = hashlib.sha256(source.encode()).hexdigest()[:12]
+    corrupt = tmp_path / f"mermaid-{digest}.png"
+    corrupt.write_bytes(b"corrupt data")
+
+    html = f'<pre><code class="language-mermaid">{source}</code></pre>'
+    with patch("leafpress.mermaid.render_mermaid") as mock_render:
+        mock_render.return_value = corrupt
+        # Write valid PNG so the img tag replacement succeeds
+        mock_render.side_effect = lambda src, dest, **kw: dest.write_bytes(_FAKE_PNG) or dest
+        render_mermaid_blocks(html, tmp_path)
+
+    mock_render.assert_called_once()
+
+
+def test_valid_cache_not_re_rendered(tmp_path: Path) -> None:
+    """A valid cached PNG should not be re-rendered."""
+    import hashlib
+
+    source = "graph TD\n    A --> B"
+    digest = hashlib.sha256(source.encode()).hexdigest()[:12]
+    cached = tmp_path / f"mermaid-{digest}.png"
+    cached.write_bytes(_FAKE_PNG)
+
+    html = f'<pre><code class="language-mermaid">{source}</code></pre>'
+    with patch("leafpress.mermaid.render_mermaid") as mock_render:
+        render_mermaid_blocks(html, tmp_path)
+
+    mock_render.assert_not_called()
+
+
 # --- _sanitize_mermaid_source tests ---
 
 
 def test_sanitize_preserves_structural_newlines() -> None:
     """Newlines between mermaid statements should be preserved."""
-    source = 'graph TD\n    A --> B\n    B --> C'
+    source = "graph TD\n    A --> B\n    B --> C"
     result = _sanitize_mermaid_source(source)
     assert result == source
 
@@ -791,3 +845,40 @@ def test_mermaid_no_summary_when_no_diagrams(tmp_path: Path) -> None:
     html = "<p>Just text</p>"
     _, warnings = render_mermaid_blocks(html, tmp_path)
     assert warnings == []
+
+
+# --- Individual sanitization helper tests ---
+
+
+def test_unescape_html_entities() -> None:
+    """HTML entities are decoded."""
+    assert _unescape_html_entities("&lt;br&gt;") == "<br>"
+    assert _unescape_html_entities("A &amp; B") == "A & B"
+
+
+def test_unescape_html_entities_no_entities() -> None:
+    """Plain text passes through unchanged."""
+    assert _unescape_html_entities("graph TD") == "graph TD"
+
+
+def test_replace_literal_backslash_n_converts() -> None:
+    r"""Literal \n is converted to <br/>."""
+    assert _replace_literal_backslash_n('A["Hello\\nWorld"]') == 'A["Hello<br/>World"]'
+
+
+def test_replace_literal_backslash_n_no_match() -> None:
+    r"""Text without \n passes through unchanged."""
+    source = "graph TD\n    A --> B"
+    assert _replace_literal_backslash_n(source) == source
+
+
+def test_replace_newlines_in_quoted_labels_converts() -> None:
+    """Actual newlines inside quotes become <br/>."""
+    source = 'A["Line1\nLine2"]'
+    assert _replace_newlines_in_quoted_labels(source) == 'A["Line1<br/>Line2"]'
+
+
+def test_replace_newlines_in_quoted_labels_no_quotes() -> None:
+    """Text without quoted strings passes through unchanged."""
+    source = "graph TD\n    A --> B"
+    assert _replace_newlines_in_quoted_labels(source) == source

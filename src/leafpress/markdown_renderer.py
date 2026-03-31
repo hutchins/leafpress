@@ -79,9 +79,7 @@ def _mermaid_fence_format(
 
 # Superfences config to route mermaid blocks through our custom formatter
 _SUPERFENCES_CONFIG = {
-    "custom_fences": [
-        {"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format}
-    ]
+    "custom_fences": [{"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format}]
 }
 
 
@@ -98,7 +96,8 @@ class MarkdownRenderer:
         self._mermaid_output_dir = mermaid_output_dir
         self._extension_names: list[str] = []
         self._extension_configs: dict[str, dict[str, Any]] = {}
-        self.extension_load_results: list[tuple[str, bool]] = []
+        self.extension_load_results: list[tuple[str, bool, str]] = []
+        self.unresolved_assets: list[tuple[str, str]] = []
         self._parse_extensions(extensions)
         self._md = self._build_markdown_instance()
 
@@ -139,9 +138,9 @@ class MarkdownRenderer:
             try:
                 markdown.Markdown(extensions=[ext])
                 valid_extensions.append(ext)
-                self.extension_load_results.append((ext, True))
-            except Exception:
-                self.extension_load_results.append((ext, False))
+                self.extension_load_results.append((ext, True, ""))
+            except Exception as exc:
+                self.extension_load_results.append((ext, False, str(exc)))
 
         # Ensure superfences routes mermaid blocks through our callable formatter.
         # MkDocs configs often use !!python/name: YAML tags for the format function
@@ -151,9 +150,7 @@ class MarkdownRenderer:
         sf_cfg = configs.setdefault("pymdownx.superfences", {})
         fences = sf_cfg.get("custom_fences", [])
         fences = [f for f in fences if f.get("name") != "mermaid"]
-        fences.append(
-            {"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format}
-        )
+        fences.append({"name": "mermaid", "class": "mermaid", "format": _mermaid_fence_format})
         sf_cfg["custom_fences"] = fences
         configs["pymdownx.superfences"] = sf_cfg
 
@@ -174,6 +171,7 @@ class MarkdownRenderer:
             Tuple of (HTML string, list of warning messages).
         """
         self._md.reset()
+        self.unresolved_assets = []
         html = self._md.convert(md_content)
         html = self._resolve_relative_assets(html, source_path)
         html = self._resolve_emoji_shortcodes(html)
@@ -197,6 +195,9 @@ class MarkdownRenderer:
             resolved = (source_dir / path).resolve()
             if resolved.exists():
                 return f"{attr}={quote}{resolved.as_uri()}{quote}"
+            # Track images that could not be resolved
+            if attr == "src":
+                self.unresolved_assets.append((str(source_path), path))
             return match.group(0)
 
         # Match src="..." and href="..." (but not external URLs)
@@ -230,9 +231,7 @@ class MarkdownRenderer:
 
         return render_annotations(html)
 
-    def _render_mermaid_blocks(
-        self, html: str, source_path: Path
-    ) -> tuple[str, list[str]]:
+    def _render_mermaid_blocks(self, html: str, source_path: Path) -> tuple[str, list[str]]:
         """Render mermaid code blocks to PNG images."""
         if self._mermaid_output_dir is None:
             return html, []

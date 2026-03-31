@@ -97,11 +97,29 @@ Lorem ipsum dolor sit amet, (1) consectetur adipiscing elit. (2)
 
 Extensions that require JavaScript (e.g., MathJax rendering, Mermaid's client-side JS) are handled differently in LeafPress since it produces static documents. Mermaid is supported via server-side rendering (see above). Other JS-dependent extensions may render as raw text.
 
-If an extension fails to load, LeafPress logs a warning and continues with the remaining extensions.
+If an extension fails to load, LeafPress shows a warning with the error details and continues with the remaining extensions.
 
 ## How extensions are loaded
 
 1. LeafPress reads the `markdown_extensions` key from `mkdocs.yml`
-2. Each extension is validated — unavailable extensions are skipped with a warning
+2. Each extension is validated — unavailable extensions are skipped with a warning that includes the error message and, for missing packages, an install suggestion
 3. Extension configs (e.g., `pymdownx.highlight` options) are passed through
 4. The `meta`, `toc`, and `tables` extensions are always enabled as a baseline
+
+## Troubleshooting extension failures
+
+When an extension fails to load, LeafPress prints the error message and a hint:
+
+```
+⚠ Skipping unavailable extension: pymdownx.superfences
+  Error: No module named 'pymdownx'
+  Tip: pip install pymdownx  (or uv pip install pymdownx)
+```
+
+Common fixes:
+
+| Error | Solution |
+|---|---|
+| `No module named 'pymdownx'` | Install pymdown-extensions: `pip install pymdown-extensions` |
+| `No module named 'some_package'` | Install the package providing the extension |
+| Extension loads but produces unexpected output | Check that the extension version matches what your MkDocs build uses |

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.0 — 2026-03-31
+
+### Features
+
+- **Asset validation warnings** — missing image references are now detected during rendering and reported as warnings with the page name and path, instead of silently producing blank spots in output
+- **Consistent error messages** — DOCX, HTML, ODT, and EPUB rendering failures now show format-specific actionable guidance following the "what happened → why → how to fix" pattern (matching the existing PDF error messages)
+- **Louder extension load failures** — when a Markdown extension fails to load, the error message is now displayed along with an install suggestion (e.g. `pip install pymdownx`) for missing packages
+- **Mermaid cache integrity** — cached mermaid diagram PNGs are now validated by checking PNG magic bytes; corrupted files (truncated writes, disk errors) are automatically re-rendered instead of silently producing broken images
+- **Mermaid sanitization refactor** — the mermaid source sanitization pipeline is now split into three named, independently testable helpers: `_unescape_html_entities`, `_replace_literal_backslash_n`, and `_replace_newlines_in_quoted_labels`
+
+### Docs
+
+- [Configuration](configuration.md) — added "How navigation levels work" and "Troubleshooting monorepo builds" sections explaining heading level bumping and common error scenarios
+- [Architecture](architecture.md) — added "Monorepo Pipeline" section describing per-project processing, nav level bumping, and chapter cover generation
+- [Extensions](extensions.md) — added "Troubleshooting extension failures" section with common fixes
+- [CLI](cli.md) — updated verbose output description to reflect new warning details
+- [Diagrams](diagrams.md) — added "Mermaid diagram caching" section explaining content-addressed caching and integrity validation
+
+### Tests
+
+- 27 new tests: asset validation tracking (4), extension error message capture (2), error formatter tests for DOCX (2), HTML (3), ODT (2), EPUB (3), PNG validation (4), cache integrity (2), sanitization helpers (6)
+- 571 total tests
+
+---
+
 ## 0.5.1 — 2026-03-13
 
 ### Fixes

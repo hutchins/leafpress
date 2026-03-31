@@ -98,6 +98,24 @@ After initial conversion, the renderer applies post-processing:
 
 `render_annotations(html)` finds elements with the `annotate` class paired with sibling `<ol>` lists (the Material for MkDocs annotation pattern). It replaces `(N)` text markers with superscript references and converts the ordered list into a styled annotation block.
 
+### Monorepo Pipeline
+
+When `projects` is defined in `leafpress.yml`, the pipeline switches to monorepo mode. Instead of parsing a single `mkdocs.yml`, it processes each sub-project independently and combines the results:
+
+1. **Detection** — if `branding.projects` is non-empty, monorepo mode activates
+2. **Per-project processing** — for each entry in `projects`:
+    - Resolve the source (local path or git clone for URL entries)
+    - Parse the project's own `mkdocs.yml`
+    - Detect the project's package version (without walking up to parent directories)
+    - Build a **chapter cover page** with per-project metadata (author, subtitle, etc.), falling back to top-level branding values
+    - Create a chapter `NavItem` at level 0
+    - Flatten the project's nav and **bump all levels by +1** via `bump_nav_levels()`, so project pages nest under the chapter heading
+    - Render each page's Markdown to HTML using a project-specific `MarkdownRenderer` (with the project's own extensions and docs directory)
+3. **Combination** — all chapter covers and rendered pages are concatenated into a single `html_pages` list
+4. **Output** — the combined list is passed to format renderers, producing a single document with chapters
+
+Each sub-project gets its own `MarkdownRenderer` instance, so extension configurations and docs directories are isolated between projects. Git URL projects are cloned to temporary directories and cleaned up automatically after all pages are collected.
+
 ### 7. Format Rendering
 
 Each renderer receives `list[tuple[NavItem, str]]` (the nav structure paired with rendered HTML per page) plus branding config, git info, and rendering options.

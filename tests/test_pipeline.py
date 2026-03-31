@@ -11,6 +11,10 @@ from leafpress.exceptions import LeafpressError
 from leafpress.pipeline import (
     _ConsoleWarningHandler,
     _find_mkdocs_config,
+    _format_docx_error,
+    _format_epub_error,
+    _format_html_error,
+    _format_odt_error,
     _safe_filename,
     convert,
 )
@@ -296,9 +300,7 @@ def test_package_version_without_git(tmp_path: Path) -> None:
     from leafpress.package_version import detect_package_version
 
     # tmp_path has no .git, so git_info should be None
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "test"\nversion = "1.0.0"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "test"\nversion = "1.0.0"\n')
     git_info = extract_git_info(tmp_path)
     pkg_ver = detect_package_version(tmp_path)
 
@@ -320,3 +322,65 @@ def test_convert_verbose_param_accepted(
         verbose=True,
     )
     assert len(result) >= 1
+
+
+class TestFormatDocxError:
+    def test_image_error(self) -> None:
+        msg = _format_docx_error(Exception("Cannot load image data"))
+        assert "DOCX rendering failed due to an image error" in msg
+        assert "PNG, JPEG" in msg
+        assert "SVG" in msg
+        assert "leafpress doctor" in msg
+
+    def test_generic_error(self) -> None:
+        msg = _format_docx_error(Exception("something went wrong"))
+        assert "DOCX rendering failed" in msg
+        assert "leafpress doctor" in msg
+        assert "report it at" in msg
+
+
+class TestFormatHtmlError:
+    def test_image_error(self) -> None:
+        msg = _format_html_error(Exception("broken image reference"))
+        assert "HTML rendering failed due to an image error" in msg
+        assert "leafpress doctor" in msg
+
+    def test_template_error(self) -> None:
+        msg = _format_html_error(Exception("Jinja template not found"))
+        assert "template error" in msg
+        assert "reinstall" in msg
+
+    def test_generic_error(self) -> None:
+        msg = _format_html_error(Exception("something went wrong"))
+        assert "HTML rendering failed" in msg
+        assert "report it at" in msg
+
+
+class TestFormatOdtError:
+    def test_image_error(self) -> None:
+        msg = _format_odt_error(Exception("Failed to embed image"))
+        assert "ODT rendering failed due to an image error" in msg
+        assert "SVG" in msg
+        assert "PNG" in msg
+
+    def test_generic_error(self) -> None:
+        msg = _format_odt_error(Exception("something went wrong"))
+        assert "ODT rendering failed" in msg
+        assert "report it at" in msg
+
+
+class TestFormatEpubError:
+    def test_image_error(self) -> None:
+        msg = _format_epub_error(Exception("Cannot process image"))
+        assert "EPUB rendering failed due to an image error" in msg
+        assert "embedded" in msg
+
+    def test_encoding_error(self) -> None:
+        msg = _format_epub_error(Exception("unicode decode error"))
+        assert "encoding error" in msg
+        assert "UTF-8" in msg
+
+    def test_generic_error(self) -> None:
+        msg = _format_epub_error(Exception("something went wrong"))
+        assert "EPUB rendering failed" in msg
+        assert "report it at" in msg
