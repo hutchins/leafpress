@@ -143,6 +143,10 @@ Fetched diagrams are cached locally at their `dest` path. On subsequent runs:
 
 Set `cache_max_age: 0` to always re-download on every run.
 
+### Mermaid diagram caching
+
+Mermaid diagrams rendered via [mermaid.ink](https://mermaid.ink) are cached using content-addressed filenames — identical diagram source always maps to the same cache file. Cached images are validated on each build by checking for valid PNG headers; corrupted files (e.g. from a partial write or disk error) are automatically re-rendered.
+
 ## Example workflow
 
 A typical workflow for a project with external diagrams:
