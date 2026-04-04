@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from helpers import make_png
 from typer.testing import CliRunner
 
 from leafpress.cli import cli
@@ -265,23 +266,8 @@ Hello.
 
 def test_import_images(tmp_path: Path, tmp_output: Path) -> None:
     """Images copied to assets/ and referenced in markdown."""
-    import struct
-    import zlib
-
-    def _make_png() -> bytes:
-        def _chunk(chunk_type: bytes, data: bytes) -> bytes:
-            c = chunk_type + data
-            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
-
-        return (
-            b"\x89PNG\r\n\x1a\n"
-            + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
-            + _chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))
-            + _chunk(b"IEND", b"")
-        )
-
     img_path = tmp_path / "figure.png"
-    img_path.write_bytes(_make_png())
+    img_path.write_bytes(make_png())
 
     tex = r"""\documentclass{article}
 \usepackage{graphicx}

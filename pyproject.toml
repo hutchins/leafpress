@@ -95,6 +95,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "-v --tb=short"
 markers = ["docker: tests requiring Docker (may be slow)"]
 

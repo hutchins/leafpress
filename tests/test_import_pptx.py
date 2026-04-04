@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import struct
-import zlib
 from pathlib import Path
 
 import pytest
+from helpers import make_png
 from pptx import Presentation
 from pptx.util import Inches
 
@@ -100,33 +99,8 @@ def _make_formatted_pptx(tmp_path: Path) -> Path:
 
 def _make_image_pptx(tmp_path: Path) -> Path:
     """Create a PPTX with an embedded image."""
-    import struct
-
-    # Minimal valid 1x1 red PNG
-    def _make_png() -> bytes:
-        signature = b"\x89PNG\r\n\x1a\n"
-
-        def _chunk(chunk_type: bytes, data: bytes) -> bytes:
-            import zlib
-
-            length = struct.pack(">I", len(data))
-            crc = struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
-            return length + chunk_type + data + crc
-
-        import zlib
-
-        ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
-        raw_row = b"\x00\xff\x00\x00"  # filter byte + RGB
-        idat_data = zlib.compress(raw_row)
-        return (
-            signature
-            + _chunk(b"IHDR", ihdr_data)
-            + _chunk(b"IDAT", idat_data)
-            + _chunk(b"IEND", b"")
-        )
-
     img_path = tmp_path / "red.png"
-    img_path.write_bytes(_make_png())
+    img_path.write_bytes(make_png())
 
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[1])
@@ -397,21 +371,6 @@ def test_cli_unsupported_format(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_png() -> bytes:
-    """Create a minimal valid 1x1 PNG."""
-
-    def _chunk(chunk_type: bytes, data: bytes) -> bytes:
-        c = chunk_type + data
-        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
-
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
-        + _chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))
-        + _chunk(b"IEND", b"")
-    )
-
-
 def _make_comprehensive_pptx(tmp_path: Path) -> Path:
     """Create a multi-slide PPTX with mixed content types."""
     prs = Presentation()
@@ -470,7 +429,7 @@ def _make_comprehensive_pptx(tmp_path: Path) -> Path:
     slide4 = prs.slides.add_slide(prs.slide_layouts[1])
     slide4.shapes.title.text = "Architecture Diagram"
     img_path = tmp_path / "diagram.png"
-    img_path.write_bytes(_make_png())
+    img_path.write_bytes(make_png())
     slide4.shapes.add_picture(str(img_path), Inches(1), Inches(2), Inches(4), Inches(3))
 
     # Slide 5: Blank layout (no title placeholder)

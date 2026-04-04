@@ -500,7 +500,7 @@ def import_file(
 
 _SUPPORTED_IMPORT_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".tex"}
 
-_CONTENT_TYPE_TO_EXT: dict[str, str] = {
+_DOC_CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
@@ -546,7 +546,7 @@ def _download_import_file(url: str, dest_dir: Path) -> Path:
     # Fall back to Content-Type if URL has no recognized extension
     if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
         content_type = resp.headers.get("content-type", "").split(";")[0].strip()
-        ext = _CONTENT_TYPE_TO_EXT.get(content_type, ext)
+        ext = _DOC_CONTENT_TYPE_TO_EXT.get(content_type, ext)
 
     if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
         raise LeafpressError(

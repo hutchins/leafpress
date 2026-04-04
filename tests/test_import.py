@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from docx import Document as DocxDocument
+from helpers import make_png
 from typer.testing import CliRunner
 
 from leafpress.cli import _resolve_import_source, cli
@@ -66,29 +67,11 @@ def test_import_tables(sample_docx: Path, tmp_output: Path) -> None:
 
 def test_import_images_extracted(tmp_path: Path, tmp_output: Path) -> None:
     """Images extracted to assets/ and referenced in markdown."""
-    # Create a DOCX with an image
     doc = DocxDocument()
     doc.add_heading("Image Test", level=1)
-    # Create a small PNG (1x1 pixel)
-    import struct
-    import zlib
-
-    def _make_png() -> bytes:
-        """Create minimal 1x1 red PNG."""
-
-        def _chunk(chunk_type: bytes, data: bytes) -> bytes:
-            c = chunk_type + data
-            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
-
-        sig = b"\x89PNG\r\n\x1a\n"
-        ihdr = _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
-        raw = zlib.compress(b"\x00\xff\x00\x00")
-        idat = _chunk(b"IDAT", raw)
-        iend = _chunk(b"IEND", b"")
-        return sig + ihdr + idat + iend
 
     img_path = tmp_path / "test.png"
-    img_path.write_bytes(_make_png())
+    img_path.write_bytes(make_png())
     doc.add_picture(str(img_path))
     docx_path = tmp_path / "with_image.docx"
     doc.save(str(docx_path))

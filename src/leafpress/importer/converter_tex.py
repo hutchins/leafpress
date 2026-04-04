@@ -674,7 +674,7 @@ def _make_env_body_pattern(env_name: str) -> re.Pattern[str]:
     return re.compile(
         r"\\begin\{"
         + re.escape(env_name)
-        + r"\}(?:\[[^\]]*\])*(?:\{[^}]*\})?\s*(.*?)\s*\\end\{"
+        + r"\}(?:\[[^\]]*\])*(?:\{[^}]*\})*\s*(.*?)\s*\\end\{"
         + re.escape(env_name)
         + r"\}",
         re.DOTALL,

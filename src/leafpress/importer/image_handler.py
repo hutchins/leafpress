@@ -1,4 +1,4 @@
-"""Image extraction handler for mammoth DOCX conversion."""
+"""Image extraction handler for document import converters."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ from pathlib import Path
 
 
 class ImageHandler:
-    """Extracts embedded images from DOCX and saves to disk.
+    """Saves extracted images to disk for the DOCX, PPTX, and LaTeX importers.
 
-    Used as a mammoth convert_image callback. Each image is saved
-    with a content-hash filename to avoid duplicates.
+    Each image is saved with a content-hash filename to avoid duplicates.
+    The DOCX importer uses ``handle_image()`` as a mammoth callback; the
+    PPTX and LaTeX importers call ``save_image()`` directly.
     """
 
     def __init__(self, assets_dir: Path) -> None:
