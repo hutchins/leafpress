@@ -20,6 +20,16 @@ from leafpress.importer.image_handler import ImageHandler
 
 console = Console()
 
+# Shape types that may contain meaningful content but can't be converted.
+# Other shape types (freeform, connector, placeholder without text) are
+# silently skipped since they rarely carry user-visible content.
+_WARN_SHAPE_TYPES: dict[int, str] = {
+    MSO_SHAPE_TYPE.CHART: "chart",
+    MSO_SHAPE_TYPE.EMBEDDED_OLE_OBJECT: "embedded object",
+    MSO_SHAPE_TYPE.MEDIA: "media",
+    MSO_SHAPE_TYPE.LINKED_OLE_OBJECT: "linked object",
+}
+
 
 def import_pptx(
     pptx_path: Path,
@@ -61,9 +71,10 @@ def import_pptx(
         except Exception as e:
             raise PptxImportError(f"Failed to open PPTX: {e}") from e
 
+        warnings: list[str] = []
         sections: list[str] = []
         for slide_num, slide in enumerate(prs.slides, start=1):
-            slide_md = _convert_slide(slide, slide_num, image_handler, include_notes)
+            slide_md = _convert_slide(slide, slide_num, image_handler, include_notes, warnings)
             sections.append(slide_md)
 
     markdown = "\n\n".join(sections)
@@ -76,7 +87,7 @@ def import_pptx(
     return ImportResult(
         markdown_path=md_path,
         images=image_handler.saved_images if image_handler else [],
-        warnings=[],
+        warnings=warnings,
     )
 
 
@@ -85,6 +96,7 @@ def _convert_slide(
     slide_num: int,
     image_handler: ImageHandler | None,
     include_notes: bool,
+    warnings: list[str],
 ) -> str:
     """Convert a single slide to markdown."""
     parts: list[str] = []
@@ -96,12 +108,14 @@ def _convert_slide(
     else:
         parts.append(f"## Slide {slide_num}")
 
+    slide_label = title or f"Slide {slide_num}"
+
     # Shapes (skip the title placeholder)
     title_shape = slide.shapes.title
     for shape in slide.shapes:
         if shape is title_shape:
             continue
-        shape_md = _convert_shape(shape, image_handler)
+        shape_md = _convert_shape(shape, image_handler, slide_label, warnings)
         if shape_md:
             parts.append(shape_md)
 
@@ -122,10 +136,15 @@ def _get_slide_title(slide) -> str:
     return ""
 
 
-def _convert_shape(shape, image_handler: ImageHandler | None) -> str:
+def _convert_shape(
+    shape,
+    image_handler: ImageHandler | None,
+    slide_label: str,
+    warnings: list[str],
+) -> str:
     """Convert a single shape to markdown."""
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        return _convert_group(shape, image_handler)
+        return _convert_group(shape, image_handler, slide_label, warnings)
 
     if shape.shape_type == MSO_SHAPE_TYPE.TABLE:
         return _table_to_markdown(shape.table)
@@ -136,14 +155,27 @@ def _convert_shape(shape, image_handler: ImageHandler | None) -> str:
     if shape.has_text_frame:
         return _text_frame_to_markdown(shape.text_frame)
 
+    # Shapes with no text, table, image, or group content are skipped.
+    # Warn for shape types that may contain meaningful content.
+    shape_type = shape.shape_type
+    if shape_type in _WARN_SHAPE_TYPES:
+        label = _WARN_SHAPE_TYPES[shape_type]
+        name = shape.name or "unnamed"
+        warnings.append(f"'{slide_label}': skipped {label} shape '{name}'")
+
     return ""
 
 
-def _convert_group(group_shape, image_handler: ImageHandler | None) -> str:
+def _convert_group(
+    group_shape,
+    image_handler: ImageHandler | None,
+    slide_label: str,
+    warnings: list[str],
+) -> str:
     """Recursively convert shapes inside a group."""
     parts: list[str] = []
     for shape in group_shape.shapes:
-        md = _convert_shape(shape, image_handler)
+        md = _convert_shape(shape, image_handler, slide_label, warnings)
         if md:
             parts.append(md)
     return "\n\n".join(parts)

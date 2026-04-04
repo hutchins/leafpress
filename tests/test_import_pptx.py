@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from helpers import make_png
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 
 from leafpress.exceptions import PptxImportError
@@ -326,6 +327,41 @@ def test_runs_to_markdown_plain() -> None:
     para.runs = [run]
 
     assert _runs_to_markdown(para) == "hello world"
+
+
+def test_convert_shape_warns_on_chart() -> None:
+    """Chart shapes produce a warning."""
+    from unittest.mock import MagicMock
+
+    from leafpress.importer.converter_pptx import _convert_shape
+
+    shape = MagicMock()
+    shape.shape_type = MSO_SHAPE_TYPE.CHART
+    shape.name = "Chart 1"
+    shape.has_text_frame = False
+    warnings: list[str] = []
+
+    result = _convert_shape(shape, None, "Revenue Slide", warnings)
+    assert result == ""
+    assert len(warnings) == 1
+    assert "chart" in warnings[0]
+    assert "Chart 1" in warnings[0]
+    assert "Revenue Slide" in warnings[0]
+
+
+def test_convert_shape_no_warn_on_freeform() -> None:
+    """Freeform shapes (decorative lines, etc.) are silently skipped."""
+    from unittest.mock import MagicMock
+
+    from leafpress.importer.converter_pptx import _convert_shape
+
+    shape = MagicMock()
+    shape.shape_type = MSO_SHAPE_TYPE.FREEFORM
+    shape.has_text_frame = False
+    warnings: list[str] = []
+
+    _convert_shape(shape, None, "Slide 1", warnings)
+    assert len(warnings) == 0
 
 
 # --- CLI integration ---
