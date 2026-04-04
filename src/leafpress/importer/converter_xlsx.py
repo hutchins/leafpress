@@ -49,18 +49,23 @@ def import_xlsx(
 
     with console.status("[bold blue]Converting XLSX to Markdown..."):
         try:
-            wb = load_workbook(xlsx_path, data_only=True, read_only=True)
+            wb = load_workbook(xlsx_path, data_only=True)
         except Exception as e:
             raise XlsxImportError(f"Failed to open XLSX: {e}") from e
 
+        warnings: list[str] = []
         sections: list[str] = []
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
+            _collect_sheet_warnings(ws, sheet_name, warnings)
             table_md = _sheet_to_markdown(ws)
             if table_md:
                 sections.append(f"## {sheet_name}\n\n{table_md}")
 
         wb.close()
+
+    if not sections:
+        warnings.append("Workbook has no non-empty sheets — output will be blank")
 
     markdown = "\n\n".join(sections)
     markdown = postprocess_markdown(markdown)
@@ -71,8 +76,29 @@ def import_xlsx(
     return ImportResult(
         markdown_path=md_path,
         images=[],
-        warnings=[],
+        warnings=warnings,
     )
+
+
+def _collect_sheet_warnings(ws, sheet_name: str, warnings: list[str]) -> None:
+    """Check a worksheet for features that can't be fully converted."""
+    # Merged cells — only the top-left value is preserved
+    merged = list(ws.merged_cells.ranges)
+    if merged:
+        warnings.append(
+            f"Sheet '{sheet_name}' has {len(merged)} merged cell region(s) "
+            f"— only the top-left cell value of each is kept"
+        )
+
+    # Embedded images
+    image_count = len(ws._images)
+    if image_count:
+        warnings.append(f"Sheet '{sheet_name}' has {image_count} embedded image(s) — not extracted")
+
+    # Embedded charts
+    chart_count = len(ws._charts)
+    if chart_count:
+        warnings.append(f"Sheet '{sheet_name}' has {chart_count} embedded chart(s) — not extracted")
 
 
 def _sheet_to_markdown(ws) -> str:

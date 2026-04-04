@@ -6,6 +6,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 import pytest
+from helpers import make_png
 from openpyxl import Workbook
 
 from leafpress.exceptions import XlsxImportError
@@ -361,3 +362,85 @@ class TestComprehensiveXlsx:
     def test_no_images(self) -> None:
         """XLSX import produces no images."""
         assert self.result.images == []
+
+
+# ---------------------------------------------------------------------------
+# XLSX warning tests
+# ---------------------------------------------------------------------------
+
+
+def _make_merged_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX with merged cells."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Report"
+    ws["A1"] = "Merged Header"
+    ws.merge_cells("A1:C1")
+    ws["A2"] = "a"
+    ws["B2"] = "b"
+    ws["C2"] = "c"
+    path = tmp_path / "merged.xlsx"
+    wb.save(path)
+    return path
+
+
+def _make_image_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX with an embedded image."""
+    from openpyxl.drawing.image import Image
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "WithImage"
+    ws["A1"] = "Data"
+
+    img_path = tmp_path / "chart.png"
+    img_path.write_bytes(make_png())
+    ws.add_image(Image(str(img_path)), "B2")
+
+    path = tmp_path / "with_image.xlsx"
+    wb.save(path)
+    return path
+
+
+def _make_empty_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX where all sheets are empty."""
+    wb = Workbook()
+    wb.active.title = "Sheet1"
+    wb.create_sheet("Sheet2")
+    path = tmp_path / "empty.xlsx"
+    wb.save(path)
+    return path
+
+
+def test_xlsx_warns_on_merged_cells(tmp_path: Path) -> None:
+    """Merged cells produce a warning with region count."""
+    xlsx_path = _make_merged_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("merged" in w.lower() for w in result.warnings)
+    assert any("1 merged cell region" in w for w in result.warnings)
+    assert any("Report" in w for w in result.warnings)
+
+
+def test_xlsx_warns_on_embedded_images(tmp_path: Path) -> None:
+    """Embedded images produce a warning."""
+    xlsx_path = _make_image_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("image" in w.lower() for w in result.warnings)
+    assert any("not extracted" in w for w in result.warnings)
+
+
+def test_xlsx_warns_on_blank_workbook(tmp_path: Path) -> None:
+    """All-empty workbook produces a blank output warning."""
+    xlsx_path = _make_empty_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("blank" in w.lower() for w in result.warnings)
+
+
+def test_xlsx_no_warnings_for_clean_file(tmp_path: Path) -> None:
+    """A normal workbook with no issues produces no warnings."""
+    xlsx_path = _make_xlsx(
+        tmp_path,
+        {"Data": [["Name", "Value"], ["Alpha", 1]]},
+    )
+    result = import_xlsx(xlsx_path)
+    assert result.warnings == []
