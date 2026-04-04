@@ -485,9 +485,13 @@ def import_file(
             if result.images:
                 console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
             if result.warnings:
-                console.print(f"  [yellow]Warnings:[/yellow] {len(result.warnings)}")
-                for w in result.warnings[:5]:
-                    console.print(f"    - {w}")
+                n = len(result.warnings)
+                console.print(f"  [yellow]Warnings:[/yellow] {n}")
+                shown = 10
+                for w in result.warnings[:shown]:
+                    console.print(f"    [yellow]⚠[/yellow] {escape(w)}")
+                if n > shown:
+                    console.print(f"    [dim]… and {n - shown} more[/dim]")
 
         except LeafpressError as e:
             console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")

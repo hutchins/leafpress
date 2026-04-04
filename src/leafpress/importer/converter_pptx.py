@@ -161,7 +161,7 @@ def _convert_shape(
     if shape_type in _WARN_SHAPE_TYPES:
         label = _WARN_SHAPE_TYPES[shape_type]
         name = shape.name or "unnamed"
-        warnings.append(f"'{slide_label}': skipped {label} shape '{name}'")
+        warnings.append(f"Unsupported {label} '{name}' on slide '{slide_label}' — skipped")
 
     return ""
 

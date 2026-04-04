@@ -344,9 +344,10 @@ def test_convert_shape_warns_on_chart() -> None:
     result = _convert_shape(shape, None, "Revenue Slide", warnings)
     assert result == ""
     assert len(warnings) == 1
-    assert "chart" in warnings[0]
+    assert "chart" in warnings[0].lower()
     assert "Chart 1" in warnings[0]
     assert "Revenue Slide" in warnings[0]
+    assert "skipped" in warnings[0].lower()
 
 
 def test_convert_shape_no_warn_on_freeform() -> None:
