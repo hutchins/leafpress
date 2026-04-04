@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
 import platform
 import subprocess
+import tempfile
+from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
 
+import requests
 import typer
 from rich.console import Console
 from rich.markup import escape
@@ -432,8 +436,8 @@ def ui(
 
 @cli.command(name="import")
 def import_file(
-    files: list[Path] = typer.Argument(
-        help="One or more .docx, .pptx, .xlsx, or .tex files to import.",
+    sources: list[str] = typer.Argument(
+        help="One or more .docx, .pptx, .xlsx, or .tex files or URLs to import.",
     ),
     output: Path | None = typer.Option(
         None,
@@ -458,8 +462,8 @@ def import_file(
     ),
 ) -> None:
     """Import Word, PowerPoint, Excel, or LaTeX documents and convert them to Markdown."""
-    # When multiple files are given, -o must be a directory (or omitted)
-    if output and len(files) > 1 and output.suffix:
+    # When multiple sources are given, -o must be a directory (or omitted)
+    if output and len(sources) > 1 and output.suffix:
         console.print(
             "\n[bold red]Error:[/bold red] Use a directory for --output "
             "when importing multiple files."
@@ -467,15 +471,16 @@ def import_file(
         raise typer.Exit(code=1)
 
     errors = 0
-    for file in files:
+    for source in sources:
         try:
-            result = _import_single_file(
-                file,
-                output=output,
-                extract_images=extract_images,
-                code_styles=code_styles,
-                include_notes=include_notes,
-            )
+            with _resolve_import_source(source) as file:
+                result = _import_single_file(
+                    file,
+                    output=output,
+                    extract_images=extract_images,
+                    code_styles=code_styles,
+                    include_notes=include_notes,
+                )
             console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
             if result.images:
                 console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
@@ -491,6 +496,74 @@ def import_file(
     if errors:
         console.print(f"\n[yellow]{errors} file(s) failed to import.[/yellow]")
         raise typer.Exit(code=1)
+
+
+_SUPPORTED_IMPORT_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".tex"}
+
+_CONTENT_TYPE_TO_EXT: dict[str, str] = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "text/x-tex": ".tex",
+    "application/x-tex": ".tex",
+    "application/x-latex": ".tex",
+}
+
+
+@contextlib.contextmanager
+def _resolve_import_source(source: str) -> Generator[Path, None, None]:
+    """Resolve an import source (local path or URL) to a local file path.
+
+    For local paths, yields the path directly. For URLs, downloads to a
+    temp directory and yields the downloaded file path, cleaning up after.
+    """
+    if source.startswith(("http://", "https://")):
+        with tempfile.TemporaryDirectory(prefix="leafpress_import_") as tmp:
+            file = _download_import_file(source, Path(tmp))
+            yield file
+    else:
+        yield Path(source)
+
+
+def _download_import_file(url: str, dest_dir: Path) -> Path:
+    """Download a file from a URL for import.
+
+    Infers file type from the URL path extension, falling back to the
+    Content-Type header. Raises LeafpressError on failure.
+    """
+    from urllib.parse import urlparse
+
+    url_path = urlparse(url).path
+    ext = Path(url_path).suffix.lower() if url_path else ""
+
+    console.print(f"  [blue]Downloading[/blue] {url}")
+    try:
+        resp = requests.get(url, stream=True, timeout=60)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise LeafpressError(f"Failed to download {url}: {e}") from e
+
+    # Fall back to Content-Type if URL has no recognized extension
+    if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
+        content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+        ext = _CONTENT_TYPE_TO_EXT.get(content_type, ext)
+
+    if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
+        raise LeafpressError(
+            f"Cannot determine file type for {url}. "
+            f"URL has no recognized extension and Content-Type "
+            f"'{resp.headers.get('content-type', '')}' is not a supported format."
+        )
+
+    # Derive filename from URL path or use a default
+    stem = Path(url_path).stem if url_path and Path(url_path).stem else "download"
+    dest = dest_dir / f"{stem}{ext}"
+
+    with open(dest, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    return dest
 
 
 def _import_single_file(

@@ -175,14 +175,14 @@ leafpress doctor --debug
 Import one or more Word, PowerPoint, Excel, or LaTeX documents and convert them to Markdown.
 
 ```bash
-leafpress import FILES... [OPTIONS]
+leafpress import SOURCES... [OPTIONS]
 ```
 
 **Arguments**
 
 | Argument | Description |
 |----------|-------------|
-| `FILES...` | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files to import. You can mix formats in a single command. |
+| `SOURCES...` | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files or URLs to import. You can mix local files and URLs in a single command. |
 
 **Options**
 
@@ -205,8 +205,12 @@ leafpress import deck.pptx
 # Import a LaTeX document
 leafpress import paper.tex
 
-# Import multiple files at once
-leafpress import report.docx deck.pptx paper.tex
+# Import from a URL
+leafpress import https://example.com/paper.tex
+leafpress import https://example.com/report.docx -o docs/
+
+# Mix local files and URLs
+leafpress import report.docx https://example.com/paper.tex -o docs/
 
 # Import all supported files in a directory
 leafpress import *.docx *.pptx *.xlsx *.tex

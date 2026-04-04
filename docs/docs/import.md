@@ -238,9 +238,26 @@ When importing multiple files, `--output` must be a directory (or omitted):
 leafpress import *.docx *.pptx *.xlsx -o docs/
 ```
 
+### URL import
+
+You can import documents directly from URLs — the file is downloaded to a temp directory, converted, and the temp file is cleaned up automatically:
+
+```bash
+# Import a LaTeX paper from a URL
+leafpress import https://example.com/paper.tex
+
+# Import a Word document from a URL
+leafpress import https://example.com/report.docx -o docs/
+
+# Mix local files and URLs
+leafpress import report.docx https://example.com/slides.pptx -o docs/
+```
+
+The file type is inferred from the URL path extension (`.docx`, `.pptx`, `.xlsx`, `.tex`). If the URL has no recognized extension, the `Content-Type` header is used as a fallback. URLs that cannot be mapped to a supported format produce an error.
+
 ### Batch import
 
-You can pass multiple files in a single command. Formats can be mixed freely — each file is detected and routed to the appropriate converter:
+You can pass multiple files and URLs in a single command. Formats can be mixed freely — each source is detected and routed to the appropriate converter:
 
 ```bash
 # Import everything in one shot
@@ -249,9 +266,12 @@ leafpress import report.docx proposal.docx slides.pptx data.xlsx paper.tex
 # Use shell globs to grab all supported files
 leafpress import *.docx *.pptx *.xlsx *.tex
 
+# Mix local and remote sources
+leafpress import *.docx https://example.com/paper.tex -o docs/
+
 # Combine with other options
 leafpress import *.docx --code-styles "Code Block" --no-extract-images
 leafpress import *.pptx --no-notes -o imported/
 ```
 
-If one file fails (e.g., missing or corrupt), the remaining files are still processed. A summary of failures is shown at the end.
+If one source fails (e.g., missing file, download error, or corrupt document), the remaining sources are still processed. A summary of failures is shown at the end.
