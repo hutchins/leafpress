@@ -8,9 +8,11 @@ import io
 import platform
 import shutil
 import sys
+import tempfile
 from contextlib import redirect_stderr
 from dataclasses import dataclass, field
 
+import requests
 from rich.console import Console
 from rich.markup import escape
 from rich.panel import Panel
@@ -316,6 +318,83 @@ def _check_pyobjc() -> CheckResult | None:
         )
 
 
+# Import format checks — (format_label, import_name, pip_name)
+_IMPORT_FORMATS: list[tuple[str, str, str]] = [
+    ("docx", "mammoth", "mammoth"),
+    ("pptx", "pptx", "python-pptx"),
+    ("xlsx", "openpyxl", "openpyxl"),
+    ("tex", "pylatexenc", "pylatexenc"),
+]
+
+
+def _check_import_formats() -> list[CheckResult]:
+    """Check which import format dependencies are available."""
+    results: list[CheckResult] = []
+    for fmt, import_name, pip_name in _IMPORT_FORMATS:
+        try:
+            mod = __import__(import_name)
+            ver = getattr(mod, "__version__", None) or getattr(mod, "VERSION", None)
+            ver_str = str(ver) if ver else "installed"
+            results.append(CheckResult(name=f"  .{fmt}", passed=True, version=ver_str))
+        except ImportError:
+            results.append(
+                CheckResult(
+                    name=f"  .{fmt}",
+                    passed=False,
+                    message="Not installed",
+                    install_hint=f"{_pip_cmd()} {pip_name}",
+                )
+            )
+    return results
+
+
+def _check_temp_dir() -> CheckResult:
+    """Check that the system temp directory is writable."""
+    tmp_dir = tempfile.gettempdir()
+    try:
+        with tempfile.NamedTemporaryFile(dir=tmp_dir, prefix="leafpress_", delete=True) as f:
+            f.write(b"test")
+        free_mb = shutil.disk_usage(tmp_dir).free // (1024 * 1024)
+        return CheckResult(
+            name="Temp directory",
+            passed=True,
+            version=f"{tmp_dir} ({free_mb:,} MB free)",
+        )
+    except OSError as e:
+        return CheckResult(
+            name="Temp directory",
+            passed=False,
+            message=f"Cannot write to {tmp_dir}: {e}",
+        )
+
+
+def _check_latest_version(current: str) -> CheckResult:
+    """Check if a newer version of leafpress is available on PyPI."""
+    try:
+        resp = requests.get("https://pypi.org/pypi/leafpress/json", timeout=5)
+        resp.raise_for_status()
+        latest = resp.json()["info"]["version"]
+        if latest == current:
+            return CheckResult(
+                name="Latest version",
+                passed=True,
+                version=f"{current} (up to date)",
+            )
+        return CheckResult(
+            name="Latest version",
+            passed=False,
+            version=current,
+            message=f"Update available: {latest}",
+            install_hint=f"{_pip_cmd()} --upgrade leafpress",
+        )
+    except Exception:
+        return CheckResult(
+            name="Latest version",
+            passed=True,
+            version=f"{current} (could not check PyPI)",
+        )
+
+
 def run_doctor(*, verbose: bool = False) -> DoctorReport:
     """Run all environment checks and return a report."""
     from leafpress import __version__
@@ -352,12 +431,21 @@ def run_doctor(*, verbose: bool = False) -> DoctorReport:
     if pyobjc_check is not None:
         report.checks.append(pyobjc_check)
 
+    # Import format readiness
+    report.checks.append(CheckResult(name="Import formats", passed=True, version=""))
+    report.checks.extend(_check_import_formats())
+
+    # Temp directory
+    report.checks.append(_check_temp_dir())
+
+    # Version check
+    report.checks.append(_check_latest_version(__version__))
+
     return report
 
 
 def _extras_line(report: DoctorReport) -> str:
     """Build a summary line showing which extras are installed."""
-    # Reuse already-computed check results instead of re-importing
     extra_names = {"WeasyPrint": "pdf", "PyQt6": "ui"}
     parts: list[str] = []
     for check in report.checks:
@@ -368,6 +456,18 @@ def _extras_line(report: DoctorReport) -> str:
     return "Extras: " + "  ".join(parts)
 
 
+def _import_formats_line(report: DoctorReport) -> str:
+    """Build a summary line showing which import formats are available."""
+    parts: list[str] = []
+    for check in report.checks:
+        # Import format checks are named "  .docx", "  .pptx", etc.
+        name = check.name.strip()
+        if name.startswith(".") and len(name) <= 5:
+            mark = "[green]✓[/green]" if check.passed else "[red]✗[/red]"
+            parts.append(f"{name} {mark}")
+    return "Import: " + "  ".join(parts)
+
+
 def print_report(report: DoctorReport, console: Console, *, debug: bool = False) -> None:
     """Render a DoctorReport to the console with Rich formatting."""
     # Header
@@ -376,7 +476,8 @@ def print_report(report: DoctorReport, console: Console, *, debug: bool = False)
             f"[bold]leafpress[/bold] {escape(report.leafpress_version)}\n"
             f"Python {escape(report.python_version)}\n"
             f"{escape(report.platform_info)}\n"
-            f"{_extras_line(report)}",
+            f"{_extras_line(report)}\n"
+            f"{_import_formats_line(report)}",
             title="[bold]leafpress doctor[/bold]",
             border_style="blue",
         )
