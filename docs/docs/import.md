@@ -1,17 +1,18 @@
 # Document Import
 
-LeafPress can import Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files and convert them to Markdown. This is useful for migrating existing documents into an MkDocs project.
+LeafPress can import Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), and LaTeX (`.tex`) files and convert them to Markdown. This is useful for migrating existing documents into an MkDocs project.
 
 ```bash
 leafpress import report.docx
 leafpress import deck.pptx
 leafpress import data.xlsx
+leafpress import paper.tex
 
 # Import multiple files at once — mix and match formats
-leafpress import *.docx *.pptx *.xlsx
+leafpress import *.docx *.pptx *.xlsx *.tex
 
 # Send all output to a directory
-leafpress import *.docx *.pptx *.xlsx -o docs/
+leafpress import *.docx *.pptx *.xlsx *.tex -o docs/
 ```
 
 See the [CLI Reference](cli.md#import) for all flags and examples.
@@ -161,15 +162,62 @@ A sheet named "Servers" with three columns produces:
 
 ---
 
+## LaTeX Import (TEX)
+
+LaTeX documents are converted using a native parser ([pylatexenc](https://github.com/phfaist/pylatexenc)). The converter handles the most common academic paper and documentation constructs.
+
+### What's supported
+
+| Feature | How it's handled |
+|---------|-----------------|
+| Headings | `\section` → `##`, `\subsection` → `###`, `\subsubsection` → `####`, etc. |
+| Bold / italic / code | `\textbf` → `**bold**`, `\textit` / `\emph` → `*italic*`, `\texttt` → `` `code` `` |
+| Lists | `itemize` → bullets, `enumerate` → numbered, with nesting support |
+| Math | Inline `$...$` and display `$$...$$` / `\[...\]` / `equation` / `align` passed through for MathJax/KaTeX |
+| Images | `\includegraphics` resolved relative to `.tex` file, copied to `assets/` |
+| Tables | `tabular` → pipe-style Markdown tables with column alignment |
+| Links | `\href{url}{text}` → Markdown links, `\url{url}` → angle-bracket URLs |
+| Code blocks | `verbatim`, `lstlisting`, `minted` → fenced code blocks (with language detection) |
+| Figures | `\caption` text used as image alt text |
+| Title / author | `\title` and `\author` rendered at top of document |
+| Blockquotes | `abstract`, `quote`, `quotation` → blockquotes |
+| Footnotes | `\footnote` → Markdown footnote syntax |
+
+### Limitations
+
+| Feature | Reason |
+|---------|--------|
+| **`\input` / `\include`** | Multi-file LaTeX projects are not supported — only the specified `.tex` file is converted. |
+| **Custom macros** | `\newcommand` / `\def` definitions are skipped with a warning. Usages of custom macros appear as raw text. |
+| **TikZ / PGF diagrams** | `tikzpicture` and `pgfpicture` environments are skipped with a warning. |
+| **Beamer** | Beamer-specific environments (`frame`) and overlay commands (`\pause`, `\only<>`) are not converted. |
+| **Cross-references** | `\ref` and `\cite` produce placeholder text like `[ref:label]` and `[key]` — not resolved to numbers or bibliography entries. |
+| **Bibliography** | `.bib` files are not parsed. `\cite`, `\citet`, `\citep` commands produce bracketed keys. |
+| **EPS/PDF images** | Only raster image formats (PNG, JPG, SVG, etc.) are copied. EPS and PDF images produce a warning. |
+| **Theorem-like environments** | `theorem`, `lemma`, `proof`, `corollary`, `definition`, and other custom environments render their body as plain text with a warning. |
+| **`\paragraph` headings** | Registered as a heading level but may not render with `#####` prefix due to parser argument handling. |
+| **`\multicolumn` in tables** | Column spanning is not represented — cells render but span information is lost. |
+| **`\subfigure` / `\subcaption`** | Sub-figure environments are not supported — arguments render as plain text. |
+| **Accented characters** | LaTeX accent commands (`\"o`, `\'{e}`, `\~{n}`) are not converted to Unicode — they appear as raw LaTeX. |
+| **`siunitx` package** | `\SI`, `\si`, `\num` commands are not converted — they appear as raw text. |
+| **`\label` inside math** | Labels within math environments are passed through verbatim in the `$$` block. |
+
+!!! tip
+    For best results with math, ensure your Markdown renderer supports MathJax or KaTeX.
+    Math expressions are passed through verbatim in LaTeX syntax.
+
+---
+
 ## Common options
 
 ### Image extraction
 
-The Word and PowerPoint importers extract embedded images to an `assets/` directory next to the output file. To skip image extraction:
+The Word, PowerPoint, and LaTeX importers extract embedded images to an `assets/` directory next to the output file. To skip image extraction:
 
 ```bash
 leafpress import report.docx --no-extract-images
 leafpress import deck.pptx --no-extract-images
+leafpress import paper.tex --no-extract-images
 ```
 
 ### Output path
@@ -196,10 +244,10 @@ You can pass multiple files in a single command. Formats can be mixed freely —
 
 ```bash
 # Import everything in one shot
-leafpress import report.docx proposal.docx slides.pptx data.xlsx
+leafpress import report.docx proposal.docx slides.pptx data.xlsx paper.tex
 
 # Use shell globs to grab all supported files
-leafpress import *.docx *.pptx *.xlsx
+leafpress import *.docx *.pptx *.xlsx *.tex
 
 # Combine with other options
 leafpress import *.docx --code-styles "Code Block" --no-extract-images

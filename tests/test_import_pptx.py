@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import struct
+import zlib
 from pathlib import Path
 
 import pytest
@@ -388,3 +390,159 @@ def test_cli_unsupported_format(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["import", str(txt_file)])
     assert result.exit_code == 1
     assert "Unsupported file type" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive PPTX fixture — realistic multi-slide presentation
+# ---------------------------------------------------------------------------
+
+
+def _make_png() -> bytes:
+    """Create a minimal valid 1x1 PNG."""
+
+    def _chunk(chunk_type: bytes, data: bytes) -> bytes:
+        c = chunk_type + data
+        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + _chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+        + _chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00"))
+        + _chunk(b"IEND", b"")
+    )
+
+
+def _make_comprehensive_pptx(tmp_path: Path) -> Path:
+    """Create a multi-slide PPTX with mixed content types."""
+    prs = Presentation()
+
+    # Slide 1: Title + formatted body text
+    slide1 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide1.shapes.title.text = "Project Status"
+    tf = slide1.placeholders[1].text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    run_b = p.add_run()
+    run_b.text = "On track"
+    run_b.font.bold = True
+    run_n = p.add_run()
+    run_n.text = " for Q4 delivery with "
+    run_i = p.add_run()
+    run_i.text = "minor risks"
+    run_i.font.italic = True
+
+    # Slide 2: Table + speaker notes
+    slide2 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide2.shapes.title.text = "Budget Overview"
+    tbl = slide2.shapes.add_table(3, 3, Inches(1), Inches(2), Inches(6), Inches(2)).table
+    for c, h in enumerate(["Category", "Budgeted", "Actual"]):
+        tbl.cell(0, c).text = h
+    for c, v in enumerate(["Engineering", "$500K", "$480K"]):
+        tbl.cell(1, c).text = v
+    for c, v in enumerate(["Marketing", "$200K", "$220K"]):
+        tbl.cell(2, c).text = v
+    notes2 = slide2.notes_slide
+    notes2.notes_text_frame.text = "Emphasize that engineering is under budget."
+
+    # Slide 3: Indented text (multiple levels)
+    slide3 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide3.shapes.title.text = "Milestones"
+    tf3 = slide3.placeholders[1].text_frame
+    tf3.clear()
+    tf3.paragraphs[0].text = "Phase 1: Foundation"
+    p1 = tf3.add_paragraph()
+    p1.text = "Database schema finalized"
+    p1.level = 1
+    p2 = tf3.add_paragraph()
+    p2.text = "API contracts signed off"
+    p2.level = 1
+    p3 = tf3.add_paragraph()
+    p3.text = "Phase 2: Build"
+    p3.level = 0
+    p4 = tf3.add_paragraph()
+    p4.text = "Core services deployed"
+    p4.level = 1
+    p5 = tf3.add_paragraph()
+    p5.text = "Integration testing complete"
+    p5.level = 2
+
+    # Slide 4: Image
+    slide4 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide4.shapes.title.text = "Architecture Diagram"
+    img_path = tmp_path / "diagram.png"
+    img_path.write_bytes(_make_png())
+    slide4.shapes.add_picture(str(img_path), Inches(1), Inches(2), Inches(4), Inches(3))
+
+    # Slide 5: Blank layout (no title placeholder)
+    prs.slides.add_slide(prs.slide_layouts[6])
+
+    path = tmp_path / "comprehensive.pptx"
+    prs.save(path)
+    return path
+
+
+class TestComprehensivePptx:
+    """Tests using a realistic multi-slide presentation."""
+
+    @pytest.fixture(autouse=True)
+    def _convert(self, tmp_path: Path) -> None:
+        pptx_path = _make_comprehensive_pptx(tmp_path)
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        self.result = import_pptx(pptx_path, output_path=out_dir)
+        self.content = self.result.markdown_path.read_text()
+
+    def test_converts_successfully(self) -> None:
+        """All slides convert without errors."""
+        assert self.result.markdown_path.exists()
+        assert len(self.content) > 200
+
+    def test_slide_titles_as_headings(self) -> None:
+        """Titled slides get ## headings."""
+        assert "## Project Status" in self.content
+        assert "## Budget Overview" in self.content
+        assert "## Milestones" in self.content
+        assert "## Architecture Diagram" in self.content
+
+    def test_untitled_slide_fallback(self) -> None:
+        """Blank-layout slide gets ## Slide N heading."""
+        assert "## Slide 5" in self.content
+
+    def test_bold_formatting(self) -> None:
+        """Bold text in slide body preserved."""
+        assert "**On track**" in self.content
+
+    def test_italic_formatting(self) -> None:
+        """Italic text in slide body preserved."""
+        assert "*minor risks*" in self.content
+
+    def test_table(self) -> None:
+        """Table converted to pipe-style markdown."""
+        assert "| Category" in self.content
+        assert "Engineering" in self.content
+        assert "$480K" in self.content
+        assert "---" in self.content
+
+    def test_speaker_notes(self) -> None:
+        """Speaker notes rendered as blockquotes."""
+        assert "> Emphasize that engineering is under budget." in self.content
+
+    def test_indented_text(self) -> None:
+        """Indented paragraphs produce nested bullets."""
+        assert "Phase 1: Foundation" in self.content
+        assert "  - Database schema finalized" in self.content
+        assert "  - API contracts signed off" in self.content
+
+    def test_deeper_indent(self) -> None:
+        """Level-2 indent produces double-indented bullet."""
+        assert "    - Integration testing complete" in self.content
+
+    def test_image_extracted(self) -> None:
+        """Embedded image extracted to assets/."""
+        assert len(self.result.images) >= 1
+        assert self.result.images[0].exists()
+        assert "![](assets/" in self.content
+
+    def test_slide_count(self) -> None:
+        """All 5 slides appear in output."""
+        assert self.content.count("## ") == 5

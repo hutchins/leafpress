@@ -75,11 +75,11 @@ Click **Convert** to start. A progress indicator appears while conversion runs. 
 
 ![LeafPress import window](assets/ui-import-screenshot.png)
 
-Import Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files to Markdown.
+Import Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), and LaTeX (`.tex`) files to Markdown.
 
 | Field | Description |
 |-------|-------------|
-| **Files** | One or more `.docx`, `.pptx`, or `.xlsx` files to convert. Use "Browse..." to select files. |
+| **Files** | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files to convert. Use "Browse..." to select files. |
 | **Output dir** | Directory for generated Markdown files (default: current directory). |
 | **Extract images** | Save embedded images alongside the Markdown output (default: checked). |
 | **Include speaker notes** | Extract speaker notes from PowerPoint slides (default: checked). |

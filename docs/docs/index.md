@@ -72,7 +72,7 @@ hide:
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-file-word-box:</span>
 <p class="feature-card__title">Document Import</p>
-<p class="feature-card__desc">Import Word, PowerPoint, and Excel files to Markdown with image extraction, code block detection, tables, and speaker notes.</p>
+<p class="feature-card__desc">Import Word, PowerPoint, Excel, and LaTeX files to Markdown with image extraction, code block detection, tables, and math support.</p>
 </div>
 
 <div class="feature-card" markdown>

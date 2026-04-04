@@ -9,7 +9,12 @@ from openpyxl import load_workbook
 from rich.console import Console
 
 from leafpress.exceptions import XlsxImportError
-from leafpress.importer.converter import ImportResult, _postprocess_markdown, _resolve_output_path
+from leafpress.importer.base import (
+    ImportResult,
+    postprocess_markdown,
+    resolve_output_path,
+    rows_to_pipe_table,
+)
 
 console = Console()
 
@@ -40,7 +45,7 @@ def import_xlsx(
     if xlsx_path.suffix.lower() != ".xlsx":
         raise XlsxImportError(f"Not a .xlsx file: {xlsx_path}")
 
-    md_path = _resolve_output_path(xlsx_path, output_path)
+    md_path = resolve_output_path(xlsx_path, output_path)
 
     with console.status("[bold blue]Converting XLSX to Markdown..."):
         try:
@@ -58,7 +63,7 @@ def import_xlsx(
         wb.close()
 
     markdown = "\n\n".join(sections)
-    markdown = _postprocess_markdown(markdown)
+    markdown = postprocess_markdown(markdown)
 
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(markdown, encoding="utf-8")
@@ -81,28 +86,7 @@ def _sheet_to_markdown(ws) -> str:
     while rows and all(c == "" for c in rows[-1]):
         rows.pop()
 
-    if not rows:
-        return ""
-
-    # Normalise column count
-    col_count = max(len(row) for row in rows)
-    for row in rows:
-        while len(row) < col_count:
-            row.append("")
-
-    # Column widths for alignment
-    col_widths = [max(len(row[i]) for row in rows) for i in range(col_count)]
-    col_widths = [max(w, 3) for w in col_widths]
-
-    lines: list[str] = []
-    for idx, row in enumerate(rows):
-        cells = [cell.ljust(col_widths[i]) for i, cell in enumerate(row)]
-        lines.append("| " + " | ".join(cells) + " |")
-        if idx == 0:
-            sep = ["-" * w for w in col_widths]
-            lines.append("| " + " | ".join(sep) + " |")
-
-    return "\n".join(lines)
+    return rows_to_pipe_table(rows)
 
 
 def _cell_to_str(value: object) -> str:
@@ -119,5 +103,4 @@ def _cell_to_str(value: object) -> str:
         if value == int(value):
             return str(int(value))
         return str(value)
-    text = str(value)
-    return text.replace("|", "\\|")
+    return str(value)

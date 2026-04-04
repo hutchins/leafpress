@@ -61,17 +61,28 @@ class ImageHandler:
         return {"src": src}
 
 
+_CONTENT_TYPE_TO_EXT: dict[str, str] = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/svg+xml": ".svg",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tiff",
+    "image/webp": ".webp",
+    "image/x-emf": ".emf",
+    "image/x-wmf": ".wmf",
+}
+
+_EXT_TO_CONTENT_TYPE: dict[str, str] = {v: k for k, v in _CONTENT_TYPE_TO_EXT.items()}
+# .jpeg is a common alias for .jpg
+_EXT_TO_CONTENT_TYPE[".jpeg"] = "image/jpeg"
+
+
 def _extension_for_content_type(content_type: str) -> str:
     """Map MIME content type to file extension."""
-    mapping = {
-        "image/png": ".png",
-        "image/jpeg": ".jpg",
-        "image/gif": ".gif",
-        "image/svg+xml": ".svg",
-        "image/bmp": ".bmp",
-        "image/tiff": ".tiff",
-        "image/webp": ".webp",
-        "image/x-emf": ".emf",
-        "image/x-wmf": ".wmf",
-    }
-    return mapping.get(content_type, ".png")
+    return _CONTENT_TYPE_TO_EXT.get(content_type, ".png")
+
+
+def content_type_for_extension(ext: str) -> str:
+    """Map file extension to MIME content type."""
+    return _EXT_TO_CONTENT_TYPE.get(ext, "image/png")

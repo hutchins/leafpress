@@ -17,7 +17,7 @@ from leafpress import __version__
 from leafpress.config import DEFAULT_CONFIG_TEMPLATE
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
-from leafpress.importer.converter import ImportResult
+from leafpress.importer.base import ImportResult
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.source import resolve_source
 
@@ -433,7 +433,7 @@ def ui(
 @cli.command(name="import")
 def import_file(
     files: list[Path] = typer.Argument(
-        help="One or more .docx, .pptx, or .xlsx files to import.",
+        help="One or more .docx, .pptx, .xlsx, or .tex files to import.",
     ),
     output: Path | None = typer.Option(
         None,
@@ -457,7 +457,7 @@ def import_file(
         help="Include speaker notes as blockquotes (PPTX only).",
     ),
 ) -> None:
-    """Import Word, PowerPoint, or Excel documents and convert them to Markdown."""
+    """Import Word, PowerPoint, Excel, or LaTeX documents and convert them to Markdown."""
     # When multiple files are given, -o must be a directory (or omitted)
     if output and len(files) > 1 and output.suffix:
         console.print(
@@ -501,7 +501,7 @@ def _import_single_file(
     code_styles: str | None,
     include_notes: bool,
 ) -> ImportResult:
-    """Import a single .docx, .pptx, or .xlsx file and return the result."""
+    """Import a single .docx, .pptx, .xlsx, or .tex file and return the result."""
     suffix = file.suffix.lower()
 
     if suffix == ".docx":
@@ -535,7 +535,16 @@ def _import_single_file(
             output_path=output,
         )
 
-    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx, .pptx, or .xlsx")
+    if suffix == ".tex":
+        from leafpress.importer.converter_tex import import_tex
+
+        return import_tex(
+            tex_path=file,
+            output_path=output,
+            extract_images=extract_images,
+        )
+
+    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx, .pptx, .xlsx, or .tex")
 
 
 def _open_file(path: Path) -> None:

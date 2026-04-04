@@ -8,7 +8,8 @@ from typer.testing import CliRunner
 
 from leafpress.cli import cli
 from leafpress.exceptions import DocxImportError
-from leafpress.importer.converter import ImportResult, _postprocess_markdown, import_docx
+from leafpress.importer.base import ImportResult, postprocess_markdown
+from leafpress.importer.converter import import_docx
 
 runner = CliRunner()
 
@@ -166,7 +167,7 @@ def test_import_cli_nonexistent(tmp_path: Path) -> None:
 def test_postprocess_markdown() -> None:
     """Blank lines collapsed, trailing whitespace stripped."""
     raw = "# Title\n\n\n\nParagraph   \n\n\n\n\nEnd  "
-    cleaned = _postprocess_markdown(raw)
+    cleaned = postprocess_markdown(raw)
     assert "\n\n\n" not in cleaned
     assert "   \n" not in cleaned
     assert cleaned.endswith("\n")
@@ -251,3 +252,79 @@ def test_converter_table_empty() -> None:
     md = _convert_html(html)
     # Should not crash; result is whatever fallback markdownify gives
     assert isinstance(md, str)
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive DOCX fixture tests — realistic multi-feature document
+# ---------------------------------------------------------------------------
+
+
+class TestComprehensiveDocx:
+    """Tests using the comprehensive_docx fixture (realistic business document)."""
+
+    @pytest.fixture(autouse=True)
+    def _convert(self, comprehensive_docx: Path, tmp_output: Path) -> None:
+        self.result = import_docx(comprehensive_docx, output_path=tmp_output)
+        self.content = self.result.markdown_path.read_text()
+
+    def test_converts_successfully(self) -> None:
+        """Full document converts without errors."""
+        assert self.result.markdown_path.exists()
+        assert len(self.content) > 200
+
+    def test_title_heading(self) -> None:
+        """H1 title present."""
+        assert "# Quarterly Report" in self.content
+
+    def test_h2_headings(self) -> None:
+        """H2 headings present."""
+        assert "## Executive Summary" in self.content
+        assert "## Key Highlights" in self.content
+        assert "## Financial Summary" in self.content
+
+    def test_h3_heading(self) -> None:
+        """H3 heading present."""
+        assert "### Regional Breakdown" in self.content
+
+    def test_bold_formatting(self) -> None:
+        """Bold text preserved."""
+        assert "**Revenue grew 15%**" in self.content
+
+    def test_italic_formatting(self) -> None:
+        """Italic text preserved."""
+        assert "*operating costs*" in self.content
+
+    def test_hyperlink(self) -> None:
+        """Hyperlink converted to markdown link syntax."""
+        assert "[the full report](https://example.com/report)" in self.content
+
+    def test_bullet_list(self) -> None:
+        """Bullet list items present."""
+        assert "Customer retention" in self.content
+        assert "New product launch" in self.content
+        assert "Headcount grew" in self.content
+
+    def test_numbered_list(self) -> None:
+        """Numbered list items present."""
+        assert "Finalize budget" in self.content
+        assert "Schedule board" in self.content
+        assert "Update investor" in self.content
+
+    def test_table(self) -> None:
+        """Table converted to pipe format with all data."""
+        assert "Metric" in self.content
+        assert "Q3 2024" in self.content
+        assert "Revenue" in self.content
+        assert "$2.4M" in self.content
+        assert "---" in self.content
+
+    def test_image_extracted(self) -> None:
+        """Embedded image extracted to assets/."""
+        assert len(self.result.images) >= 1
+        assert self.result.images[0].exists()
+        assert "assets/" in self.content
+
+    def test_body_text(self) -> None:
+        """Body paragraphs preserved."""
+        assert "Q4 2024" in self.content
+        assert "North America led growth" in self.content
