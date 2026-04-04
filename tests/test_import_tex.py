@@ -528,3 +528,199 @@ class TestAcademicPaper:
         """Converter produces warnings for missing images."""
         assert len(self.result.warnings) > 0
         assert any("Image not found" in w for w in self.result.warnings)
+
+
+# ---------------------------------------------------------------------------
+# Edge case and coverage gap tests
+# ---------------------------------------------------------------------------
+
+
+def _convert_snippet(tex: str, tmp_path: Path, tmp_output: Path, **kwargs) -> tuple[str, list[str]]:
+    """Helper: write tex to file, convert, return (content, warnings)."""
+    path = tmp_path / "test.tex"
+    path.write_text(tex, encoding="utf-8")
+    result = import_tex(path, output_path=tmp_output, **kwargs)
+    return result.markdown_path.read_text(), result.warnings
+
+
+class TestTexEdgeCases:
+    """Tests targeting specific uncovered code paths in converter_tex.py."""
+
+    def test_date_and_maketitle(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\date and \\maketitle render title block with date."""
+        tex = r"""\documentclass{article}
+\title{My Paper}
+\author{Jane Doe}
+\date{2025-01-01}
+\begin{document}
+\maketitle
+Hello.
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "# My Paper" in content
+        assert "Jane Doe" in content
+        assert "2025-01-01" in content
+
+    def test_maketitle_no_metadata(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\maketitle with no title/author/date produces nothing."""
+        tex = r"""\documentclass{article}
+\begin{document}
+\maketitle
+Hello.
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Hello" in content
+
+    def test_eqref_and_autoref(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\eqref and \\autoref produce ref markers."""
+        tex = r"""\documentclass{article}
+\begin{document}
+See equation \eqref{eq:main} and \autoref{fig:one}.
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "[ref:eq:main]" in content
+        assert "[ref:fig:one]" in content
+
+    def test_citep_and_citeyear(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\citep and \\citeyear produce bracketed keys."""
+        tex = r"""\documentclass{article}
+\begin{document}
+Results from \citep{smith2020} published in \citeyear{smith2020}.
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "[smith2020]" in content
+
+    def test_unsupported_image_format(self, tmp_path: Path, tmp_output: Path) -> None:
+        """EPS/PDF images produce a warning."""
+        (tmp_path / "figure.eps").write_bytes(b"fake eps")
+        tex = r"""\documentclass{article}
+\usepackage{graphicx}
+\begin{document}
+\includegraphics{figure.eps}
+\end{document}
+"""
+        _, warnings = _convert_snippet(tex, tmp_path, tmp_output)
+        assert any("Unsupported image format" in w for w in warnings)
+
+    def test_image_extension_resolution(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\includegraphics without extension finds .png file."""
+        (tmp_path / "diagram.png").write_bytes(make_png())
+        tex = r"""\documentclass{article}
+\usepackage{graphicx}
+\begin{document}
+\includegraphics{diagram}
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "![](assets/" in content
+
+    def test_skip_environment_warns(self, tmp_path: Path, tmp_output: Path) -> None:
+        """tikzpicture environment is skipped with a warning."""
+        tex = r"""\documentclass{article}
+\begin{document}
+Before.
+\begin{tikzpicture}
+\draw (0,0) -- (1,1);
+\end{tikzpicture}
+After.
+\end{document}
+"""
+        content, warnings = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Before" in content
+        assert "After" in content
+        assert "draw" not in content
+        assert any("tikzpicture" in w for w in warnings)
+
+    def test_unknown_environment_warns(self, tmp_path: Path, tmp_output: Path) -> None:
+        """Unknown environments render body with a warning."""
+        tex = r"""\documentclass{article}
+\begin{document}
+\begin{customenv}
+Body text here.
+\end{customenv}
+\end{document}
+"""
+        content, warnings = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Body text here" in content
+        assert any("customenv" in w for w in warnings)
+
+    def test_center_and_minipage_passthrough(self, tmp_path: Path, tmp_output: Path) -> None:
+        """center and minipage environments pass through their content."""
+        tex = r"""\documentclass{article}
+\begin{document}
+\begin{center}
+Centered text.
+\end{center}
+\begin{minipage}{0.5\textwidth}
+Mini content.
+\end{minipage}
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Centered text" in content
+        assert "Mini content" in content
+
+    def test_backslash_newline(self, tmp_path: Path, tmp_output: Path) -> None:
+        """Double backslash produces a newline."""
+        tex = r"""\documentclass{article}
+\begin{document}
+Line one.\\Line two.
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Line one." in content
+        assert "Line two." in content
+
+    def test_unknown_macro_fallback(self, tmp_path: Path, tmp_output: Path) -> None:
+        """Unknown macros render their argument and warn."""
+        tex = r"""\documentclass{article}
+\begin{document}
+Hello \custommacro{world}.
+\end{document}
+"""
+        content, warnings = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "world" in content
+        assert any("custommacro" in w for w in warnings)
+
+    def test_definition_macro_warns(self, tmp_path: Path, tmp_output: Path) -> None:
+        """\\renewcommand and \\def produce warnings."""
+        tex = r"""\documentclass{article}
+\renewcommand{\foo}{bar}
+\def\baz{qux}
+\begin{document}
+Hello.
+\end{document}
+"""
+        _, warnings = _convert_snippet(tex, tmp_path, tmp_output)
+        assert any("renewcommand" in w for w in warnings)
+        assert any("def" in w for w in warnings)
+
+    def test_read_failure_raises(self, tmp_path: Path, tmp_output: Path) -> None:
+        """Unreadable file raises TexImportError."""
+        path = tmp_path / "bad.tex"
+        path.write_bytes(b"\x80\x81\x82")  # invalid UTF-8
+        with pytest.raises(TexImportError, match="Failed to read"):
+            import_tex(path, output_path=tmp_output)
+
+    def test_tabular_column_alignment(self, tmp_path: Path, tmp_output: Path) -> None:
+        """Table column alignment parsed from col spec."""
+        tex = r"""\documentclass{article}
+\begin{document}
+\begin{tabular}{|l|c|r|}
+Left & Center & Right \\
+A & B & C \\
+\end{tabular}
+\end{document}
+"""
+        content, _ = _convert_snippet(tex, tmp_path, tmp_output)
+        assert "Left" in content
+        assert "---" in content
+        # Check alignment markers in separator
+        lines = [ln for ln in content.split("\n") if "---" in ln and "|" in ln]
+        assert len(lines) >= 1
+        sep = lines[0]
+        assert ":" in sep  # center or right alignment marker

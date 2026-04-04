@@ -365,6 +365,56 @@ def test_convert_shape_no_warn_on_freeform() -> None:
     assert len(warnings) == 0
 
 
+def test_runs_to_markdown_hyperlink() -> None:
+    """Hyperlinks in runs produce markdown link syntax."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "Click here"
+    run.font.bold = False
+    run.font.italic = False
+    run.hyperlink.address = "https://example.com"
+    para.runs = [run]
+
+    md = _runs_to_markdown(para)
+    assert "[Click here](https://example.com)" in md
+
+
+def test_runs_to_markdown_bold_hyperlink() -> None:
+    """Bold text with a hyperlink unwraps formatting for the link text."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "bold link"
+    run.font.bold = True
+    run.font.italic = False
+    run.hyperlink.address = "https://example.com"
+    para.runs = [run]
+
+    md = _runs_to_markdown(para)
+    assert "[bold link](https://example.com)" in md
+
+
+def test_runs_to_markdown_empty_run() -> None:
+    """Runs with empty text are skipped."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    empty_run = MagicMock()
+    empty_run.text = ""
+    text_run = MagicMock()
+    text_run.text = "visible"
+    text_run.font.bold = False
+    text_run.font.italic = False
+    text_run.hyperlink = None
+    para.runs = [empty_run, text_run]
+
+    md = _runs_to_markdown(para)
+    assert md == "visible"
+
+
 # --- CLI integration ---
 
 
