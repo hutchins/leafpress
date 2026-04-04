@@ -6,11 +6,12 @@ import logging
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
-from docx import Document
+from docx.document import Document as DocxDocument
 from docx.enum.text import WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+from docx.text.paragraph import Paragraph
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class HtmlToDocxConverter:
     """Converts HTML fragments into python-docx document elements."""
 
-    def __init__(self, doc: Document, docs_dir: Path) -> None:
+    def __init__(self, doc: DocxDocument, docs_dir: Path) -> None:
         self._doc = doc
         self._docs_dir = docs_dir
 
@@ -49,7 +50,7 @@ class HtmlToDocxConverter:
             self._handle_table(element)
         elif tag == "pre":
             self._handle_code_block(element)
-        elif tag == "div" and "admonition" in element.get("class", []):
+        elif tag == "div" and "admonition" in list(element.get("class") or []):
             self._handle_admonition(element)
         elif tag == "img":
             self._handle_image(element)
@@ -80,7 +81,7 @@ class HtmlToDocxConverter:
     def _handle_list(self, element: Tag, ordered: bool, level: int = 0) -> None:
         """Convert list tags to DOCX list items."""
         for _i, li in enumerate(element.find_all("li", recursive=False)):
-            is_task_item = "task-list-item" in li.get("class", [])
+            is_task_item = "task-list-item" in list(li.get("class") or [])
 
             if is_task_item:
                 para = self._doc.add_paragraph()
@@ -158,7 +159,7 @@ class HtmlToDocxConverter:
         title_text = title_el.get_text(strip=True) if title_el else "Note"
 
         # Determine admonition type for color
-        classes = element.get("class", [])
+        classes = list(element.get("class") or [])
         color = self._admonition_color(classes)
 
         # Title paragraph
@@ -175,7 +176,7 @@ class HtmlToDocxConverter:
         for child in element.children:
             if (
                 isinstance(child, Tag)
-                and "admonition-title" not in child.get("class", [])
+                and "admonition-title" not in list(child.get("class") or [])
                 and child.name == "p"
             ):
                 para = self._doc.add_paragraph()
@@ -185,7 +186,8 @@ class HtmlToDocxConverter:
 
     def _handle_image(self, element: Tag) -> None:
         """Insert an image into the document."""
-        src = element.get("src", "")
+        src_raw = element.get("src")
+        src = str(src_raw) if src_raw else ""
         if not src:
             return
 
@@ -230,7 +232,7 @@ class HtmlToDocxConverter:
 
     def _add_inline_content(
         self,
-        para: object,
+        para: Paragraph,
         element: Tag,
         skip_nested_lists: bool = False,
         skip_task_controls: bool = False,
@@ -281,9 +283,10 @@ class HtmlToDocxConverter:
                 elif child.name == "br":
                     para.add_run("\n")  # type: ignore[union-attr]
                 elif child.name == "img" and any(
-                    c in child.get("class", []) for c in ("emojione", "twemoji", "gemoji")
+                    c in list(child.get("class") or []) for c in ("emojione", "twemoji", "gemoji")
                 ):
-                    alt = child.get("alt", "")
+                    alt_raw = child.get("alt")
+                    alt = str(alt_raw) if alt_raw else ""
                     if alt:
                         para.add_run(alt)  # type: ignore[union-attr]
                 elif child.name == "img":
@@ -334,9 +337,9 @@ class HtmlToDocxConverter:
                 return color_map[cls]
         return RGBColor(0x44, 0x8A, 0xFF)
 
-    def _add_left_border(self, para: object, color: RGBColor) -> None:
+    def _add_left_border(self, para: Paragraph, color: RGBColor) -> None:
         """Add a colored left border to a paragraph."""
-        p_pr = para._element.get_or_add_pPr()  # type: ignore[union-attr]
+        p_pr = para._element.get_or_add_pPr()
         p_bdr = OxmlElement("w:pBdr")
         left = OxmlElement("w:left")
         left.set(qn("w:val"), "single")

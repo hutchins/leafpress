@@ -108,6 +108,14 @@ show_missing = true
 skip_empty = true
 fail_under = 70
 
+[tool.ty.environment]
+extra-paths = ["tests"]
+
+[[tool.ty.overrides]]
+include = ["src/leafpress/ui/", "src/leafpress/doctor.py", "src/leafpress/package_version.py"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+
 [tool.mypy]
 python_version = "3.10"
 strict = true

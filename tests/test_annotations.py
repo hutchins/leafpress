@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from leafpress.annotations import (
     _build_annotation_block,
@@ -76,6 +76,7 @@ def test_replace_single_marker() -> None:
     """Replaces a single (1) marker with <sup>."""
     soup = _soup('<p class="annotate">Hello (1) world</p>')
     element = soup.find("p")
+    assert isinstance(element, Tag)
     _replace_markers(element, soup)
     sups = element.find_all("sup", class_="annotation-ref")
     assert len(sups) == 1
@@ -88,6 +89,7 @@ def test_replace_multiple_markers() -> None:
     """Replaces (1) and (2) in the same text node."""
     soup = _soup('<p class="annotate">A (1) B (2) C</p>')
     element = soup.find("p")
+    assert isinstance(element, Tag)
     _replace_markers(element, soup)
     sups = element.find_all("sup", class_="annotation-ref")
     assert len(sups) == 2
@@ -99,6 +101,7 @@ def test_replace_no_markers_unchanged() -> None:
     """Element without markers is not modified."""
     soup = _soup('<p class="annotate">No markers here</p>')
     element = soup.find("p")
+    assert isinstance(element, Tag)
     original_text = element.get_text()
     _replace_markers(element, soup)
     assert element.get_text() == original_text
@@ -109,6 +112,7 @@ def test_replace_ignores_non_digit_parens() -> None:
     """Parenthesized text like (abc) is not replaced."""
     soup = _soup('<p class="annotate">Call func(abc) here</p>')
     element = soup.find("p")
+    assert isinstance(element, Tag)
     _replace_markers(element, soup)
     assert element.find("sup") is None
     assert "(abc)" in element.get_text()
@@ -118,12 +122,15 @@ def test_replace_skips_markers_inside_code() -> None:
     """Markers inside <code> tags are left alone."""
     soup = _soup('<p class="annotate">See <code>func(1)</code> here (2)</p>')
     element = soup.find("p")
+    assert isinstance(element, Tag)
     _replace_markers(element, soup)
     sups = element.find_all("sup", class_="annotation-ref")
     # Only (2) should be replaced, not func(1) inside <code>
     assert len(sups) == 1
     assert sups[0].string == "2"
-    assert "func(1)" in element.find("code").get_text()
+    code_el = element.find("code")
+    assert isinstance(code_el, Tag)
+    assert "func(1)" in code_el.get_text()
 
 
 # --- _build_annotation_block ---
@@ -133,14 +140,19 @@ def test_build_basic_annotation_block() -> None:
     """Converts <ol> with two items into styled annotation block."""
     soup = _soup("<ol><li>First note</li><li>Second note</li></ol>")
     ol = soup.find("ol")
+    assert isinstance(ol, Tag)
     block = _build_annotation_block(ol, soup)
     assert block.name == "div"
-    assert "annotation-list" in block.get("class", [])
+    assert "annotation-list" in list(block.get("class") or [])
     items = block.find_all("p", class_="annotation-item")
     assert len(items) == 2
-    assert items[0].find("sup").string == "1"
+    sup0 = items[0].find("sup")
+    assert isinstance(sup0, Tag)
+    assert sup0.string == "1"
     assert "First note" in items[0].get_text()
-    assert items[1].find("sup").string == "2"
+    sup1 = items[1].find("sup")
+    assert isinstance(sup1, Tag)
+    assert sup1.string == "2"
     assert "Second note" in items[1].get_text()
 
 
@@ -148,8 +160,10 @@ def test_build_annotation_with_emoji_img() -> None:
     """Preserves <img class="twemoji"> inside annotation items."""
     soup = _soup('<ol><li><img class="twemoji" alt="👋"> Hello</li></ol>')
     ol = soup.find("ol")
+    assert isinstance(ol, Tag)
     block = _build_annotation_block(ol, soup)
     item = block.find("p", class_="annotation-item")
+    assert isinstance(item, Tag)
     img = item.find("img", class_="twemoji")
     assert img is not None
     assert img["alt"] == "👋"
@@ -159,8 +173,10 @@ def test_build_annotation_with_inline_formatting() -> None:
     """Preserves bold/code inside annotation items."""
     soup = _soup("<ol><li><strong>Important</strong> note with <code>code</code></li></ol>")
     ol = soup.find("ol")
+    assert isinstance(ol, Tag)
     block = _build_annotation_block(ol, soup)
     item = block.find("p", class_="annotation-item")
+    assert isinstance(item, Tag)
     assert item.find("strong") is not None
     assert item.find("code") is not None
 
@@ -209,7 +225,8 @@ def test_annotate_preserves_other_classes() -> None:
     result = render_annotations(html)
     soup = _soup(result)
     p = soup.find("p")
-    classes = p.get("class", [])
+    assert isinstance(p, Tag)
+    classes = list(p.get("class") or [])
     assert "custom" in classes
     assert "extra" in classes
     assert "annotate" not in classes
@@ -221,6 +238,7 @@ def test_annotate_removes_class_attr_when_only_annotate() -> None:
     result = render_annotations(html)
     soup = _soup(result)
     p = soup.find("p")
+    assert isinstance(p, Tag)
     # class attribute should be gone entirely
     assert p.get("class") is None
 

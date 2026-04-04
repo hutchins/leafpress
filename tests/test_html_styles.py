@@ -1,11 +1,13 @@
 """Tests for HTML CSS generation."""
 
+from typing import Any
+
 from leafpress.config import BrandingConfig
 from leafpress.html.styles import generate_html_css
 
 
-def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults = {"company_name": "TestCo", "project_name": "TestProject"}
+def _make_branding(**kwargs: Any) -> BrandingConfig:
+    defaults: dict[str, Any] = {"company_name": "TestCo", "project_name": "TestProject"}
     defaults.update(kwargs)
     return BrandingConfig(**defaults)
 

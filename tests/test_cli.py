@@ -3,9 +3,10 @@
 from pathlib import Path
 
 from docx import Document as DocxDocument
-from leafpress.cli import cli
 from pptx import Presentation
 from typer.testing import CliRunner
+
+from leafpress.cli import cli
 
 runner = CliRunner()
 
@@ -194,10 +195,7 @@ def test_convert_monorepo_config_no_mkdocs_required(tmp_path: Path) -> None:
     # Create monorepo config in tmp_path (no mkdocs.yml here)
     config = tmp_path / "leafpress.yml"
     config.write_text(
-        'company_name: "Test Corp"\n'
-        'project_name: "Monorepo Docs"\n'
-        "projects:\n"
-        "  - services/api\n"
+        'company_name: "Test Corp"\nproject_name: "Monorepo Docs"\nprojects:\n  - services/api\n'
     )
 
     out = tmp_path / "output"

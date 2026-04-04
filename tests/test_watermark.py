@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -101,7 +102,7 @@ class TestWatermarkConfig:
 class TestWatermarkPdfCss:
     """Test watermark CSS generation for PDF."""
 
-    def _make_branding(self, **wm_kwargs: object) -> BrandingConfig:
+    def _make_branding(self, **wm_kwargs: Any) -> BrandingConfig:
         return BrandingConfig(
             company_name="Test",
             project_name="Test",
@@ -140,7 +141,7 @@ class TestWatermarkPdfCss:
 class TestWatermarkHtmlCss:
     """Test watermark CSS generation for HTML."""
 
-    def _make_branding(self, **wm_kwargs: object) -> BrandingConfig:
+    def _make_branding(self, **wm_kwargs: Any) -> BrandingConfig:
         return BrandingConfig(
             company_name="Test",
             project_name="Test",

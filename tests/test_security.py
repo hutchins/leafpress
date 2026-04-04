@@ -91,6 +91,7 @@ class TestPathTraversal:
         config_file.write_text("company_name: Test\nproject_name: Test\nlogo_path: ../secret.png\n")
 
         cfg = load_config(config_file)
+        assert cfg.logo_path is not None
         resolved = Path(cfg.logo_path).resolve()
 
         # The resolved path should NOT escape the project directory
@@ -114,6 +115,7 @@ class TestPathTraversal:
 
         # Currently this is allowed — document the behavior
         cfg = load_config(config_file)
+        assert cfg.logo_path is not None
         assert Path(cfg.logo_path).resolve() == secret.resolve()
 
     def test_logo_path_null_byte_rejected(self, tmp_path: Path) -> None:
@@ -165,6 +167,7 @@ class TestPathTraversal:
         )
 
         cfg = load_config(config_file)
+        assert cfg.logo_path is not None
         resolved = Path(cfg.logo_path).resolve()
         assert resolved == logo.resolve()
 

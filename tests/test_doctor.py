@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -124,7 +125,7 @@ def test_weasyprint_package_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             raise OSError("cannot load library 'libgobject-2.0-0'")
         return real_import(name, *args, **kwargs)
@@ -144,7 +145,7 @@ def test_weasyprint_package_oserror_captures_debug_output(
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             # Simulate WeasyPrint printing to stderr before raising
             import sys as _sys
@@ -165,7 +166,7 @@ def test_weasyprint_syslibs_oserror_at_import(monkeypatch: pytest.MonkeyPatch) -
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             raise OSError("cannot load library 'libcairo'")
         return real_import(name, *args, **kwargs)
@@ -186,7 +187,7 @@ def test_weasyprint_syslibs_oserror_captures_debug_output(
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             import sys as _sys
 
@@ -602,6 +603,7 @@ def test_temp_dir_writable() -> None:
     """Passes on a normal system with a writable temp dir."""
     result = _check_temp_dir()
     assert result.passed is True
+    assert result.version is not None
     assert "MB free" in result.version
 
 
@@ -625,6 +627,7 @@ def test_latest_version_up_to_date() -> None:
     with patch("leafpress.doctor.requests.get", return_value=mock_resp):
         result = _check_latest_version("1.0.0")
     assert result.passed is True
+    assert result.version is not None
     assert "up to date" in result.version
 
 
@@ -646,6 +649,7 @@ def test_latest_version_network_error() -> None:
     with patch("leafpress.doctor.requests.get", side_effect=Exception("timeout")):
         result = _check_latest_version("1.0.0")
     assert result.passed is True
+    assert result.version is not None
     assert "could not check" in result.version
 
 

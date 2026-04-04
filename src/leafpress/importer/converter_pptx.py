@@ -67,7 +67,7 @@ def import_pptx(
     # Parse PPTX
     with console.status("[bold blue]Converting PPTX to Markdown..."):
         try:
-            prs = Presentation(pptx_path)
+            prs = Presentation(str(pptx_path))
         except Exception as e:
             raise PptxImportError(f"Failed to open PPTX: {e}") from e
 
