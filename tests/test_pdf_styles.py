@@ -7,24 +7,29 @@ from leafpress.git_info import GitVersion
 from leafpress.pdf.styles import generate_pdf_css
 
 
-def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults = {"company_name": "TestCo", "project_name": "TestProject"}
-    defaults.update(kwargs)
-    return BrandingConfig(**defaults)
+def _make_branding(
+    primary_color: str = "#1a73e8",
+) -> BrandingConfig:
+    return BrandingConfig(
+        company_name="TestCo",
+        project_name="TestProject",
+        primary_color=primary_color,
+    )
 
 
-def _make_git_info(**kwargs: object) -> GitVersion:
-    defaults = {
-        "branch": "main",
-        "commit_hash": "abc1234",
-        "commit_hash_full": "abc1234567890abcdef1234567890abcdef123456",
-        "commit_date": datetime(2025, 1, 15, tzinfo=timezone.utc),
-        "is_dirty": False,
-        "tag": "v1.0.0",
-        "tag_distance": 0,
-    }
-    defaults.update(kwargs)
-    return GitVersion(**defaults)
+def _make_git_info(
+    tag: str = "v1.0.0",
+    tag_distance: int = 0,
+) -> GitVersion:
+    return GitVersion(
+        branch="main",
+        commit_hash="abc1234",
+        commit_hash_full="abc1234567890abcdef1234567890abcdef123456",
+        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        is_dirty=False,
+        tag=tag,
+        tag_distance=tag_distance,
+    )
 
 
 def test_generate_css_with_branding() -> None:

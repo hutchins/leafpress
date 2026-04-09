@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from leafpress.config import WatermarkConfig, load_config
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer

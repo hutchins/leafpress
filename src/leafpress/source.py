@@ -60,7 +60,7 @@ def resolve_source(
 def _clone_repo(url: str, branch: str | None) -> Path:
     """Clone a git repo to a temporary directory."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="leafpress_"))
-    clone_kwargs: dict[str, object] = {"depth": 50}
+    clone_kwargs: dict[str, str | int] = {"depth": 50}
     if branch:
         clone_kwargs["branch"] = branch
 

@@ -11,7 +11,7 @@ format:
 	uv run ruff format src/
 
 typecheck:
-	-uv run ty check
+	uv run ty check
 
 setup-hooks:
 	git config core.hooksPath .githooks

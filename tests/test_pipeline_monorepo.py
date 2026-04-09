@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from leafpress.config import BrandingConfig, ProjectEntry
 from leafpress.exceptions import SourceError
 from leafpress.pipeline import _build_chapter_cover, _collect_monorepo_pages
@@ -47,10 +48,16 @@ def monorepo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _branding(**kwargs) -> BrandingConfig:
-    defaults = {"company_name": "Test Corp", "project_name": "Platform Docs"}
-    defaults.update(kwargs)
-    return BrandingConfig(**defaults)
+def _branding(
+    author: str | None = None,
+    document_owner: str | None = None,
+) -> BrandingConfig:
+    return BrandingConfig(
+        company_name="Test Corp",
+        project_name="Platform Docs",
+        author=author,
+        document_owner=document_owner,
+    )
 
 
 # --- _collect_monorepo_pages ---
@@ -450,7 +457,7 @@ def test_monorepo_root_used_for_version_detection(monorepo: Path) -> None:
         ProjectEntry(path="services/api/docs", root="services/api"),
     ]
 
-    pages, count = _collect_monorepo_pages(
+    pages, _count = _collect_monorepo_pages(
         projects,
         monorepo,
         monorepo / "mermaid",
@@ -477,7 +484,7 @@ def test_monorepo_no_root_uses_path_for_version(monorepo: Path) -> None:
         ProjectEntry(path="services/api"),  # no root set
     ]
 
-    pages, count = _collect_monorepo_pages(
+    pages, _count = _collect_monorepo_pages(
         projects,
         monorepo,
         monorepo / "mermaid",

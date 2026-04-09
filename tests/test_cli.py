@@ -3,9 +3,10 @@
 from pathlib import Path
 
 from docx import Document as DocxDocument
-from leafpress.cli import cli
 from pptx import Presentation
 from typer.testing import CliRunner
+
+from leafpress.cli import cli
 
 runner = CliRunner()
 

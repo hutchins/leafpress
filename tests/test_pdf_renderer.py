@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from leafpress.config import load_config
 from leafpress.exceptions import RenderError
 from leafpress.git_info import extract_git_info
