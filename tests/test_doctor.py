@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,11 +14,15 @@ from leafpress.doctor import (
     CheckResult,
     DoctorReport,
     _check_core_dep,
+    _check_import_formats,
+    _check_latest_version,
     _check_pyobjc,
     _check_pyqt6,
     _check_python,
+    _check_temp_dir,
     _check_weasyprint_package,
     _check_weasyprint_system_libs,
+    _import_formats_line,
     print_report,
     run_doctor,
 )
@@ -120,7 +125,7 @@ def test_weasyprint_package_oserror(monkeypatch: pytest.MonkeyPatch) -> None:
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             raise OSError("cannot load library 'libgobject-2.0-0'")
         return real_import(name, *args, **kwargs)
@@ -140,7 +145,7 @@ def test_weasyprint_package_oserror_captures_debug_output(
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             # Simulate WeasyPrint printing to stderr before raising
             import sys as _sys
@@ -161,7 +166,7 @@ def test_weasyprint_syslibs_oserror_at_import(monkeypatch: pytest.MonkeyPatch) -
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             raise OSError("cannot load library 'libcairo'")
         return real_import(name, *args, **kwargs)
@@ -182,7 +187,7 @@ def test_weasyprint_syslibs_oserror_captures_debug_output(
 
     real_import = builtins.__import__
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "weasyprint":
             import sys as _sys
 
@@ -549,6 +554,128 @@ def test_doctor_cli_exit_code_one_on_failure() -> None:
     ):
         result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 1
+
+
+# --- Import format checks ---
+
+
+def test_import_formats_all_present() -> None:
+    """All four import format deps are detected when installed."""
+    results = _check_import_formats()
+    names = {r.name.strip() for r in results}
+    assert ".docx" in names
+    assert ".pptx" in names
+    assert ".xlsx" in names
+    assert ".tex" in names
+    assert all(r.passed for r in results)
+
+
+def test_import_formats_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Missing import dep is detected with install hint."""
+    monkeypatch.setitem(sys.modules, "pylatexenc", None)
+    results = _check_import_formats()
+    tex_result = next(r for r in results if ".tex" in r.name)
+    assert tex_result.passed is False
+    assert "pylatexenc" in tex_result.install_hint
+
+
+def test_import_formats_line() -> None:
+    """_import_formats_line renders a summary with check marks."""
+    report = DoctorReport(
+        checks=[
+            CheckResult(name="  .docx", passed=True),
+            CheckResult(name="  .pptx", passed=True),
+            CheckResult(name="  .xlsx", passed=False),
+            CheckResult(name="  .tex", passed=True),
+        ]
+    )
+    line = _import_formats_line(report)
+    assert ".docx" in line
+    assert ".xlsx" in line
+    assert "✓" in line
+    assert "✗" in line
+
+
+# --- Temp directory check ---
+
+
+def test_temp_dir_writable() -> None:
+    """Passes on a normal system with a writable temp dir."""
+    result = _check_temp_dir()
+    assert result.passed is True
+    assert result.version is not None
+    assert "MB free" in result.version
+
+
+def test_temp_dir_not_writable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fails when temp dir is not writable."""
+    monkeypatch.setattr("leafpress.doctor.tempfile.gettempdir", lambda: "/nonexistent/path")
+    result = _check_temp_dir()
+    assert result.passed is False
+    assert "Cannot write" in result.message
+
+
+# --- Version staleness check ---
+
+
+def test_latest_version_up_to_date() -> None:
+    """Passes when current version matches PyPI."""
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"info": {"version": "1.0.0"}}
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("leafpress.doctor.requests.get", return_value=mock_resp):
+        result = _check_latest_version("1.0.0")
+    assert result.passed is True
+    assert result.version is not None
+    assert "up to date" in result.version
+
+
+def test_latest_version_outdated() -> None:
+    """Fails with upgrade hint when PyPI has a newer version."""
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"info": {"version": "2.0.0"}}
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("leafpress.doctor.requests.get", return_value=mock_resp):
+        result = _check_latest_version("1.0.0")
+    assert result.passed is False
+    assert "2.0.0" in result.message
+    assert "upgrade" in result.install_hint
+
+
+def test_latest_version_network_error() -> None:
+    """Gracefully passes when PyPI is unreachable."""
+    with patch("leafpress.doctor.requests.get", side_effect=Exception("timeout")):
+        result = _check_latest_version("1.0.0")
+    assert result.passed is True
+    assert result.version is not None
+    assert "could not check" in result.version
+
+
+# --- run_doctor includes new checks ---
+
+
+def test_run_doctor_includes_import_formats() -> None:
+    """run_doctor report includes import format checks."""
+    report = run_doctor()
+    names = {c.name.strip() for c in report.checks}
+    assert ".docx" in names
+    assert ".tex" in names
+
+
+def test_run_doctor_includes_temp_dir() -> None:
+    """run_doctor report includes temp directory check."""
+    report = run_doctor()
+    names = {c.name for c in report.checks}
+    assert "Temp directory" in names
+
+
+def test_run_doctor_includes_version_check() -> None:
+    """run_doctor report includes version staleness check."""
+    report = run_doctor()
+    names = {c.name for c in report.checks}
+    assert "Latest version" in names
 
 
 # --- Rich escape regression ---

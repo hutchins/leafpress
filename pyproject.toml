@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "leafpress"
-version = "0.8.0"
+version = "0.8.1"
 description = "Convert MkDocs sites to PDF, Word, HTML, ODT, EPUB, and Markdown documents with branding"
 readme = "README.md"
 authors = [{name = "Shane Hutchins", email = "hutchins@users.noreply.github.com"}]
@@ -107,6 +107,14 @@ omit = ["src/leafpress/ui/*"]
 show_missing = true
 skip_empty = true
 fail_under = 70
+
+[tool.ty.environment]
+extra-paths = ["tests"]
+
+[[tool.ty.overrides]]
+include = ["src/leafpress/ui/", "src/leafpress/doctor.py", "src/leafpress/package_version.py"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
 
 [tool.mypy]
 python_version = "3.10"

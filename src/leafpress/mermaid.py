@@ -157,8 +157,8 @@ def _find_mermaid_blocks(soup: BeautifulSoup) -> list[Tag]:
         if not code:
             continue
 
-        code_classes = code.get("class", [])
-        pre_classes = pre.get("class", [])
+        code_classes = list(code.get("class") or [])
+        pre_classes = list(pre.get("class") or [])
 
         if (
             "language-mermaid" in code_classes
@@ -198,6 +198,7 @@ def render_mermaid_blocks(
 
     for pre in blocks:
         code = pre.find("code")
+        assert isinstance(code, Tag)
         source = _sanitize_mermaid_source(code.get_text())
         if not source.strip():
             continue

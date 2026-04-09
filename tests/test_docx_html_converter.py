@@ -3,11 +3,12 @@
 from pathlib import Path
 
 from docx import Document
+from docx.document import Document as DocxDocument
 
 from leafpress.docx.html_converter import HtmlToDocxConverter
 
 
-def _make_converter(tmp_path: Path) -> tuple[Document, HtmlToDocxConverter]:
+def _make_converter(tmp_path: Path) -> tuple[DocxDocument, HtmlToDocxConverter]:
     doc = Document()
     converter = HtmlToDocxConverter(doc, tmp_path)
     return doc, converter

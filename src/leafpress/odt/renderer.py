@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 from odf.draw import Frame, Image
@@ -45,6 +46,8 @@ class OdtRenderer:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._table_count = 0
+        self._image_count = 0
 
     def render(
         self,
@@ -83,7 +86,7 @@ class OdtRenderer:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(str(output_path))
 
-    def _setup_styles(self, doc: OpenDocumentText) -> None:
+    def _setup_styles(self, doc: Any) -> None:
         """Configure document styles with branding colors."""
         primary = self._branding.primary_color if self._branding else "#1a73e8"
 
@@ -222,7 +225,7 @@ class OdtRenderer:
         )
         doc.automaticstyles.addElement(header_cell)
 
-    def _setup_page_layout(self, doc: OpenDocumentText) -> None:
+    def _setup_page_layout(self, doc: Any) -> None:
         """Configure page layout and footer."""
         layout = PageLayout(name="PageLayout")
         layout.addElement(
@@ -264,7 +267,7 @@ class OdtRenderer:
         clean = path.split("?")[0].split("#")[0]
         return clean.lower().endswith(".svg")
 
-    def _add_cover_page(self, doc: OpenDocumentText) -> None:
+    def _add_cover_page(self, doc: Any) -> None:
         """Add a branded cover page."""
         # Logo
         if self._branding and self._branding.logo_path:
@@ -325,7 +328,7 @@ class OdtRenderer:
 
     def _add_toc(
         self,
-        doc: OpenDocumentText,
+        doc: Any,
         html_pages: list[tuple[NavItem, str]],
     ) -> None:
         """Add a simple table of contents."""
@@ -355,7 +358,7 @@ class OdtRenderer:
 
         doc.text.addElement(P())
 
-    def _convert_html(self, doc: OpenDocumentText, html: str) -> None:
+    def _convert_html(self, doc: Any, html: str) -> None:
         """Convert an HTML fragment and append to the ODT document."""
         if not html.strip():
             return
@@ -369,7 +372,7 @@ class OdtRenderer:
             if isinstance(element, Tag):
                 self._process_element(doc, element)
 
-    def _process_element(self, doc: OpenDocumentText, element: Tag) -> None:
+    def _process_element(self, doc: Any, element: Tag) -> None:
         """Dispatch an HTML element to the appropriate handler."""
         tag = element.name
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
@@ -401,7 +404,8 @@ class OdtRenderer:
             p.addText("─" * 40)
             doc.text.addElement(p)
         elif tag == "img":
-            src = element.get("src", "")
+            src_raw = element.get("src")
+            src = str(src_raw) if src_raw else ""
             if src.startswith("file://"):
                 image_path = Path(src.removeprefix("file://"))
                 if image_path.exists():
@@ -411,7 +415,7 @@ class OdtRenderer:
                 if isinstance(child, Tag):
                     self._process_element(doc, child)
 
-    def _add_inline(self, parent: P, element: Tag) -> None:
+    def _add_inline(self, parent: Any, element: Tag) -> None:
         """Add inline formatted content to a paragraph."""
         for child in element.children:
             if isinstance(child, NavigableString):
@@ -438,15 +442,16 @@ class OdtRenderer:
                 elif child.name == "br":
                     parent.addText("\n")
                 elif child.name == "img" and any(
-                    c in child.get("class", []) for c in ("emojione", "twemoji", "gemoji")
+                    c in list(child.get("class") or []) for c in ("emojione", "twemoji", "gemoji")
                 ):
-                    alt = child.get("alt", "")
+                    alt_raw = child.get("alt")
+                    alt = str(alt_raw) if alt_raw else ""
                     if alt:
                         parent.addText(alt)
                 else:
                     self._add_inline(parent, child)
 
-    def _handle_list(self, doc: OpenDocumentText, element: Tag) -> None:
+    def _handle_list(self, doc: Any, element: Tag) -> None:
         """Convert HTML list to ODT list items as indented paragraphs."""
         for li in element.find_all("li", recursive=False):
             p = P(stylename="Normal")
@@ -456,7 +461,7 @@ class OdtRenderer:
             self._add_inline(p, li)
             doc.text.addElement(p)
 
-    def _handle_table(self, doc: OpenDocumentText, element: Tag) -> None:
+    def _handle_table(self, doc: Any, element: Tag) -> None:
         """Convert HTML table to ODT table."""
         rows = element.find_all("tr")
         if not rows:
@@ -467,15 +472,17 @@ class OdtRenderer:
         if not cols:
             return
 
+        self._table_count += 1
         table = Table(stylename="LeafpressTable")
 
-        # Add columns
-        col_style = Style(name="TableCol", family="table-column")
+        # Add columns with unique style name per table
+        col_style_name = f"TableCol{self._table_count}"
+        col_style = Style(name=col_style_name, family="table-column")
         col_style.addElement(TableColumnProperties(columnwidth=f"{6.5 / len(cols):.2f}in"))
         doc.automaticstyles.addElement(col_style)
 
         for _i in range(len(cols)):
-            table.addElement(TableColumn(stylename="TableCol"))
+            table.addElement(TableColumn(stylename=col_style_name))
 
         for row_idx, tr in enumerate(rows):
             table_row = TableRow()
@@ -497,10 +504,11 @@ class OdtRenderer:
 
         doc.text.addElement(table)
 
-    def _add_image(self, doc: OpenDocumentText, image_path: Path) -> None:
+    def _add_image(self, doc: Any, image_path: Path) -> None:
         """Add an image to the document."""
+        self._image_count += 1
         p = P(stylename="Normal")
-        img_style = Style(name="ImageFrame", family="graphic")
+        img_style = Style(name=f"ImageFrame{self._image_count}", family="graphic")
         img_style.addElement(
             GraphicProperties(
                 verticalpos="top",
@@ -512,7 +520,7 @@ class OdtRenderer:
         doc.automaticstyles.addElement(img_style)
 
         frame = Frame(
-            stylename="ImageFrame",
+            stylename=img_style,
             width="4in",
             height="2in",
         )
@@ -521,7 +529,7 @@ class OdtRenderer:
         p.addElement(frame)
         doc.text.addElement(p)
 
-    def _add_watermark_style(self, doc: OpenDocumentText) -> None:
+    def _add_watermark_style(self, doc: Any) -> None:
         """Add watermark style and insert watermark text on each page via header."""
         if not self._branding or not self._branding.watermark.text:
             return

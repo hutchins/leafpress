@@ -60,13 +60,12 @@ def resolve_source(
 def _clone_repo(url: str, branch: str | None) -> Path:
     """Clone a git repo to a temporary directory."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="leafpress_"))
-    clone_kwargs: dict[str, object] = {"depth": 50}
-    if branch:
-        clone_kwargs["branch"] = branch
-
     try:
         console.print(f"[dim]Cloning {url}...[/dim]")
-        Repo.clone_from(url, str(tmp_dir), **clone_kwargs)
+        if branch:
+            Repo.clone_from(url, str(tmp_dir), depth=50, branch=branch)
+        else:
+            Repo.clone_from(url, str(tmp_dir), depth=50)
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise SourceError(f"Failed to clone {url}: {e}") from e

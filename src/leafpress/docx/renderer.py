@@ -9,6 +9,7 @@ from pathlib import Path
 
 import requests
 from docx import Document
+from docx.document import Document as DocxDocument
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import nsmap, qn
@@ -86,7 +87,7 @@ class DocxRenderer:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         doc.save(str(output_path))
 
-    def _setup_header(self, doc: Document) -> None:
+    def _setup_header(self, doc: DocxDocument) -> None:
         """Add company name and logo to document header."""
         section = doc.sections[0]
         header = section.header
@@ -106,7 +107,7 @@ class DocxRenderer:
             run.font.size = Pt(8)
             run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
-    def _setup_footer(self, doc: Document) -> None:
+    def _setup_footer(self, doc: DocxDocument) -> None:
         """Add version info to document footer."""
         section = doc.sections[0]
         footer = section.footer
@@ -145,7 +146,7 @@ class DocxRenderer:
         run.font.size = Pt(7)
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
-    def _add_cover_page(self, doc: Document) -> None:
+    def _add_cover_page(self, doc: DocxDocument) -> None:
         """Add a branded cover page."""
         # Add some vertical spacing
         for _ in range(6):
@@ -262,7 +263,7 @@ class DocxRenderer:
         clean = path.split("?")[0].split("#")[0]
         return clean.lower().endswith(".svg")
 
-    def _add_toc_placeholder(self, doc: Document) -> None:
+    def _add_toc_placeholder(self, doc: DocxDocument) -> None:
         """Insert a Word TOC field code.
 
         The actual TOC is generated when the user opens the doc in Word
@@ -297,7 +298,7 @@ class DocxRenderer:
 
         doc.add_page_break()
 
-    def _add_watermark(self, doc: Document) -> None:
+    def _add_watermark(self, doc: DocxDocument) -> None:
         """Add a diagonal text watermark to the document header using WordprocessingML.
 
         Uses VML with a shapetype definition so the OOXML is valid and can be

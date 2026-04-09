@@ -147,6 +147,9 @@ leafpress doctor [OPTIONS]
 | WeasyPrint system libs | cairo, pango, gdk-pixbuf C libraries work correctly |
 | PyQt6 | Python package installed (optional — needed for desktop UI) |
 | pyobjc (macOS only) | Cocoa bindings installed (optional — needed for macOS UI) |
+| Import formats | Whether each import format (.docx, .pptx, .xlsx, .tex) has its dependency installed |
+| Temp directory | System temp dir is writable with available disk space |
+| Latest version | Compares installed version against PyPI to detect available updates |
 
 With `--verbose`, all 18 core dependencies are also checked.
 

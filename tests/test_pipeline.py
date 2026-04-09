@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -238,7 +239,8 @@ class TestConsoleWarningHandler:
             exc_info=None,
         )
         handler.emit(record)
-        con.file.write.assert_called()  # type: ignore[union-attr]
+        mock_file = cast(MagicMock, con.file)
+        mock_file.write.assert_called()
 
     def test_handler_default_level_is_warning(self) -> None:
         """Handler default level is WARNING, so DEBUG records are filtered."""

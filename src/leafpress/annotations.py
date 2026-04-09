@@ -7,6 +7,7 @@ import re
 from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4.element import AttributeValueList
 
 if TYPE_CHECKING:
     pass
@@ -61,7 +62,7 @@ def _replace_markers(element: Tag, soup: BeautifulSoup) -> None:
             else:
                 # Captured digit — create <sup>
                 sup = soup.new_tag("sup")
-                sup["class"] = ["annotation-ref"]
+                sup.attrs["class"] = AttributeValueList(["annotation-ref"])
                 sup.string = part
                 fragments.append(sup)
 
@@ -74,11 +75,11 @@ def _replace_markers(element: Tag, soup: BeautifulSoup) -> None:
 def _build_annotation_block(ol: Tag, soup: BeautifulSoup) -> Tag:
     """Convert an <ol> annotation list to a styled <div> block."""
     block = soup.new_tag("div")
-    block["class"] = ["annotation-list"]
+    block.attrs["class"] = AttributeValueList(["annotation-list"])
 
     for i, li in enumerate(ol.find_all("li", recursive=False), start=1):
         p = soup.new_tag("p")
-        p["class"] = ["annotation-item"]
+        p.attrs["class"] = AttributeValueList(["annotation-item"])
 
         # Add superscript number
         sup = soup.new_tag("sup")
@@ -115,13 +116,13 @@ def render_annotations(html: str) -> str:
         ol.replace_with(annotation_block)
 
         # Remove 'annotate' class, preserve others
-        classes = element.get("class", [])
+        classes = list(element.get("class") or [])
         if "annotate" in classes:
             classes.remove("annotate")
         if classes:
-            element["class"] = classes
+            element.attrs["class"] = AttributeValueList(classes)
         else:
-            del element["class"]
+            del element.attrs["class"]
 
     # Return inner content of <body> to avoid lxml wrapper tags
     body = soup.find("body")

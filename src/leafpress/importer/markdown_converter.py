@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from markdownify import MarkdownConverter
+
+# markdownify stubs are incomplete — Options and convert_p exist at runtime
+_ConverterOptions: Any = getattr(MarkdownConverter, "Options", object)
+_convert_p: Any = getattr(MarkdownConverter, "convert_p", None)
 
 
 class LeafpressMarkdownConverter(MarkdownConverter):
@@ -14,14 +20,14 @@ class LeafpressMarkdownConverter(MarkdownConverter):
     - ATX-style headings
     """
 
-    class Options(MarkdownConverter.Options):
+    class Options(_ConverterOptions):
         heading_style = "atx"
         bullets = "-"
         strong_em_symbol = "*"
         wrap = False
         wrap_width = 0
 
-    def convert_pre(self, el, text, parent_tags):
+    def convert_pre(self, el: Any, text: str, parent_tags: Any) -> str:
         """Convert <pre> blocks to fenced code blocks."""
         code = text.strip()
         code_el = el.find("code")
@@ -33,7 +39,7 @@ class LeafpressMarkdownConverter(MarkdownConverter):
                     break
         return f"\n\n```{lang}\n{code}\n```\n\n"
 
-    def convert_table(self, el, text, parent_tags):
+    def convert_table(self, el: Any, text: str, parent_tags: Any) -> str:
         """Convert <table> to pipe-style Markdown table."""
         rows = el.find_all("tr")
         if not rows:
@@ -65,14 +71,14 @@ class LeafpressMarkdownConverter(MarkdownConverter):
 
         return "\n\n" + "\n".join(lines) + "\n\n"
 
-    def _cell_text(self, cell) -> str:
+    def _cell_text(self, cell: Any) -> str:
         """Extract clean text from a table cell."""
         text = self.convert(str(cell))
         return text.strip().replace("\n", " ")
 
-    convert_thead = MarkdownConverter.convert_p
-    convert_tbody = MarkdownConverter.convert_p
-    convert_tfoot = MarkdownConverter.convert_p
-    convert_tr = MarkdownConverter.convert_p
-    convert_td = MarkdownConverter.convert_p
-    convert_th = MarkdownConverter.convert_p
+    convert_thead = _convert_p
+    convert_tbody = _convert_p
+    convert_tfoot = _convert_p
+    convert_tr = _convert_p
+    convert_td = _convert_p
+    convert_th = _convert_p

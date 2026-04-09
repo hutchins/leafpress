@@ -15,8 +15,8 @@ from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import MkDocsConfig, flatten_nav, parse_mkdocs_config
 from leafpress.pdf.renderer import PdfRenderer
 
-CIBUTLER_DOCS = Path("/Users/hutchins/projects/osdu/cibutler/docs")
-CIBUTLER_REPO = Path("/Users/hutchins/projects/osdu/cibutler")
+CIBUTLER_DOCS = Path("/Users/hutchins/projects/cibutler/docs")
+CIBUTLER_REPO = Path("/Users/hutchins/projects/cibutler")
 
 pytestmark = pytest.mark.skipif(
     not CIBUTLER_DOCS.exists(),
@@ -268,7 +268,11 @@ class TestCibutlerDocx:
         renderer.render(cibutler_html_pages, docx_path, cover_page=False, include_toc=False)
 
         doc = Document(str(docx_path))
-        heading_texts = [p.text for p in doc.paragraphs if p.style.name.startswith("Heading")]
+        heading_texts = [
+            p.text
+            for p in doc.paragraphs
+            if p.style is not None and p.style.name.startswith("Heading")
+        ]
         assert len(heading_texts) > 0
 
     def test_docx_content_has_tables(

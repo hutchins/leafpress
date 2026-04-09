@@ -1,20 +1,21 @@
 """Tests for PDF CSS generation."""
 
 from datetime import datetime, timezone
+from typing import Any
 
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.pdf.styles import generate_pdf_css
 
 
-def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults = {"company_name": "TestCo", "project_name": "TestProject"}
+def _make_branding(**kwargs: Any) -> BrandingConfig:
+    defaults: dict[str, Any] = {"company_name": "TestCo", "project_name": "TestProject"}
     defaults.update(kwargs)
     return BrandingConfig(**defaults)
 
 
-def _make_git_info(**kwargs: object) -> GitVersion:
-    defaults = {
+def _make_git_info(**kwargs: Any) -> GitVersion:
+    defaults: dict[str, Any] = {
         "branch": "main",
         "commit_hash": "abc1234",
         "commit_hash_full": "abc1234567890abcdef1234567890abcdef123456",

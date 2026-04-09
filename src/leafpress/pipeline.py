@@ -230,6 +230,7 @@ def convert(
             console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
         else:
             # Monorepo mode without top-level mkdocs.yml — synthesize a minimal config
+            assert branding is not None  # guaranteed by is_monorepo check
             mkdocs_cfg = MkDocsConfig(
                 site_name=branding.project_name,
                 docs_dir=project_dir,
@@ -558,6 +559,7 @@ def _collect_monorepo_pages(
                 project_dir = resolved
                 source_label = entry.url
             else:
+                assert entry.path is not None  # validated by ProjectEntry
                 project_dir = (config_dir / entry.path).resolve()
                 if not project_dir.is_dir():
                     raise SourceError(f"Monorepo project directory not found: {project_dir}")

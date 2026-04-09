@@ -44,25 +44,19 @@ def test_candidate_dirs_includes_start(tmp_path: Path) -> None:
 
 def test_pyproject_pep621(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "myapp"\nversion = "1.2.3"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "myapp"\nversion = "1.2.3"\n')
     assert detect_package_version(tmp_path) == "1.2.3"
 
 
 def test_pyproject_poetry(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
-    (tmp_path / "pyproject.toml").write_text(
-        '[tool.poetry]\nname = "myapp"\nversion = "2.0.0"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[tool.poetry]\nname = "myapp"\nversion = "2.0.0"\n')
     assert detect_package_version(tmp_path) == "2.0.0"
 
 
 def test_cargo_toml(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
-    (tmp_path / "Cargo.toml").write_text(
-        '[package]\nname = "myapp"\nversion = "0.3.1"\n'
-    )
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "myapp"\nversion = "0.3.1"\n')
     assert detect_package_version(tmp_path) == "0.3.1"
 
 
@@ -121,9 +115,7 @@ def test_csproj_version_prefix(tmp_path: Path) -> None:
 def test_finds_manifest_in_parent(tmp_path: Path) -> None:
     """Manifest in project root should be found when starting from docs subdir."""
     (tmp_path / ".git").mkdir()
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "myapp"\nversion = "9.9.9"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "myapp"\nversion = "9.9.9"\n')
     docs = tmp_path / "docs"
     docs.mkdir()
     assert detect_package_version(docs) == "9.9.9"
@@ -131,9 +123,7 @@ def test_finds_manifest_in_parent(tmp_path: Path) -> None:
 
 def test_does_not_cross_vcs_boundary(tmp_path: Path) -> None:
     """Should not find a manifest above the .git root."""
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "outer"\nversion = "0.0.1"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "outer"\nversion = "0.0.1"\n')
     inner = tmp_path / "inner"
     inner.mkdir()
     (inner / ".git").mkdir()
@@ -149,12 +139,8 @@ def test_no_manifest_returns_none(tmp_path: Path) -> None:
 def test_priority_pyproject_over_cargo(tmp_path: Path) -> None:
     """pyproject.toml takes priority over Cargo.toml in the same directory."""
     (tmp_path / ".git").mkdir()
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "myapp"\nversion = "1.0.0"\n'
-    )
-    (tmp_path / "Cargo.toml").write_text(
-        '[package]\nname = "myapp"\nversion = "2.0.0"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "myapp"\nversion = "1.0.0"\n')
+    (tmp_path / "Cargo.toml").write_text('[package]\nname = "myapp"\nversion = "2.0.0"\n')
     assert detect_package_version(tmp_path) == "1.0.0"
 
 
@@ -228,10 +214,7 @@ def test_pom_xml_no_namespace(tmp_path: Path) -> None:
     """pom.xml without a namespace should still detect version."""
     (tmp_path / ".git").mkdir()
     (tmp_path / "pom.xml").write_text(
-        '<?xml version="1.0"?>\n'
-        "<project>\n"
-        "  <version>1.0.0</version>\n"
-        "</project>\n"
+        '<?xml version="1.0"?>\n<project>\n  <version>1.0.0</version>\n</project>\n'
     )
     assert detect_package_version(tmp_path) == "1.0.0"
 

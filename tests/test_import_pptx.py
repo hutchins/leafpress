@@ -71,7 +71,7 @@ def _make_pptx(tmp_path: Path, slides: list[dict]) -> Path:
                     tbl.cell(r, c).text = cell_text
 
     path = tmp_path / "test.pptx"
-    prs.save(path)
+    prs.save(str(path))
     return path
 
 
@@ -94,7 +94,7 @@ def _make_formatted_pptx(tmp_path: Path) -> Path:
     run_italic.font.italic = True
 
     path = tmp_path / "formatted.pptx"
-    prs.save(path)
+    prs.save(str(path))
     return path
 
 
@@ -109,7 +109,7 @@ def _make_image_pptx(tmp_path: Path) -> Path:
     slide.shapes.add_picture(str(img_path), Inches(1), Inches(2), Inches(2), Inches(2))
 
     path = tmp_path / "with_image.pptx"
-    prs.save(path)
+    prs.save(str(path))
     return path
 
 
@@ -155,7 +155,7 @@ def test_untitled_slide_fallback(tmp_path: Path) -> None:
     # Use blank layout (index 6) which has no title placeholder
     prs.slides.add_slide(prs.slide_layouts[6])
     path = tmp_path / "untitled.pptx"
-    prs.save(path)
+    prs.save(str(path))
 
     result = import_pptx(path, extract_images=False)
     md = result.markdown_path.read_text()
@@ -249,7 +249,7 @@ def test_empty_presentation(tmp_path: Path) -> None:
     """Empty presentation produces minimal output."""
     prs = Presentation()
     path = tmp_path / "empty.pptx"
-    prs.save(path)
+    prs.save(str(path))
     result = import_pptx(path, extract_images=False)
     md = result.markdown_path.read_text()
     assert md.strip() == ""
@@ -523,7 +523,7 @@ def _make_comprehensive_pptx(tmp_path: Path) -> Path:
     prs.slides.add_slide(prs.slide_layouts[6])
 
     path = tmp_path / "comprehensive.pptx"
-    prs.save(path)
+    prs.save(str(path))
     return path
 
 

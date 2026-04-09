@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+
 from leafpress.config import BrandingConfig, ProjectEntry
 from leafpress.exceptions import SourceError
 from leafpress.pipeline import _build_chapter_cover, _collect_monorepo_pages
@@ -47,8 +49,8 @@ def monorepo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _branding(**kwargs) -> BrandingConfig:
-    defaults = {"company_name": "Test Corp", "project_name": "Platform Docs"}
+def _branding(**kwargs: Any) -> BrandingConfig:
+    defaults: dict[str, Any] = {"company_name": "Test Corp", "project_name": "Platform Docs"}
     defaults.update(kwargs)
     return BrandingConfig(**defaults)
 
@@ -273,7 +275,7 @@ def test_normalize_projects_strings() -> None:
     config = BrandingConfig(
         company_name="Test",
         project_name="Docs",
-        projects=["services/api", "services/frontend"],  # type: ignore[arg-type]
+        projects=cast(Any, ["services/api", "services/frontend"]),
     )
     assert len(config.projects) == 2
     assert config.projects[0].path == "services/api"
@@ -285,7 +287,7 @@ def test_normalize_projects_dicts() -> None:
     config = BrandingConfig(
         company_name="Test",
         project_name="Docs",
-        projects=[{"path": "svc/api", "author": "API Team"}],  # type: ignore[arg-type]
+        projects=cast(Any, [{"path": "svc/api", "author": "API Team"}]),
     )
     assert config.projects[0].path == "svc/api"
     assert config.projects[0].author == "API Team"
@@ -296,7 +298,7 @@ def test_normalize_projects_mixed() -> None:
     config = BrandingConfig(
         company_name="Test",
         project_name="Docs",
-        projects=["simple/path", {"path": "detailed/path", "author": "Team"}],  # type: ignore[arg-type]
+        projects=cast(Any, ["simple/path", {"path": "detailed/path", "author": "Team"}]),
     )
     assert config.projects[0].path == "simple/path"
     assert config.projects[0].author is None
@@ -450,7 +452,7 @@ def test_monorepo_root_used_for_version_detection(monorepo: Path) -> None:
         ProjectEntry(path="services/api/docs", root="services/api"),
     ]
 
-    pages, count = _collect_monorepo_pages(
+    pages, _count = _collect_monorepo_pages(
         projects,
         monorepo,
         monorepo / "mermaid",
@@ -477,7 +479,7 @@ def test_monorepo_no_root_uses_path_for_version(monorepo: Path) -> None:
         ProjectEntry(path="services/api"),  # no root set
     ]
 
-    pages, count = _collect_monorepo_pages(
+    pages, _count = _collect_monorepo_pages(
         projects,
         monorepo,
         monorepo / "mermaid",
