@@ -101,11 +101,17 @@ class TestWatermarkConfig:
 class TestWatermarkPdfCss:
     """Test watermark CSS generation for PDF."""
 
-    def _make_branding(self, **wm_kwargs: object) -> BrandingConfig:
+    def _make_branding(
+        self,
+        text: str | None = None,
+        color: str = "#cccccc",
+        opacity: float = 0.15,
+        angle: int = -45,
+    ) -> BrandingConfig:
         return BrandingConfig(
             company_name="Test",
             project_name="Test",
-            watermark=WatermarkConfig(**wm_kwargs),
+            watermark=WatermarkConfig(text=text, color=color, opacity=opacity, angle=angle),
         )
 
     def test_no_watermark_css_when_disabled(self) -> None:
@@ -140,11 +146,17 @@ class TestWatermarkPdfCss:
 class TestWatermarkHtmlCss:
     """Test watermark CSS generation for HTML."""
 
-    def _make_branding(self, **wm_kwargs: object) -> BrandingConfig:
+    def _make_branding(
+        self,
+        text: str | None = None,
+        color: str = "#cccccc",
+        opacity: float = 0.15,
+        angle: int = -45,
+    ) -> BrandingConfig:
         return BrandingConfig(
             company_name="Test",
             project_name="Test",
-            watermark=WatermarkConfig(**wm_kwargs),
+            watermark=WatermarkConfig(text=text, color=color, opacity=opacity, angle=angle),
         )
 
     def test_no_watermark_display_none(self) -> None:

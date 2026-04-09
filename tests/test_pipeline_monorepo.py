@@ -48,10 +48,16 @@ def monorepo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _branding(**kwargs) -> BrandingConfig:
-    defaults = {"company_name": "Test Corp", "project_name": "Platform Docs"}
-    defaults.update(kwargs)
-    return BrandingConfig(**defaults)
+def _branding(
+    author: str | None = None,
+    document_owner: str | None = None,
+) -> BrandingConfig:
+    return BrandingConfig(
+        company_name="Test Corp",
+        project_name="Platform Docs",
+        author=author,
+        document_owner=document_owner,
+    )
 
 
 # --- _collect_monorepo_pages ---

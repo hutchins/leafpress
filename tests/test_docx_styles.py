@@ -7,10 +7,14 @@ from leafpress.config import BrandingConfig
 from leafpress.docx.styles import _parse_hex_color, apply_branding_styles
 
 
-def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults: dict[str, object] = {"company_name": "TestCo", "project_name": "TestProject"}
-    defaults.update(kwargs)
-    return BrandingConfig(**defaults)
+def _make_branding(
+    primary_color: str = "#1a73e8",
+) -> BrandingConfig:
+    return BrandingConfig(
+        company_name="TestCo",
+        project_name="TestProject",
+        primary_color=primary_color,
+    )
 
 
 def test_apply_branding_styles() -> None:

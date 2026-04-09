@@ -4,10 +4,16 @@ from leafpress.config import BrandingConfig
 from leafpress.html.styles import generate_html_css
 
 
-def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults: dict[str, object] = {"company_name": "TestCo", "project_name": "TestProject"}
-    defaults.update(kwargs)
-    return BrandingConfig(**defaults)
+def _make_branding(
+    primary_color: str = "#1a73e8",
+    accent_color: str = "#ffffff",
+) -> BrandingConfig:
+    return BrandingConfig(
+        company_name="TestCo",
+        project_name="TestProject",
+        primary_color=primary_color,
+        accent_color=accent_color,
+    )
 
 
 def test_generate_css_with_branding() -> None:
