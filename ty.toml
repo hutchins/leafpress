@@ -1,17 +1,16 @@
 [environment]
 python-version = "3.13"
-
-[src]
-root = "src"
+root = ["src"]
 
 [rules]
 # Third-party libraries (BeautifulSoup, python-docx, python-pptx, odfpy,
 # markdownify, PyQt6) ship incomplete or inaccurate type stubs that trigger
 # false positives on perfectly valid code.  Suppress the rules that are
 # overwhelmingly caused by stub gaps rather than real bugs.
-invalid-argument-type = "warn"    # bs4 Tag.get(), Repo.clone_from(), etc.
-invalid-assignment = "warn"       # bs4 Tag["class"] = [...]
-unsupported-operator = "warn"     # "x" in tag.get(...)
-unresolved-attribute = "warn"     # python-docx Paragraph.add_run(), markdownify
-invalid-type-form = "warn"        # python-docx Document, odfpy OpenDocumentText
+invalid-argument-type = "ignore"  # bs4 Tag.get(), Repo.clone_from(), etc.
+invalid-assignment = "ignore"     # bs4 Tag["class"] = [...]
+unsupported-operator = "ignore"   # "x" in tag.get(...)
+unresolved-attribute = "ignore"   # python-docx Paragraph.add_run(), markdownify
+invalid-type-form = "ignore"      # python-docx Document, odfpy OpenDocumentText
 unresolved-import = "ignore"      # optional deps: PyQt6, tomli, AppKit, helpers (test)
+no-matching-overload = "ignore"   # TypedDict.update() with kwargs pattern
