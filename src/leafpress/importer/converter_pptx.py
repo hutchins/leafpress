@@ -10,10 +10,25 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from rich.console import Console
 
 from leafpress.exceptions import PptxImportError
-from leafpress.importer.converter import ImportResult, _postprocess_markdown, _resolve_output_path
+from leafpress.importer.base import (
+    ImportResult,
+    postprocess_markdown,
+    resolve_output_path,
+    rows_to_pipe_table,
+)
 from leafpress.importer.image_handler import ImageHandler
 
 console = Console()
+
+# Shape types that may contain meaningful content but can't be converted.
+# Other shape types (freeform, connector, placeholder without text) are
+# silently skipped since they rarely carry user-visible content.
+_WARN_SHAPE_TYPES: dict[int, str] = {
+    MSO_SHAPE_TYPE.CHART: "chart",
+    MSO_SHAPE_TYPE.EMBEDDED_OLE_OBJECT: "embedded object",
+    MSO_SHAPE_TYPE.MEDIA: "media",
+    MSO_SHAPE_TYPE.LINKED_OLE_OBJECT: "linked object",
+}
 
 
 def import_pptx(
@@ -43,7 +58,7 @@ def import_pptx(
         raise PptxImportError(f"Not a .pptx file: {pptx_path}")
 
     # Resolve output path
-    md_path = _resolve_output_path(pptx_path, output_path)
+    md_path = resolve_output_path(pptx_path, output_path)
 
     # Set up image handler
     assets_dir = md_path.parent / "assets" if extract_images else None
@@ -56,13 +71,14 @@ def import_pptx(
         except Exception as e:
             raise PptxImportError(f"Failed to open PPTX: {e}") from e
 
+        warnings: list[str] = []
         sections: list[str] = []
         for slide_num, slide in enumerate(prs.slides, start=1):
-            slide_md = _convert_slide(slide, slide_num, image_handler, include_notes)
+            slide_md = _convert_slide(slide, slide_num, image_handler, include_notes, warnings)
             sections.append(slide_md)
 
     markdown = "\n\n".join(sections)
-    markdown = _postprocess_markdown(markdown)
+    markdown = postprocess_markdown(markdown)
 
     # Write output
     md_path.parent.mkdir(parents=True, exist_ok=True)
@@ -71,7 +87,7 @@ def import_pptx(
     return ImportResult(
         markdown_path=md_path,
         images=image_handler.saved_images if image_handler else [],
-        warnings=[],
+        warnings=warnings,
     )
 
 
@@ -80,6 +96,7 @@ def _convert_slide(
     slide_num: int,
     image_handler: ImageHandler | None,
     include_notes: bool,
+    warnings: list[str],
 ) -> str:
     """Convert a single slide to markdown."""
     parts: list[str] = []
@@ -91,12 +108,14 @@ def _convert_slide(
     else:
         parts.append(f"## Slide {slide_num}")
 
+    slide_label = title or f"Slide {slide_num}"
+
     # Shapes (skip the title placeholder)
     title_shape = slide.shapes.title
     for shape in slide.shapes:
         if shape is title_shape:
             continue
-        shape_md = _convert_shape(shape, image_handler)
+        shape_md = _convert_shape(shape, image_handler, slide_label, warnings)
         if shape_md:
             parts.append(shape_md)
 
@@ -117,10 +136,15 @@ def _get_slide_title(slide) -> str:
     return ""
 
 
-def _convert_shape(shape, image_handler: ImageHandler | None) -> str:
+def _convert_shape(
+    shape,
+    image_handler: ImageHandler | None,
+    slide_label: str,
+    warnings: list[str],
+) -> str:
     """Convert a single shape to markdown."""
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        return _convert_group(shape, image_handler)
+        return _convert_group(shape, image_handler, slide_label, warnings)
 
     if shape.shape_type == MSO_SHAPE_TYPE.TABLE:
         return _table_to_markdown(shape.table)
@@ -131,14 +155,27 @@ def _convert_shape(shape, image_handler: ImageHandler | None) -> str:
     if shape.has_text_frame:
         return _text_frame_to_markdown(shape.text_frame)
 
+    # Shapes with no text, table, image, or group content are skipped.
+    # Warn for shape types that may contain meaningful content.
+    shape_type = shape.shape_type
+    if shape_type in _WARN_SHAPE_TYPES:
+        label = _WARN_SHAPE_TYPES[shape_type]
+        name = shape.name or "unnamed"
+        warnings.append(f"Unsupported {label} '{name}' on slide '{slide_label}' — skipped")
+
     return ""
 
 
-def _convert_group(group_shape, image_handler: ImageHandler | None) -> str:
+def _convert_group(
+    group_shape,
+    image_handler: ImageHandler | None,
+    slide_label: str,
+    warnings: list[str],
+) -> str:
     """Recursively convert shapes inside a group."""
     parts: list[str] = []
     for shape in group_shape.shapes:
-        md = _convert_shape(shape, image_handler)
+        md = _convert_shape(shape, image_handler, slide_label, warnings)
         if md:
             parts.append(md)
     return "\n\n".join(parts)
@@ -195,26 +232,6 @@ def _table_to_markdown(table) -> str:
     """Convert a pptx table to pipe-style markdown."""
     rows: list[list[str]] = []
     for row in table.rows:
-        cells = [cell.text.strip().replace("|", "\\|") for cell in row.cells]
+        cells = [cell.text.strip() for cell in row.cells]
         rows.append(cells)
-
-    if not rows:
-        return ""
-
-    col_count = max(len(row) for row in rows)
-    for row in rows:
-        while len(row) < col_count:
-            row.append("")
-
-    col_widths = [max(len(row[i]) for row in rows) for i in range(col_count)]
-    col_widths = [max(w, 3) for w in col_widths]
-
-    lines: list[str] = []
-    for idx, row in enumerate(rows):
-        cells = [cell.ljust(col_widths[i]) for i, cell in enumerate(row)]
-        lines.append("| " + " | ".join(cells) + " |")
-        if idx == 0:
-            sep = ["-" * w for w in col_widths]
-            lines.append("| " + " | ".join(sep) + " |")
-
-    return "\n".join(lines)
+    return rows_to_pipe_table(rows)

@@ -147,7 +147,7 @@ All renderers support cover pages, tables of contents, branding, and watermarks.
 
 ## Import Pipeline
 
-The `leafpress import` command converts Word (`.docx`), PowerPoint (`.pptx`), and Excel (`.xlsx`) files to Markdown. This is a separate pipeline from the convert flow above.
+The `leafpress import` command converts Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), and LaTeX (`.tex`) files to Markdown. This is a separate pipeline from the convert flow above.
 
 ```mermaid
 flowchart TD
@@ -155,15 +155,19 @@ flowchart TD
     DET --> |".docx"| DOCXI["DOCX Converter (importer/converter.py)"]
     DET --> |".pptx"| PPTXI["PPTX Converter (importer/converter_pptx.py)"]
     DET --> |".xlsx"| XLSXI["XLSX Converter (importer/converter_xlsx.py)"]
+    DET --> |".tex"| TEXI["TeX Converter (importer/converter_tex.py)"]
     DOCXI --> MAM["mammoth (HTML → Markdown)"]
     PPTXI --> PPT["python-pptx (slides → Markdown)"]
     XLSXI --> OPX["openpyxl (sheets → Markdown tables)"]
+    TEXI --> PLE["pylatexenc (AST → Markdown)"]
     MAM --> IMG["Image Handler (importer/image_handler.py)"]
     PPT --> IMG
+    PLE --> IMG
     IMG --> |"assets/"| OUT["Output .md + images"]
     MAM --> OUT
     PPT --> OUT
     OPX --> OUT
+    PLE --> OUT
 ```
 
 ### DOCX Import
@@ -191,11 +195,34 @@ Uses python-pptx to iterate over slides and extract content:
 
 Uses openpyxl to read Excel workbooks in data-only mode (computed values, not formulas). Each worksheet becomes a `## Sheet Name` section with a pipe-style Markdown table. The first row is treated as the header. Empty sheets are skipped. No image extraction is needed.
 
+### LaTeX Import
+
+**Module:** `src/leafpress/importer/converter_tex.py`
+
+Uses pylatexenc to parse LaTeX source into an AST, then walks the tree to produce Markdown:
+
+- **Sections** (`\section`, `\subsection`, etc.) become ATX headings
+- **Formatting** (`\textbf`, `\textit`, `\texttt`) become Markdown equivalents
+- **Math** (inline `$...$` and display environments like `equation`, `align`) passes through verbatim for MathJax/KaTeX
+- **Lists** (`itemize`, `enumerate`, `description`) become bullet/numbered/definition lists with nesting support
+- **Tables** (`tabular`) are rendered as pipe-style Markdown tables with column alignment
+- **Code blocks** (`verbatim`, `lstlisting`, `minted`) become fenced code blocks with language detection
+- **Images** (`\includegraphics`) are resolved relative to the `.tex` file and copied via `ImageHandler`
+- **Figures** use `\caption` text as image alt text
+- **Links** (`\href`, `\url`) become Markdown links
+- **Footnotes** (`\footnote`) become Markdown footnote syntax
+
+### Shared Importer Base
+
+**Module:** `src/leafpress/importer/base.py`
+
+Contains utilities shared across all four converters: `ImportResult` dataclass, `resolve_output_path()`, `postprocess_markdown()`, and `rows_to_pipe_table()`.
+
 ### Image Handler
 
 **Module:** `src/leafpress/importer/image_handler.py`
 
-Shared by both importers. `ImageHandler` manages an output directory for extracted images. `save_image(image_bytes, content_type)` writes image data to `assets/` with content-type-based extensions, returning a relative Markdown image path. The DOCX importer uses `handle_image()` as a mammoth callback; the PPTX importer calls `save_image()` directly.
+Shared by the DOCX, PPTX, and LaTeX importers. `ImageHandler` manages an output directory for extracted images. `save_image(image_bytes, content_type)` writes image data to `assets/` with content-type-based extensions, returning a relative Markdown image path. The DOCX importer uses `handle_image()` as a mammoth callback; the PPTX and LaTeX importers call `save_image()` directly.
 
 ## Module Map
 
@@ -204,7 +231,7 @@ Shared by both importers. `ImageHandler` manages an output directory for extract
 | **CLI** | `cli.py` | Command definitions, argument parsing, progress display |
 | **Orchestration** | `pipeline.py` | Coordinates all stages of conversion |
 | **Input** | `source.py`, `project.py` | Source resolution, project auto-detection |
-| **Import** | `importer/converter.py`, `importer/converter_pptx.py`, `importer/converter_xlsx.py`, `importer/image_handler.py` | DOCX/PPTX/XLSX to Markdown conversion |
+| **Import** | `importer/base.py`, `importer/converter.py`, `importer/converter_pptx.py`, `importer/converter_xlsx.py`, `importer/converter_tex.py`, `importer/image_handler.py` | DOCX/PPTX/XLSX/LaTeX to Markdown conversion |
 | **Config** | `config.py`, `exceptions.py` | Branding schema, validation, env overrides |
 | **Parsing** | `mkdocs_parser.py` | MkDocs config and nav parsing |
 | **Rendering** | `markdown_renderer.py` | Markdown-to-HTML conversion |

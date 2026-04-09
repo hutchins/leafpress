@@ -359,6 +359,14 @@ class ImportWorker(QThread):
                         xlsx_path=file,
                         output_path=self._output_dir,
                     )
+                elif suffix == ".tex":
+                    from leafpress.importer.converter_tex import import_tex
+
+                    r = import_tex(
+                        tex_path=file,
+                        output_path=self._output_dir,
+                        extract_images=self._extract_images,
+                    )
                 else:
                     self.log.emit(f"  Skipped (unsupported: {suffix})")
                     continue
@@ -417,7 +425,7 @@ class ImportWindow(QMainWindow):
         # Files
         files_row = QHBoxLayout()
         self._files = QLineEdit()
-        self._files.setPlaceholderText("Select .docx, .pptx, or .xlsx files")
+        self._files.setPlaceholderText("Select .docx, .pptx, .xlsx, or .tex files")
         self._files.setReadOnly(True)
         files_btn = QPushButton("Browse\u2026")
         files_btn.setFixedWidth(80)
@@ -488,7 +496,7 @@ class ImportWindow(QMainWindow):
         files, _ = QFileDialog.getOpenFileNames(
             self,
             "Select documents to import",
-            filter="Documents (*.docx *.pptx *.xlsx)",
+            filter="Documents (*.docx *.pptx *.xlsx *.tex)",
         )
         if files:
             self._selected_files = [Path(f) for f in files]
@@ -501,9 +509,7 @@ class ImportWindow(QMainWindow):
 
     def _run_import(self) -> None:
         if not self._selected_files:
-            QMessageBox.warning(
-                self, "leafpress", "Please select files to import."
-            )
+            QMessageBox.warning(self, "leafpress", "Please select files to import.")
             return
 
         output_text = self._output.text().strip()
@@ -575,9 +581,7 @@ class LeafpressTray(QSystemTrayIcon):
     def _show_about(self) -> None:
         from leafpress import __version__
 
-        release_url = (
-            f"https://github.com/hutchins/leafpress/releases/tag/v{__version__}"
-        )
+        release_url = f"https://github.com/hutchins/leafpress/releases/tag/v{__version__}"
         QMessageBox.about(
             self._window,
             "About leafpress",

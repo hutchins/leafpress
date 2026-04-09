@@ -1,0 +1,99 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{listings}
+
+\title{Sample Test Document}
+\author{Test Author}
+\date{2024-01-15}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+This is a sample document for testing the LaTeX to Markdown converter.
+It includes \textbf{bold text}, \textit{italic text}, and \texttt{code text}.
+
+\subsection{Nested Formatting}
+This has \textbf{\textit{bold italic}} text.
+
+\section{Lists}
+
+\subsection{Bullet List}
+\begin{itemize}
+\item First item
+\item Second item
+\item Third item with \textbf{bold}
+\end{itemize}
+
+\subsection{Numbered List}
+\begin{enumerate}
+\item Alpha
+\item Beta
+\item Gamma
+\end{enumerate}
+
+\subsection{Nested List}
+\begin{itemize}
+\item Outer one
+  \begin{itemize}
+  \item Inner one
+  \item Inner two
+  \end{itemize}
+\item Outer two
+\end{itemize}
+
+\section{Mathematics}
+
+Inline math: $E = mc^2$ and $\alpha + \beta = \gamma$.
+
+Display math:
+\begin{equation}
+\int_0^\infty e^{-x}\, dx = 1
+\end{equation}
+
+Aligned equations:
+\begin{align}
+a &= b + c \\
+d &= e + f
+\end{align}
+
+\section{Tables}
+
+\begin{tabular}{|l|c|r|}
+\hline
+Left & Center & Right \\
+\hline
+A1 & B1 & C1 \\
+A2 & B2 & C2 \\
+\hline
+\end{tabular}
+
+\section{Links}
+
+Visit \href{https://example.com}{Example Site} or \url{https://example.com/docs}.
+
+\section{Code}
+
+\begin{verbatim}
+def hello():
+    print("Hello, world!")
+\end{verbatim}
+
+\begin{lstlisting}[language=Python]
+for i in range(10):
+    print(i)
+\end{lstlisting}
+
+\section{Blockquotes}
+
+\begin{quote}
+This is a quoted passage that should appear as a blockquote in the output.
+\end{quote}
+
+\section{Footnotes}
+
+This has a footnote\footnote{This is the footnote content.} in it.
+
+\end{document}

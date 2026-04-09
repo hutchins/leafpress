@@ -10,7 +10,7 @@ leafpress [OPTIONS] COMMAND [ARGS]...
 |---------|-------------|
 | [`convert`](#convert) | Convert an MkDocs site to PDF, DOCX, HTML, ODT, and/or EPUB |
 | [`doctor`](#doctor) | Check your environment and optional dependency status |
-| [`import`](#import) | Import Word, PowerPoint, or Excel documents to Markdown |
+| [`import`](#import) | Import Word, PowerPoint, Excel, or LaTeX documents to Markdown |
 | [`init`](#init) | Generate a starter `leafpress.yml` branding config |
 | [`info`](#info) | Display detected MkDocs site info |
 | [`fetch-diagrams`](#fetch-diagrams) | Fetch diagrams from external sources (URLs, Lucidchart) |
@@ -45,7 +45,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--output`, `-o` | `output/` | Output directory for generated files |
-| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `epub`, `both` (pdf+docx), or `all` |
+| `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `epub`, `markdown`, `both` (pdf+docx), or `all` |
 | `--config`, `-c` | _(auto-detect)_ | Path to `leafpress.yml` branding config |
 | `--mkdocs-config` | _(auto-detect)_ | Override path to `mkdocs.yml` |
 | `--branch`, `-b` | _(default branch)_ | Git branch to clone (remote sources only) |
@@ -172,17 +172,17 @@ leafpress doctor --debug
 
 ## `import`
 
-Import one or more Word or PowerPoint documents and convert them to Markdown.
+Import one or more Word, PowerPoint, Excel, or LaTeX documents and convert them to Markdown.
 
 ```bash
-leafpress import FILES... [OPTIONS]
+leafpress import SOURCES... [OPTIONS]
 ```
 
 **Arguments**
 
 | Argument | Description |
 |----------|-------------|
-| `FILES...` | One or more `.docx` or `.pptx` files to import. You can mix formats in a single command. |
+| `SOURCES...` | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files or URLs to import. You can mix local files and URLs in a single command. |
 
 **Options**
 
@@ -202,11 +202,18 @@ leafpress import report.docx
 # Import a PowerPoint presentation
 leafpress import deck.pptx
 
-# Import multiple files at once
-leafpress import report.docx deck.pptx notes.docx
+# Import a LaTeX document
+leafpress import paper.tex
 
-# Import all Word and PowerPoint files in a directory
-leafpress import *.docx *.pptx
+# Import from a URL
+leafpress import https://example.com/paper.tex
+leafpress import https://example.com/report.docx -o docs/
+
+# Mix local files and URLs
+leafpress import report.docx https://example.com/paper.tex -o docs/
+
+# Import all supported files in a directory
+leafpress import *.docx *.pptx *.xlsx *.tex
 
 # Output all results to a directory
 leafpress import *.docx *.pptx -o docs/

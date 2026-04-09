@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from helpers import make_png
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 
 from leafpress.exceptions import PptxImportError
@@ -98,33 +100,8 @@ def _make_formatted_pptx(tmp_path: Path) -> Path:
 
 def _make_image_pptx(tmp_path: Path) -> Path:
     """Create a PPTX with an embedded image."""
-    import struct
-
-    # Minimal valid 1x1 red PNG
-    def _make_png() -> bytes:
-        signature = b"\x89PNG\r\n\x1a\n"
-
-        def _chunk(chunk_type: bytes, data: bytes) -> bytes:
-            import zlib
-
-            length = struct.pack(">I", len(data))
-            crc = struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
-            return length + chunk_type + data + crc
-
-        import zlib
-
-        ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
-        raw_row = b"\x00\xff\x00\x00"  # filter byte + RGB
-        idat_data = zlib.compress(raw_row)
-        return (
-            signature
-            + _chunk(b"IHDR", ihdr_data)
-            + _chunk(b"IDAT", idat_data)
-            + _chunk(b"IEND", b"")
-        )
-
     img_path = tmp_path / "red.png"
-    img_path.write_bytes(_make_png())
+    img_path.write_bytes(make_png())
 
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[1])
@@ -352,6 +329,92 @@ def test_runs_to_markdown_plain() -> None:
     assert _runs_to_markdown(para) == "hello world"
 
 
+def test_convert_shape_warns_on_chart() -> None:
+    """Chart shapes produce a warning."""
+    from unittest.mock import MagicMock
+
+    from leafpress.importer.converter_pptx import _convert_shape
+
+    shape = MagicMock()
+    shape.shape_type = MSO_SHAPE_TYPE.CHART
+    shape.name = "Chart 1"
+    shape.has_text_frame = False
+    warnings: list[str] = []
+
+    result = _convert_shape(shape, None, "Revenue Slide", warnings)
+    assert result == ""
+    assert len(warnings) == 1
+    assert "chart" in warnings[0].lower()
+    assert "Chart 1" in warnings[0]
+    assert "Revenue Slide" in warnings[0]
+    assert "skipped" in warnings[0].lower()
+
+
+def test_convert_shape_no_warn_on_freeform() -> None:
+    """Freeform shapes (decorative lines, etc.) are silently skipped."""
+    from unittest.mock import MagicMock
+
+    from leafpress.importer.converter_pptx import _convert_shape
+
+    shape = MagicMock()
+    shape.shape_type = MSO_SHAPE_TYPE.FREEFORM
+    shape.has_text_frame = False
+    warnings: list[str] = []
+
+    _convert_shape(shape, None, "Slide 1", warnings)
+    assert len(warnings) == 0
+
+
+def test_runs_to_markdown_hyperlink() -> None:
+    """Hyperlinks in runs produce markdown link syntax."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "Click here"
+    run.font.bold = False
+    run.font.italic = False
+    run.hyperlink.address = "https://example.com"
+    para.runs = [run]
+
+    md = _runs_to_markdown(para)
+    assert "[Click here](https://example.com)" in md
+
+
+def test_runs_to_markdown_bold_hyperlink() -> None:
+    """Bold text with a hyperlink unwraps formatting for the link text."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "bold link"
+    run.font.bold = True
+    run.font.italic = False
+    run.hyperlink.address = "https://example.com"
+    para.runs = [run]
+
+    md = _runs_to_markdown(para)
+    assert "[bold link](https://example.com)" in md
+
+
+def test_runs_to_markdown_empty_run() -> None:
+    """Runs with empty text are skipped."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    empty_run = MagicMock()
+    empty_run.text = ""
+    text_run = MagicMock()
+    text_run.text = "visible"
+    text_run.font.bold = False
+    text_run.font.italic = False
+    text_run.hyperlink = None
+    para.runs = [empty_run, text_run]
+
+    md = _runs_to_markdown(para)
+    assert md == "visible"
+
+
 # --- CLI integration ---
 
 
@@ -388,3 +451,144 @@ def test_cli_unsupported_format(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["import", str(txt_file)])
     assert result.exit_code == 1
     assert "Unsupported file type" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive PPTX fixture — realistic multi-slide presentation
+# ---------------------------------------------------------------------------
+
+
+def _make_comprehensive_pptx(tmp_path: Path) -> Path:
+    """Create a multi-slide PPTX with mixed content types."""
+    prs = Presentation()
+
+    # Slide 1: Title + formatted body text
+    slide1 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide1.shapes.title.text = "Project Status"
+    tf = slide1.placeholders[1].text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    run_b = p.add_run()
+    run_b.text = "On track"
+    run_b.font.bold = True
+    run_n = p.add_run()
+    run_n.text = " for Q4 delivery with "
+    run_i = p.add_run()
+    run_i.text = "minor risks"
+    run_i.font.italic = True
+
+    # Slide 2: Table + speaker notes
+    slide2 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide2.shapes.title.text = "Budget Overview"
+    tbl = slide2.shapes.add_table(3, 3, Inches(1), Inches(2), Inches(6), Inches(2)).table
+    for c, h in enumerate(["Category", "Budgeted", "Actual"]):
+        tbl.cell(0, c).text = h
+    for c, v in enumerate(["Engineering", "$500K", "$480K"]):
+        tbl.cell(1, c).text = v
+    for c, v in enumerate(["Marketing", "$200K", "$220K"]):
+        tbl.cell(2, c).text = v
+    notes2 = slide2.notes_slide
+    notes2.notes_text_frame.text = "Emphasize that engineering is under budget."
+
+    # Slide 3: Indented text (multiple levels)
+    slide3 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide3.shapes.title.text = "Milestones"
+    tf3 = slide3.placeholders[1].text_frame
+    tf3.clear()
+    tf3.paragraphs[0].text = "Phase 1: Foundation"
+    p1 = tf3.add_paragraph()
+    p1.text = "Database schema finalized"
+    p1.level = 1
+    p2 = tf3.add_paragraph()
+    p2.text = "API contracts signed off"
+    p2.level = 1
+    p3 = tf3.add_paragraph()
+    p3.text = "Phase 2: Build"
+    p3.level = 0
+    p4 = tf3.add_paragraph()
+    p4.text = "Core services deployed"
+    p4.level = 1
+    p5 = tf3.add_paragraph()
+    p5.text = "Integration testing complete"
+    p5.level = 2
+
+    # Slide 4: Image
+    slide4 = prs.slides.add_slide(prs.slide_layouts[1])
+    slide4.shapes.title.text = "Architecture Diagram"
+    img_path = tmp_path / "diagram.png"
+    img_path.write_bytes(make_png())
+    slide4.shapes.add_picture(str(img_path), Inches(1), Inches(2), Inches(4), Inches(3))
+
+    # Slide 5: Blank layout (no title placeholder)
+    prs.slides.add_slide(prs.slide_layouts[6])
+
+    path = tmp_path / "comprehensive.pptx"
+    prs.save(path)
+    return path
+
+
+class TestComprehensivePptx:
+    """Tests using a realistic multi-slide presentation."""
+
+    @pytest.fixture(autouse=True)
+    def _convert(self, tmp_path: Path) -> None:
+        pptx_path = _make_comprehensive_pptx(tmp_path)
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        self.result = import_pptx(pptx_path, output_path=out_dir)
+        self.content = self.result.markdown_path.read_text()
+
+    def test_converts_successfully(self) -> None:
+        """All slides convert without errors."""
+        assert self.result.markdown_path.exists()
+        assert len(self.content) > 200
+
+    def test_slide_titles_as_headings(self) -> None:
+        """Titled slides get ## headings."""
+        assert "## Project Status" in self.content
+        assert "## Budget Overview" in self.content
+        assert "## Milestones" in self.content
+        assert "## Architecture Diagram" in self.content
+
+    def test_untitled_slide_fallback(self) -> None:
+        """Blank-layout slide gets ## Slide N heading."""
+        assert "## Slide 5" in self.content
+
+    def test_bold_formatting(self) -> None:
+        """Bold text in slide body preserved."""
+        assert "**On track**" in self.content
+
+    def test_italic_formatting(self) -> None:
+        """Italic text in slide body preserved."""
+        assert "*minor risks*" in self.content
+
+    def test_table(self) -> None:
+        """Table converted to pipe-style markdown."""
+        assert "| Category" in self.content
+        assert "Engineering" in self.content
+        assert "$480K" in self.content
+        assert "---" in self.content
+
+    def test_speaker_notes(self) -> None:
+        """Speaker notes rendered as blockquotes."""
+        assert "> Emphasize that engineering is under budget." in self.content
+
+    def test_indented_text(self) -> None:
+        """Indented paragraphs produce nested bullets."""
+        assert "Phase 1: Foundation" in self.content
+        assert "  - Database schema finalized" in self.content
+        assert "  - API contracts signed off" in self.content
+
+    def test_deeper_indent(self) -> None:
+        """Level-2 indent produces double-indented bullet."""
+        assert "    - Integration testing complete" in self.content
+
+    def test_image_extracted(self) -> None:
+        """Embedded image extracted to assets/."""
+        assert len(self.result.images) >= 1
+        assert self.result.images[0].exists()
+        assert "![](assets/" in self.content
+
+    def test_slide_count(self) -> None:
+        """All 5 slides appear in output."""
+        assert self.content.count("## ") == 5

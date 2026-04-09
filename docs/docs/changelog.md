@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.8.0 — 2026-04-04
+
+### Features
+
+- **LaTeX import** — new `leafpress import paper.tex` converter using pylatexenc AST walker, supporting sections, formatting, math passthrough, lists, tables, figures, code blocks, links, footnotes, and image extraction. 14 known limitations documented.
+- **URL import** — `leafpress import https://example.com/report.docx` downloads and converts in one step, with Content-Type fallback for extensionless URLs and automatic temp cleanup. Works for all four formats.
+- **PPTX warnings** — charts, embedded OLE objects, media, and linked objects now produce warnings identifying the slide and shape name instead of being silently skipped
+- **XLSX warnings** — merged cells (with region count), embedded images, embedded charts, and blank workbooks now produce warnings instead of silent data loss
+- **Improved warning display** — import CLI now shows up to 10 warnings with ⚠ prefix and a "… and N more" truncation indicator
+
+### Refactor
+
+- **Shared importer base** — extracted `ImportResult`, `resolve_output_path`, `postprocess_markdown`, and `rows_to_pipe_table` from the DOCX converter into `importer/base.py`, eliminating cross-converter import dependencies
+- **Shared test helper** — consolidated 4 duplicate `_make_png()` implementations into `tests/helpers.py`
+- **Fixed `tabular*` regex** — environments with multiple brace arguments now parse correctly
+
+### Docs
+
+- [Import](import.md) — full LaTeX section with features table, 14-item limitations table, URL import section, and updated batch import examples
+- [CLI](cli.md) — updated argument description, added URL and LaTeX examples
+- [Architecture](architecture.md) — added LaTeX import section, updated pipeline diagram and module map
+- [About](about.md), [Home](index.md), [UI](ui.md) — updated to reflect LaTeX and URL support
+
+### Tests
+
+- 713 total tests (up from 644), 93% importer coverage
+- Comprehensive programmatic fixtures for DOCX, PPTX, XLSX, and LaTeX
+- Academic paper fixture (`academic_paper.tex`) with 29 assertions
+- 8 URL import tests with mocked HTTP
+- Edge case tests for LaTeX macros, environments, images, and error paths
+
+---
+
 ## 0.7.0 — 2026-03-31
 
 ### Features

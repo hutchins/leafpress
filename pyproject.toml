@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "leafpress"
-version = "0.7.0"
+version = "0.8.0"
 description = "Convert MkDocs sites to PDF, Word, HTML, ODT, EPUB, and Markdown documents with branding"
 readme = "README.md"
 authors = [{name = "Shane Hutchins", email = "hutchins@users.noreply.github.com"}]
@@ -46,6 +46,7 @@ dependencies = [
     "markdownify>=1.0",
     "python-pptx>=1.0.0",
     "openpyxl>=3.1",
+    "pylatexenc>=2.10",
 ]
 
 [project.optional-dependencies]
@@ -94,6 +95,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "-v --tb=short"
 markers = ["docker: tests requiring Docker (may be slow)"]
 

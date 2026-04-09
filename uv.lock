@@ -431,6 +431,7 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pydantic" },
     { name = "pygments" },
+    { name = "pylatexenc" },
     { name = "pymdown-extensions" },
     { name = "python-docx" },
     { name = "python-dotenv" },
@@ -479,6 +480,7 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pygments", specifier = ">=2.17" },
+    { name = "pylatexenc", specifier = ">=2.10" },
     { name = "pymdown-extensions", specifier = ">=10.0" },
     { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' and extra == 'ui'", specifier = ">=10.0" },
     { name = "pyqt6", marker = "extra == 'ui'", specifier = ">=6.6.0" },
@@ -954,6 +956,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/b0/77/a5b8c569bf593b014
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b", size = 1225217, upload-time = "2025-06-21T13:39:07.939Z" },
 ]
+
+[[package]]
+name = "pylatexenc"
+version = "2.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/ab/34ec41718af73c00119d0351b7a2531d2ebddb51833a36448fc7b862be60/pylatexenc-2.10.tar.gz", hash = "sha256:3dd8fd84eb46dc30bee1e23eaab8d8fb5a7f507347b23e5f38ad9675c84f40d3", size = 162597, upload-time = "2021-04-06T07:56:07.854Z" }
 
 [[package]]
 name = "pymdown-extensions"

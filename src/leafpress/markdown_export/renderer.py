@@ -73,20 +73,20 @@ class MarkdownExportRenderer:
         b = self._branding
 
         lines = ["---"]
-        lines.append(f"title: \"{b.project_name if b else self._mkdocs_cfg.site_name}\"")
+        lines.append(f'title: "{b.project_name if b else self._mkdocs_cfg.site_name}"')
         if b and b.company_name:
-            lines.append(f"company: \"{b.company_name}\"")
+            lines.append(f'company: "{b.company_name}"')
         if b and b.subtitle:
-            lines.append(f"subtitle: \"{b.subtitle}\"")
+            lines.append(f'subtitle: "{b.subtitle}"')
         if b and b.author:
-            lines.append(f"author: \"{b.author}\"")
+            lines.append(f'author: "{b.author}"')
         if b and b.document_owner:
-            lines.append(f"document_owner: \"{b.document_owner}\"")
+            lines.append(f'document_owner: "{b.document_owner}"')
         if b and b.review_cycle:
-            lines.append(f"review_cycle: \"{b.review_cycle}\"")
-        lines.append(f"date: \"{now.strftime('%Y-%m-%d')}\"")
+            lines.append(f'review_cycle: "{b.review_cycle}"')
+        lines.append(f'date: "{now.strftime("%Y-%m-%d")}"')
         if self._git_info:
-            lines.append(f"version: \"{self._git_info.format_version_string()}\"")
+            lines.append(f'version: "{self._git_info.format_version_string()}"')
         lines.append("---")
         return "\n".join(lines)
 

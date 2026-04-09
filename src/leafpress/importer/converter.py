@@ -2,27 +2,17 @@
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import mammoth
 from rich.console import Console
 
 from leafpress.exceptions import DocxImportError
+from leafpress.importer.base import ImportResult, postprocess_markdown, resolve_output_path
 from leafpress.importer.image_handler import ImageHandler
 from leafpress.importer.markdown_converter import LeafpressMarkdownConverter
 
 console = Console()
-
-
-@dataclass
-class ImportResult:
-    """Result of a DOCX import operation."""
-
-    markdown_path: Path
-    images: list[Path] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
 
 
 def import_docx(
@@ -52,7 +42,7 @@ def import_docx(
         raise DocxImportError(f"Not a .docx file: {docx_path}")
 
     # Resolve output path
-    md_path = _resolve_output_path(docx_path, output_path)
+    md_path = resolve_output_path(docx_path, output_path)
 
     # Set up image handler
     assets_dir = md_path.parent / "assets" if extract_images else None
@@ -85,7 +75,7 @@ def import_docx(
         markdown = converter.convert(result.value)
 
     # Post-process markdown
-    markdown = _postprocess_markdown(markdown)
+    markdown = postprocess_markdown(markdown)
 
     # Write output
     md_path.parent.mkdir(parents=True, exist_ok=True)
@@ -98,28 +88,9 @@ def import_docx(
     )
 
 
-def _resolve_output_path(docx_path: Path, output_path: Path | None) -> Path:
-    """Determine the output .md file path."""
-    if output_path is None:
-        return docx_path.with_suffix(".md")
-    if output_path.is_dir() or not output_path.suffix:
-        return output_path / f"{docx_path.stem}.md"
-    return output_path
-
-
 def _build_style_map(code_styles: list[str]) -> str:
     """Build a mammoth style map string for code block detection."""
     lines = []
     for style_name in code_styles:
         lines.append(f"p[style-name='{style_name}'] => pre:separator('\\n')")
     return "\n".join(lines)
-
-
-def _postprocess_markdown(markdown: str) -> str:
-    """Clean up generated markdown."""
-    # Collapse 3+ newlines to 2
-    markdown = re.sub(r"\n{3,}", "\n\n", markdown)
-    # Strip trailing whitespace per line
-    markdown = "\n".join(line.rstrip() for line in markdown.split("\n"))
-    # Ensure file ends with single newline
-    return markdown.strip() + "\n"

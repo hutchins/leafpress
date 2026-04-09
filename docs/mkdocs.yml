@@ -39,7 +39,7 @@ repo_url: https://github.com/hutchins/leafpress
 repo_name: leafpress
 
 # Copyright
-copyright: Copyright &copy; 2026 Shane Hutchins
+copyright: Copyright &copy; 2026 Shane Hutchins &middot; Generously supported by <a href="https://integralcloudsolutions.com/" target="_blank">Integral Cloud Solutions</a>
 
 theme:
   name: material

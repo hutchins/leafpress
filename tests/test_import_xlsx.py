@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 
 import pytest
+from helpers import make_png
 from openpyxl import Workbook
 
 from leafpress.exceptions import XlsxImportError
@@ -230,12 +231,216 @@ def test_cli_xlsx_integration(tmp_path: Path) -> None:
         {"Report": [["Metric", "Value"], ["Revenue", 1000]]},
     )
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["import", str(xlsx_path), "-o", str(tmp_path / "out.md")]
-    )
+    result = runner.invoke(cli, ["import", str(xlsx_path), "-o", str(tmp_path / "out.md")])
     assert result.exit_code == 0
     assert "Done!" in result.output
     assert (tmp_path / "out.md").exists()
     md = (tmp_path / "out.md").read_text()
     assert "## Report" in md
     assert "Revenue" in md
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive XLSX fixture — realistic multi-sheet workbook
+# ---------------------------------------------------------------------------
+
+
+def _make_comprehensive_xlsx(tmp_path: Path) -> Path:
+    """Create a multi-sheet XLSX with diverse data types and edge cases."""
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    # Sheet 1: "Summary" — mixed data types
+    ws1 = wb.create_sheet(title="Summary")
+    ws1.append(["Metric", "Value", "Date", "Time"])
+    ws1.append(["Revenue", 2400000, date(2024, 12, 31), time(9, 30, 0)])
+    ws1.append(["Expenses", 1800000.50, datetime(2024, 12, 31, 17, 0, 0), time(17, 0, 0)])
+    ws1.append(["Headcount", 150.0, date(2025, 1, 15), None])
+
+    # Sheet 2: "Details" — pipe chars, empty cells, whole-number floats
+    ws2 = wb.create_sheet(title="Details")
+    ws2.append(["Command", "Description", "Status"])
+    ws2.append(["a | b", "pipe example", "active"])
+    ws2.append([None, "missing command", "pending"])
+    ws2.append(["ls -la", None, "done"])
+    ws2.append(["echo hi", "simple", 42.0])
+
+    # Sheet 3: "Empty" — no data at all
+    wb.create_sheet(title="Empty")
+
+    # Sheet 4: "Trailing" — data rows followed by empty rows
+    ws4 = wb.create_sheet(title="Trailing")
+    ws4.append(["Key", "Value"])
+    ws4.append(["alpha", 1])
+    ws4.append(["beta", 2])
+    ws4.append([None, None])
+    ws4.append([None, None])
+    ws4.append([None, None])
+
+    path = tmp_path / "comprehensive.xlsx"
+    wb.save(path)
+    return path
+
+
+class TestComprehensiveXlsx:
+    """Tests using a realistic multi-sheet workbook."""
+
+    @pytest.fixture(autouse=True)
+    def _convert(self, tmp_path: Path) -> None:
+        xlsx_path = _make_comprehensive_xlsx(tmp_path)
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        self.result = import_xlsx(xlsx_path, output_path=out_dir)
+        self.content = self.result.markdown_path.read_text()
+
+    def test_converts_successfully(self) -> None:
+        """All sheets convert without errors."""
+        assert self.result.markdown_path.exists()
+        assert len(self.content) > 100
+
+    def test_non_empty_sheets_rendered(self) -> None:
+        """All sheets with data get headings."""
+        assert "## Summary" in self.content
+        assert "## Details" in self.content
+        assert "## Trailing" in self.content
+
+    def test_empty_sheet_skipped(self) -> None:
+        """Sheet with no data is omitted."""
+        assert "## Empty" not in self.content
+
+    def test_integer_values(self) -> None:
+        """Integer values rendered correctly."""
+        assert "2400000" in self.content
+
+    def test_float_values(self) -> None:
+        """Float values rendered with decimals."""
+        assert "1800000.5" in self.content
+
+    def test_whole_number_float(self) -> None:
+        """Whole-number floats drop the .0."""
+        # 150.0 should render as "150", 42.0 as "42"
+        assert "| 150" in self.content
+
+    def test_date_formatting(self) -> None:
+        """Dates formatted as YYYY-MM-DD."""
+        assert "2024-12-31" in self.content
+        assert "2025-01-15" in self.content
+
+    def test_datetime_formatting(self) -> None:
+        """Datetimes formatted as YYYY-MM-DD HH:MM:SS."""
+        assert "2024-12-31 17:00:00" in self.content
+
+    def test_time_formatting(self) -> None:
+        """Time values formatted as HH:MM:SS."""
+        assert "09:30:00" in self.content
+        assert "17:00:00" in self.content
+
+    def test_pipe_chars_escaped(self) -> None:
+        """Pipe characters in cell values are escaped."""
+        assert "a \\| b" in self.content
+
+    def test_empty_cells(self) -> None:
+        """Empty cells produce valid table structure."""
+        # Details sheet should have proper pipe table with blanks
+        lines = [line for line in self.content.split("\n") if line.startswith("|")]
+        # Every data line should have correct pipe count
+        for line in lines:
+            assert line.endswith("|")
+
+    def test_trailing_empty_rows_stripped(self) -> None:
+        """Trailing empty rows in sheets are not rendered."""
+        # Trailing sheet should only have header + 2 data rows (not 5)
+        trailing_section = self.content.split("## Trailing")[1]
+        # Count data rows (lines starting with |, excluding separator)
+        data_lines = [
+            line
+            for line in trailing_section.strip().split("\n")
+            if line.startswith("|") and "---" not in line
+        ]
+        assert len(data_lines) == 3  # header + alpha + beta
+
+    def test_no_images(self) -> None:
+        """XLSX import produces no images."""
+        assert self.result.images == []
+
+
+# ---------------------------------------------------------------------------
+# XLSX warning tests
+# ---------------------------------------------------------------------------
+
+
+def _make_merged_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX with merged cells."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Report"
+    ws["A1"] = "Merged Header"
+    ws.merge_cells("A1:C1")
+    ws["A2"] = "a"
+    ws["B2"] = "b"
+    ws["C2"] = "c"
+    path = tmp_path / "merged.xlsx"
+    wb.save(path)
+    return path
+
+
+def _make_image_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX with an embedded image."""
+    from openpyxl.drawing.image import Image
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "WithImage"
+    ws["A1"] = "Data"
+
+    img_path = tmp_path / "chart.png"
+    img_path.write_bytes(make_png())
+    ws.add_image(Image(str(img_path)), "B2")
+
+    path = tmp_path / "with_image.xlsx"
+    wb.save(path)
+    return path
+
+
+def _make_empty_xlsx(tmp_path: Path) -> Path:
+    """Create an XLSX where all sheets are empty."""
+    wb = Workbook()
+    wb.active.title = "Sheet1"
+    wb.create_sheet("Sheet2")
+    path = tmp_path / "empty.xlsx"
+    wb.save(path)
+    return path
+
+
+def test_xlsx_warns_on_merged_cells(tmp_path: Path) -> None:
+    """Merged cells produce a warning with region count."""
+    xlsx_path = _make_merged_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("merged" in w.lower() for w in result.warnings)
+    assert any("1 merged cell region" in w for w in result.warnings)
+    assert any("Report" in w for w in result.warnings)
+
+
+def test_xlsx_warns_on_embedded_images(tmp_path: Path) -> None:
+    """Embedded images produce a warning."""
+    xlsx_path = _make_image_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("image" in w.lower() for w in result.warnings)
+    assert any("not extracted" in w for w in result.warnings)
+
+
+def test_xlsx_warns_on_blank_workbook(tmp_path: Path) -> None:
+    """All-empty workbook produces a blank output warning."""
+    xlsx_path = _make_empty_xlsx(tmp_path)
+    result = import_xlsx(xlsx_path)
+    assert any("blank" in w.lower() for w in result.warnings)
+
+
+def test_xlsx_no_warnings_for_clean_file(tmp_path: Path) -> None:
+    """A normal workbook with no issues produces no warnings."""
+    xlsx_path = _make_xlsx(
+        tmp_path,
+        {"Data": [["Name", "Value"], ["Alpha", 1]]},
+    )
+    result = import_xlsx(xlsx_path)
+    assert result.warnings == []

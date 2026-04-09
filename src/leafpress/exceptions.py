@@ -35,3 +35,7 @@ class PptxImportError(LeafpressError):
 
 class XlsxImportError(LeafpressError):
     """Error during XLSX-to-Markdown import."""
+
+
+class TexImportError(LeafpressError):
+    """Error during LaTeX-to-Markdown import."""

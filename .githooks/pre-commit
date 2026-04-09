@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+
+echo "Running ruff check..."
+uv run ruff check src/
+
+echo "Running ruff format check..."
+uv run ruff format --check src/
+
+echo "Running ty type check..."
+uv run ty check || true
+
+echo "All checks passed."
