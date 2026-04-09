@@ -56,7 +56,7 @@ def test_extension_load_failure_includes_error_message(sample_mkdocs_dir: Path) 
     )
     failed = [(ext, ok, msg) for ext, ok, msg in renderer.extension_load_results if not ok]
     assert len(failed) >= 1
-    ext, ok, msg = failed[0]
+    ext, _ok, msg = failed[0]
     assert ext == "nonexistent_extension_xyz"
     assert msg != ""
 

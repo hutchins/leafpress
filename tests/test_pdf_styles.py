@@ -8,13 +8,13 @@ from leafpress.pdf.styles import generate_pdf_css
 
 
 def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults = {"company_name": "TestCo", "project_name": "TestProject"}
+    defaults: dict[str, object] = {"company_name": "TestCo", "project_name": "TestProject"}
     defaults.update(kwargs)
     return BrandingConfig(**defaults)
 
 
 def _make_git_info(**kwargs: object) -> GitVersion:
-    defaults = {
+    defaults: dict[str, object] = {
         "branch": "main",
         "commit_hash": "abc1234",
         "commit_hash_full": "abc1234567890abcdef1234567890abcdef123456",

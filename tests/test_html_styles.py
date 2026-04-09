@@ -5,7 +5,7 @@ from leafpress.html.styles import generate_html_css
 
 
 def _make_branding(**kwargs: object) -> BrandingConfig:
-    defaults = {"company_name": "TestCo", "project_name": "TestProject"}
+    defaults: dict[str, object] = {"company_name": "TestCo", "project_name": "TestProject"}
     defaults.update(kwargs)
     return BrandingConfig(**defaults)
 

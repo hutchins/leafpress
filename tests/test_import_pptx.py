@@ -210,11 +210,12 @@ def test_table_extraction(tmp_path: Path) -> None:
 
 
 def test_image_extraction(tmp_path: Path) -> None:
-    """Embedded images are extracted to assets/ and referenced in markdown."""
+    """Embedded images are extracted to assets/ with alt text from shape name."""
     pptx_path = _make_image_pptx(tmp_path)
     result = import_pptx(pptx_path)
     md = result.markdown_path.read_text()
-    assert "![](assets/" in md
+    assert "![" in md
+    assert "](assets/" in md
     assert len(result.images) == 1
     assert result.images[0].exists()
 
@@ -329,8 +330,9 @@ def test_runs_to_markdown_plain() -> None:
     assert _runs_to_markdown(para) == "hello world"
 
 
-def test_convert_shape_warns_on_chart() -> None:
-    """Chart shapes produce a warning."""
+def test_convert_shape_counts_chart() -> None:
+    """Chart shapes increment the skipped counter."""
+    from collections import Counter
     from unittest.mock import MagicMock
 
     from leafpress.importer.converter_pptx import _convert_shape
@@ -339,19 +341,16 @@ def test_convert_shape_warns_on_chart() -> None:
     shape.shape_type = MSO_SHAPE_TYPE.CHART
     shape.name = "Chart 1"
     shape.has_text_frame = False
-    warnings: list[str] = []
+    skipped_counts: Counter[str] = Counter()
 
-    result = _convert_shape(shape, None, "Revenue Slide", warnings)
+    result = _convert_shape(shape, None, "Revenue Slide", skipped_counts)
     assert result == ""
-    assert len(warnings) == 1
-    assert "chart" in warnings[0].lower()
-    assert "Chart 1" in warnings[0]
-    assert "Revenue Slide" in warnings[0]
-    assert "skipped" in warnings[0].lower()
+    assert skipped_counts["chart"] == 1
 
 
-def test_convert_shape_no_warn_on_freeform() -> None:
+def test_convert_shape_no_count_on_freeform() -> None:
     """Freeform shapes (decorative lines, etc.) are silently skipped."""
+    from collections import Counter
     from unittest.mock import MagicMock
 
     from leafpress.importer.converter_pptx import _convert_shape
@@ -359,10 +358,10 @@ def test_convert_shape_no_warn_on_freeform() -> None:
     shape = MagicMock()
     shape.shape_type = MSO_SHAPE_TYPE.FREEFORM
     shape.has_text_frame = False
-    warnings: list[str] = []
+    skipped_counts: Counter[str] = Counter()
 
-    _convert_shape(shape, None, "Slide 1", warnings)
-    assert len(warnings) == 0
+    _convert_shape(shape, None, "Slide 1", skipped_counts)
+    assert len(skipped_counts) == 0
 
 
 def test_runs_to_markdown_hyperlink() -> None:
@@ -382,7 +381,7 @@ def test_runs_to_markdown_hyperlink() -> None:
 
 
 def test_runs_to_markdown_bold_hyperlink() -> None:
-    """Bold text with a hyperlink unwraps formatting for the link text."""
+    """Bold text with a hyperlink preserves both formatting and link."""
     from unittest.mock import MagicMock
 
     para = MagicMock()
@@ -394,7 +393,56 @@ def test_runs_to_markdown_bold_hyperlink() -> None:
     para.runs = [run]
 
     md = _runs_to_markdown(para)
-    assert "[bold link](https://example.com)" in md
+    assert "**[bold link](https://example.com)**" in md
+
+
+def test_runs_to_markdown_italic_hyperlink() -> None:
+    """Italic text with a hyperlink preserves both formatting and link."""
+    from unittest.mock import MagicMock
+
+    para = MagicMock()
+    run = MagicMock()
+    run.text = "italic link"
+    run.font.bold = False
+    run.font.italic = True
+    run.hyperlink.address = "https://example.com"
+    para.runs = [run]
+
+    md = _runs_to_markdown(para)
+    assert "*[italic link](https://example.com)*" in md
+
+
+def test_aggregate_warnings_multiple_charts() -> None:
+    """Multiple charts across slides produce a single aggregated warning."""
+    from collections import Counter
+    from unittest.mock import MagicMock
+
+    from leafpress.importer.converter_pptx import _aggregate_warnings, _convert_shape
+
+    skipped_counts: Counter[str] = Counter()
+    for i in range(3):
+        shape = MagicMock()
+        shape.shape_type = MSO_SHAPE_TYPE.CHART
+        shape.name = f"Chart {i}"
+        shape.has_text_frame = False
+        _convert_shape(shape, None, f"Slide {i}", skipped_counts)
+
+    warnings = _aggregate_warnings(skipped_counts)
+    assert len(warnings) == 1
+    assert "3 unsupported charts" in warnings[0]
+
+
+def test_aggregate_warnings_mixed_types() -> None:
+    """Different unsupported types each get their own aggregated warning."""
+    from collections import Counter
+
+    from leafpress.importer.converter_pptx import _aggregate_warnings
+
+    skipped_counts: Counter[str] = Counter({"chart": 2, "media": 1})
+    warnings = _aggregate_warnings(skipped_counts)
+    assert len(warnings) == 2
+    assert any("2 unsupported charts" in w for w in warnings)
+    assert any("1 unsupported media" in w for w in warnings)
 
 
 def test_runs_to_markdown_empty_run() -> None:
@@ -587,7 +635,7 @@ class TestComprehensivePptx:
         """Embedded image extracted to assets/."""
         assert len(self.result.images) >= 1
         assert self.result.images[0].exists()
-        assert "![](assets/" in self.content
+        assert "](assets/" in self.content
 
     def test_slide_count(self) -> None:
         """All 5 slides appear in output."""

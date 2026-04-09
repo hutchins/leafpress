@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+from collections import Counter
 from pathlib import Path
 
 from pptx import Presentation
@@ -71,12 +71,15 @@ def import_pptx(
         except Exception as e:
             raise PptxImportError(f"Failed to open PPTX: {e}") from e
 
-        warnings: list[str] = []
+        skipped_counts: Counter[str] = Counter()
         sections: list[str] = []
         for slide_num, slide in enumerate(prs.slides, start=1):
-            slide_md = _convert_slide(slide, slide_num, image_handler, include_notes, warnings)
+            slide_md = _convert_slide(
+                slide, slide_num, image_handler, include_notes, skipped_counts
+            )
             sections.append(slide_md)
 
+    warnings = _aggregate_warnings(skipped_counts)
     markdown = "\n\n".join(sections)
     markdown = postprocess_markdown(markdown)
 
@@ -91,12 +94,21 @@ def import_pptx(
     )
 
 
+def _aggregate_warnings(skipped_counts: Counter[str]) -> list[str]:
+    """Build aggregated warning messages from per-type skip counts."""
+    warnings: list[str] = []
+    for label, count in sorted(skipped_counts.items()):
+        plural = "s" if count > 1 else ""
+        warnings.append(f"Presentation has {count} unsupported {label}{plural} — skipped")
+    return warnings
+
+
 def _convert_slide(
     slide,
     slide_num: int,
     image_handler: ImageHandler | None,
     include_notes: bool,
-    warnings: list[str],
+    skipped_counts: Counter[str],
 ) -> str:
     """Convert a single slide to markdown."""
     parts: list[str] = []
@@ -115,7 +127,7 @@ def _convert_slide(
     for shape in slide.shapes:
         if shape is title_shape:
             continue
-        shape_md = _convert_shape(shape, image_handler, slide_label, warnings)
+        shape_md = _convert_shape(shape, image_handler, slide_label, skipped_counts)
         if shape_md:
             parts.append(shape_md)
 
@@ -140,11 +152,11 @@ def _convert_shape(
     shape,
     image_handler: ImageHandler | None,
     slide_label: str,
-    warnings: list[str],
+    skipped_counts: Counter[str],
 ) -> str:
     """Convert a single shape to markdown."""
     if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-        return _convert_group(shape, image_handler, slide_label, warnings)
+        return _convert_group(shape, image_handler, slide_label, skipped_counts)
 
     if shape.shape_type == MSO_SHAPE_TYPE.TABLE:
         return _table_to_markdown(shape.table)
@@ -156,12 +168,11 @@ def _convert_shape(
         return _text_frame_to_markdown(shape.text_frame)
 
     # Shapes with no text, table, image, or group content are skipped.
-    # Warn for shape types that may contain meaningful content.
+    # Count per type for aggregated warnings.
     shape_type = shape.shape_type
     if shape_type in _WARN_SHAPE_TYPES:
         label = _WARN_SHAPE_TYPES[shape_type]
-        name = shape.name or "unnamed"
-        warnings.append(f"Unsupported {label} '{name}' on slide '{slide_label}' — skipped")
+        skipped_counts[label] += 1
 
     return ""
 
@@ -170,12 +181,12 @@ def _convert_group(
     group_shape,
     image_handler: ImageHandler | None,
     slide_label: str,
-    warnings: list[str],
+    skipped_counts: Counter[str],
 ) -> str:
     """Recursively convert shapes inside a group."""
     parts: list[str] = []
     for shape in group_shape.shapes:
-        md = _convert_shape(shape, image_handler, slide_label, warnings)
+        md = _convert_shape(shape, image_handler, slide_label, skipped_counts)
         if md:
             parts.append(md)
     return "\n\n".join(parts)
@@ -187,7 +198,8 @@ def _convert_image(shape, image_handler: ImageHandler) -> str:
     image_bytes = image.blob
     content_type = image.content_type
     src = image_handler.save_image(image_bytes, content_type)
-    return f"![]({src})"
+    alt = shape.name or ""
+    return f"![{alt}]({src})"
 
 
 def _text_frame_to_markdown(text_frame) -> str:
@@ -214,15 +226,14 @@ def _runs_to_markdown(paragraph) -> str:
         if not text:
             continue
 
-        # Apply formatting
+        # Apply hyperlink first, then wrap with formatting so
+        # bold/italic are preserved: **[text](url)** instead of lost.
+        if run.hyperlink and run.hyperlink.address:
+            text = f"[{text}]({run.hyperlink.address})"
         if run.font.bold:
             text = f"**{text}**"
         if run.font.italic:
             text = f"*{text}*"
-        if run.hyperlink and run.hyperlink.address:
-            # Strip formatting wrappers to put inside link text
-            display = re.sub(r"^\*{1,2}(.*?)\*{1,2}$", r"\1", text)
-            text = f"[{display}]({run.hyperlink.address})"
 
         parts.append(text)
     return "".join(parts)
