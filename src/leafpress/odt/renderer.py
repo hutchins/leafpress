@@ -46,6 +46,8 @@ class OdtRenderer:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._table_count = 0
+        self._image_count = 0
 
     def render(
         self,
@@ -470,15 +472,17 @@ class OdtRenderer:
         if not cols:
             return
 
+        self._table_count += 1
         table = Table(stylename="LeafpressTable")
 
-        # Add columns
-        col_style = Style(name="TableCol", family="table-column")
+        # Add columns with unique style name per table
+        col_style_name = f"TableCol{self._table_count}"
+        col_style = Style(name=col_style_name, family="table-column")
         col_style.addElement(TableColumnProperties(columnwidth=f"{6.5 / len(cols):.2f}in"))
         doc.automaticstyles.addElement(col_style)
 
         for _i in range(len(cols)):
-            table.addElement(TableColumn(stylename="TableCol"))
+            table.addElement(TableColumn(stylename=col_style_name))
 
         for row_idx, tr in enumerate(rows):
             table_row = TableRow()
@@ -502,8 +506,9 @@ class OdtRenderer:
 
     def _add_image(self, doc: Any, image_path: Path) -> None:
         """Add an image to the document."""
+        self._image_count += 1
         p = P(stylename="Normal")
-        img_style = Style(name="ImageFrame", family="graphic")
+        img_style = Style(name=f"ImageFrame{self._image_count}", family="graphic")
         img_style.addElement(
             GraphicProperties(
                 verticalpos="top",
@@ -515,7 +520,7 @@ class OdtRenderer:
         doc.automaticstyles.addElement(img_style)
 
         frame = Frame(
-            stylename="ImageFrame",
+            stylename=img_style,
             width="4in",
             height="2in",
         )
