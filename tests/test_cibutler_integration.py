@@ -1,7 +1,7 @@
 """Integration tests using the OSDU CIButler MkDocs site.
 
 These tests exercise leafpress against a real MkDocs project with Material theme,
-pymdownx extensions (including !!python/name references), and 12 markdown pages.
+pymdownx extensions (including !!python/name references), and auto-discovered pages.
 """
 
 from pathlib import Path
@@ -98,7 +98,7 @@ class TestCibutlerParsing:
         page_paths = [str(p.path) for p in pages if p.path is not None]
         assert any("index.md" in p for p in page_paths)
         assert any("install.md" in p for p in page_paths)
-        assert len(page_paths) == 14
+        assert len(page_paths) >= 14
 
     def test_all_pages_exist(self, cibutler_config: MkDocsConfig) -> None:
         pages = flatten_nav(cibutler_config.nav_items)
@@ -116,7 +116,7 @@ class TestCibutlerMarkdown:
         content_pages = [
             (item, html) for item, html in cibutler_html_pages if item.path is not None
         ]
-        assert len(content_pages) == 14
+        assert len(content_pages) >= 14
         for item, html in content_pages:
             assert len(html) > 0, f"Empty HTML for {item.path}"
 
