@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.2 — 2026-04-25
+
+### Tests
+
+- New unit tests for `importer/image_handler.py` — covers `save_image` (file writes, counter+hash naming, asset directory creation, full MIME→extension table, default fallback), `handle_image` mammoth callback, `content_type_for_extension` (including `.jpeg` alias), and `saved_images` copy semantics
+- New unit tests for `importer/markdown_converter.py` — covers ATX heading / dash bullet / asterisk emphasis options, `convert_pre` fenced output (with and without `language-*` class), and `convert_table` pipe-table generation (header separator, ragged-row padding, min column width, empty table, embedded newlines)
+- 779 total tests (up from 738), 91% overall coverage; `image_handler` and `markdown_converter` now at 100% / 98%
+
+### Fixes
+
+- Loosened hard-coded page-count assertions in `test_cibutler_integration.py` (`== 14` → `>= 14`) so the suite tolerates new pages being added to the upstream cibutler docs site
+
+---
+
+## 0.8.1 — 2026-04-09
+
+### Improvements
+
+- **PPTX converter** — warnings are now aggregated by type instead of one per shape, producing cleaner output on decks with many unsupported objects
+- **PPTX alt text** — image shapes now use the shape name as alt text in generated Markdown
+- **PPTX hyperlinks** — bold/italic formatting on linked text is now preserved through the conversion
+
+### Fixes
+
+- Type annotations corrected in `source.py` and several test helpers
+- Import sorting and unused-variable lint errors fixed across the test suite
+- `ty.toml` added to suppress false positives from third-party stubs
+- Release workflow fixed; integration test path corrected
+- Dict-unpacking test helpers replaced with explicit constructions
+
+---
+
 ## 0.8.0 — 2026-04-04
 
 ### Features
