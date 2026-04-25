@@ -16,6 +16,9 @@ env/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+pytest-of-*/
+leafpress-mermaid-*/
+uv-*.lock
 htmlcov/
 .coverage
 output/
