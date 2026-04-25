@@ -1,7 +1,9 @@
 """Tests for CLI commands."""
 
+import sys
 from pathlib import Path
 
+import pytest
 from docx import Document as DocxDocument
 from pptx import Presentation
 from typer.testing import CliRunner
@@ -9,6 +11,18 @@ from typer.testing import CliRunner
 from leafpress.cli import cli
 
 runner = CliRunner()
+
+
+def test_ui_command_missing_pyqt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without PyQt6, `leafpress ui` should exit 1 and print install instructions."""
+    monkeypatch.setitem(sys.modules, "leafpress.ui.app", None)
+
+    result = runner.invoke(cli, ["ui"])
+
+    assert result.exit_code == 1
+    assert "PyQt6" in result.output
+    assert "leafpress[ui]" in result.output
+    assert "Missing dependency" in result.output
 
 
 def test_version_flag() -> None:

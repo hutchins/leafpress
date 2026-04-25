@@ -217,6 +217,38 @@ def test_pdf_missing_error_mentions_pdf_extra(
     assert "leafpress doctor" in msg
 
 
+def test_pdf_oserror_mentions_system_libs(
+    sample_mkdocs_config: Path,
+    tmp_output: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OSError on PdfRenderer import (system libs missing) must give a targeted hint."""
+    import builtins
+    import sys
+
+    monkeypatch.delitem(sys.modules, "leafpress.pdf.renderer", raising=False)
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "leafpress.pdf.renderer":
+            raise OSError("cannot load library 'pango-1.0'")
+        return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    with pytest.raises(LeafpressError) as exc_info:
+        convert(
+            source=str(sample_mkdocs_config.parent),
+            output_dir=tmp_output,
+            format="pdf",
+        )
+    msg = str(exc_info.value)
+    assert "system libraries" in msg
+    assert "cairo" in msg
+    assert "leafpress doctor" in msg
+    assert "pango-1.0" in msg  # original error preserved
+
+
 # --- _ConsoleWarningHandler ---
 
 
