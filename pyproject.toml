@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.10.9,<0.11"]
+requires = ["uv_build>=0.10.9,<0.12"]
 build-backend = "uv_build"
 
 [project]
@@ -12,12 +12,12 @@ maintainers = [
   {name = "Shane Hutchins", email = "hutchins@users.noreply.github.com"}
 ]
 requires-python = ">=3.13"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Topic :: Documentation",

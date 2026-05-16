@@ -2,10 +2,10 @@
 set -e
 
 echo "Running ruff check..."
-uv run ruff check src/
+uv run ruff check src/ tests/
 
 echo "Running ruff format check..."
-uv run ruff format --check src/
+uv run ruff format --check src/ tests/
 
 echo "Running ty type check..."
 uv run ty check || true

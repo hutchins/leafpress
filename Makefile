@@ -4,11 +4,11 @@ tests: lint typecheck
 	uv run pytest tests/ -v
 
 lint:
-	uv run ruff check src/
+	uv run ruff check src/ tests/
 
 format:
-	uv run ruff check --fix src/
-	uv run ruff format src/
+	uv run ruff check --fix src/ tests/
+	uv run ruff format src/ tests/
 
 typecheck:
 	uv run ty check
