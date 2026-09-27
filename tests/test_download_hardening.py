@@ -226,12 +226,12 @@ class TestOpenFile:
         import os
         import sys
 
-        from leafpress import cli
+        from leafpress.cli import _files as cli_files
 
         startfile = MagicMock()
         monkeypatch.setattr(sys, "platform", "win32")
         monkeypatch.setattr(os, "startfile", startfile, raising=False)
-        with patch("leafpress.cli.subprocess.run") as run:
-            cli._open_file(tmp_path / "a & calc.pdf")
+        with patch("leafpress.cli._files.subprocess.run") as run:
+            cli_files._open_file(tmp_path / "a & calc.pdf")
         startfile.assert_called_once_with(tmp_path / "a & calc.pdf")
         run.assert_not_called()

@@ -57,7 +57,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--footer-date` / `--no-footer-date` | _(config)_ | Include document generation date in footer |
 | `--sanitize-html` / `--no-sanitize-html` | _(auto)_ | Strip scripts, event handlers, and other active content from page HTML. The default is on for git URL sources and otherwise follows `sanitize_html` in `leafpress.yml` |
 | `--mermaid` / `--no-mermaid` | _(config)_ | Render mermaid diagrams via the configured server. `--no-mermaid` keeps them as code blocks and sends nothing |
-| `--fetch-diagrams` | `false` | Fetch diagrams from external sources before converting |
+| `--fetch-diagrams` | `false` | Fetch diagrams from external sources before converting. Uses `-c`, or `leafpress.yml`/`.yaml` in the source directory. Ignored, with a warning, for git URL sources |
 | `--verbose` | `false` | Show warnings, debug details, and full traceback on error |
 
 **Examples**

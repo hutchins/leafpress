@@ -43,6 +43,7 @@
     - A per-file summary table is shown after multi-file imports.
     - Two inputs with the same name no longer silently overwrite each other's output.
     - URL imports without `-o` are written to the current directory. They were previously written into the download's temp directory and deleted.
+- `convert --fetch-diagrams` silently did nothing unless `-c` was passed. It now auto-detects `leafpress.yml` in the source directory, and it warns when there is nothing to fetch or the source is a git URL
 - **`fetch-diagrams`:**
     - Downloads run in parallel (up to 4 at a time).
     - All failures are reported together instead of stopping at the first.
@@ -56,6 +57,7 @@
 
 ### Tooling
 
+- `src/leafpress/cli.py` (~700 lines) is split into a `leafpress.cli` package with one module per subcommand. The `leafpress.cli:cli` entry point and `--help` output are unchanged, and new tests cover the CLI error paths
 - Added `SECURITY.md` (private vulnerability reporting) and expanded `CONTRIBUTING.md` with the test layout, fixtures, security-test expectations, and how to add renderers and importers
 - CIButler integration tests read their location from `LEAFPRESS_CIBUTLER_DOCS` instead of a hardcoded path, and the skip reason says how to enable them
 - `.gitignore` and ruff excludes for `pytest-of-*` / `leafpress-mermaid-*` are anchored to the repo root
