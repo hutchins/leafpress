@@ -5,12 +5,13 @@ from __future__ import annotations
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from rich.console import Console
 
 from leafpress.asset_policy import is_within
-from leafpress.config import DiagramsConfig
+from leafpress.config import DiagramsConfig, DiagramSource
 from leafpress.downloads import DownloadError, download
 from leafpress.exceptions import DiagramError
 
@@ -93,21 +94,35 @@ def fetch_lucidchart(
     return dest
 
 
+MAX_PARALLEL_FETCHES = 4
+
+
 def fetch_diagrams(
     config: DiagramsConfig,
     base_dir: Path,
     refresh: bool = False,
     console: Console | None = None,
 ) -> list[Path]:
-    """Fetch all configured diagram sources. Returns list of downloaded paths."""
+    """Fetch all configured diagram sources concurrently.
+
+    All destinations are validated (and the Lucidchart token resolved) before
+    any request is made. Downloads then run in parallel; if any fail, the rest
+    still complete and a single DiagramError lists every failure.
+
+    Returns:
+        Paths of cached and freshly downloaded diagrams, in config order.
+    """
     if not config.sources:
         return []
 
     console = console or Console()
-    downloaded: list[Path] = []
     token: str | None = None
+    seen_dests: dict[Path, str] = {}
+    # (index in config order, source, dest) for each entry that needs a fetch
+    pending: list[tuple[int, DiagramSource, Path]] = []
+    results: dict[int, Path] = {}
 
-    for source in config.sources:
+    for index, source in enumerate(config.sources):
         dest = base_dir / source.dest
         # dest comes from leafpress.yml; don't let it write outside the project
         # (e.g. dest: ../../.bashrc or an absolute path).
@@ -115,6 +130,13 @@ def fetch_diagrams(
             raise DiagramError(
                 f"Diagram dest must be inside the project directory ({base_dir}): {source.dest}"
             )
+        resolved = dest.resolve()
+        if resolved in seen_dests:
+            raise DiagramError(
+                f"Two diagram sources write to the same dest: {source.dest} "
+                f"(also used by {seen_dests[resolved]})"
+            )
+        seen_dests[resolved] = source.dest
 
         if not source.url and not source.lucidchart:
             console.print(
@@ -124,18 +146,41 @@ def fetch_diagrams(
 
         if not refresh and not _is_stale(dest, config.cache_max_age):
             console.print(f"  [dim]Cached[/dim]   {source.dest}")
-            downloaded.append(dest)
+            results[index] = dest
             continue
 
+        if source.lucidchart and not source.url and token is None:
+            token = _resolve_lucidchart_token(config)
+        pending.append((index, source, dest))
+
+    def _fetch_one(source: DiagramSource, dest: Path) -> Path:
         if source.url:
-            console.print(f"  [cyan]Fetching[/cyan] {source.dest}")
             fetch_url(source.url, dest)
-        elif source.lucidchart:
-            if token is None:
-                token = _resolve_lucidchart_token(config)
-            console.print(f"  [cyan]Exporting[/cyan] {source.dest}")
+        else:
+            assert source.lucidchart is not None and token is not None
             fetch_lucidchart(source.lucidchart, dest, token, source.page)
+        return dest
 
-        downloaded.append(dest)
+    failures: list[str] = []
+    if pending:
+        workers = min(MAX_PARALLEL_FETCHES, len(pending))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {}
+            for index, source, dest in pending:
+                verb = "Fetching" if source.url else "Exporting"
+                console.print(f"  [cyan]{verb}[/cyan] {source.dest}")
+                futures[pool.submit(_fetch_one, source, dest)] = (index, source)
+            for future in as_completed(futures):
+                index, source = futures[future]
+                try:
+                    results[index] = future.result()
+                except DiagramError as e:
+                    console.print(f"  [red]Failed[/red]   {source.dest}: {e}")
+                    failures.append(f"{source.dest}: {e}")
 
-    return downloaded
+    if failures:
+        raise DiagramError(
+            f"{len(failures)} of {len(pending)} diagram download(s) failed:\n  "
+            + "\n  ".join(failures)
+        )
+    return [results[i] for i in sorted(results)]

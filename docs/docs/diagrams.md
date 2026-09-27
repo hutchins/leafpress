@@ -135,6 +135,18 @@ https://lucid.app/lucidchart/abc123-document-id/edit
 
 Diagrams are exported as PNG images. Use the `page` field to select a specific page (defaults to page 1).
 
+## Parallel fetching and errors
+
+Diagrams are downloaded in parallel, up to 4 at a time.
+
+Before any request is made, leafpress checks:
+
+- every `dest` path;
+- that no two sources share a `dest`;
+- that a Lucidchart token is available, if any source needs one.
+
+If some downloads fail, the others still complete. The command then exits with a single error listing every failure.
+
 ## Caching
 
 Fetched diagrams are cached locally at their `dest` path. On subsequent runs:

@@ -17,7 +17,14 @@ leafpress import *.docx *.pptx *.xlsx *.tex -o docs/
 
 See the [CLI Reference](cli.md#import) for all flags and examples.
 
-Files can also be imported from an `http://` or `https://` URL. Downloads are capped at 200 MB.
+Files can also be imported from an `http://` or `https://` URL. Downloads are capped at 200 MB. Without `-o`, a URL import is written to the current directory.
+
+### Importing several files
+
+- **A failed file doesn't stop the batch.** Each error names the file it came from, and leafpress continues with the rest.
+- **Summary table.** After a multi-file import, a table lists every source with its status, output path (or error), and image and warning counts.
+- **Exit code.** The command exits with code 1 if any file failed.
+- **Name collisions are refused.** Two inputs that would produce the same output file (e.g. `a/report.docx` and `b/report.docx` with `-o docs/`) would otherwise overwrite each other. The second one is refused with an error; import them separately or give them different `-o` paths.
 
 ---
 

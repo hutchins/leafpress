@@ -186,7 +186,7 @@ def test_import_partial_failure(tmp_path: Path) -> None:
     result = runner.invoke(cli, ["import", str(good), str(bad), "-o", str(out)])
     assert result.exit_code == 1  # overall failure
     assert (out / "good.md").exists()  # first file succeeded
-    assert "1 file(s) failed" in result.output
+    assert "1 of 2 file(s) failed" in result.output
 
 
 def test_import_single_file_still_works(sample_docx: Path, tmp_output: Path) -> None:
