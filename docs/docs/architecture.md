@@ -44,7 +44,9 @@ The Typer-based CLI parses arguments and invokes the pipeline.
 
 - **`cli/app.py`** defines the shared app, console, and `--version`.
 - **Command modules:** each subcommand lives in its own module (`convert.py`, `import_cmd.py`, `fetch_diagrams.py`, `info.py`, `init.py`, `doctor.py`, `ui.py`).
-- **`cli/__init__.py`** registers the commands in a fixed order and exposes `leafpress.cli:cli`, the console-script entry point. The `convert` command accepts a source path (or auto-detects it), output format, branding config path, and rendering options like cover page, TOC, watermark, and local timezone.
+- **`cli/__init__.py`** registers the commands in a fixed order and exposes `leafpress.cli:cli`, the console-script entry point.
+
+The `convert` command accepts a source path (or auto-detects it), output format, branding config path, and rendering options like cover page, TOC, watermark, and local timezone.
 
 The `info` command uses the same source resolution to display project metadata without rendering.
 
@@ -147,7 +149,7 @@ All renderers conform to the `BaseRenderer` protocol, which defines the common c
 | EPUB | `src/leafpress/epub/renderer.py` | ebooklib | HTML chapters wrapped in EPUB structure |
 | Markdown | `src/leafpress/markdown_export/renderer.py` | — | Reads source `.md` files, concatenates with front matter and TOC |
 
-All renderers support cover pages, tables of contents, branding, and watermarks. PDF and HTML use Jinja2 templates in their respective `templates/` directories; DOCX, ODT, and EPUB build documents programmatically. The Markdown export renderer reads source `.md` files directly rather than converting from HTML, preserving the original formatting.
+All renderers support cover pages, tables of contents, and branding. All except Markdown export also render watermarks. PDF and HTML use Jinja2 templates in their respective `templates/` directories; DOCX, ODT, and EPUB build documents programmatically. The Markdown export renderer reads source `.md` files directly rather than converting from HTML, preserving the original formatting.
 
 ## Import Pipeline
 

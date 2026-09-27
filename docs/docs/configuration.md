@@ -332,6 +332,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` |
 | `LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE` | `footer.include_render_date` |
 | `LEAFPRESS_LOCAL_TIME` | Use local timezone for dates (`true`/`false`, default: `false`) |
+| `LEAFPRESS_LOG_LEVEL` | Console log level: `DEBUG`, `INFO`, `WARNING` (default), `ERROR`, or `CRITICAL`. `--verbose` takes priority (`DEBUG`) |
 | `LEAFPRESS_WATERMARK_TEXT` | `watermark.text` |
 | `LEAFPRESS_WATERMARK_COLOR` | `watermark.color` |
 | `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` (e.g. `0.2`) |

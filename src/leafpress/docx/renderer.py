@@ -366,7 +366,9 @@ class DocxRenderer:
         textpath.set("string", wm.text)
         textpath.set(
             "style",
-            "font-family:&quot;Calibri&quot;;font-size:1pt",
+            # Plain quotes: lxml escapes attribute values itself, so a literal
+            # &quot; here would reach Word as "&amp;quot;" and break the font.
+            'font-family:"Calibri";font-size:1pt',
         )
         shape.append(textpath)
 
