@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ebooklib import epub
 from jinja2 import Environment, PackageLoader
+from markupsafe import escape
 
-from leafpress.base_renderer import make_anchor_id, replace_checkboxes
+from leafpress.asset_policy import AssetPolicy
+from leafpress.base_renderer import (
+    build_asset_policy,
+    image_mime_type,
+    make_anchor_id,
+    replace_checkboxes,
+    rewrite_local_images,
+)
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -23,10 +32,12 @@ class EpubRenderer:
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
         self._jinja = Environment(
             loader=PackageLoader("leafpress.html", "templates"),
             autoescape=True,
@@ -68,7 +79,7 @@ class EpubRenderer:
 
         spine: list[str | epub.EpubHtml] = ["nav"]
         toc_items: list[epub.Link | tuple[epub.Section, list]] = []
-        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        now = datetime.now() if local_time else datetime.now(UTC)
 
         # Cover page chapter
         if cover_page:
@@ -98,11 +109,29 @@ class EpubRenderer:
         # Watermark text (inline in each chapter if configured)
         watermark_html = ""
         if self._branding and self._branding.watermark.text:
-            from markupsafe import escape
-
             watermark_html = (
                 f'<div class="lp-watermark">{escape(self._branding.watermark.text)}</div>'
             )
+
+        # Local images are packaged inside the EPUB (file:// links don't work
+        # in e-readers). Content-addressed names dedupe repeated images.
+        added_images: dict[Path, str] = {}
+
+        def add_image(path: Path) -> str:
+            if path not in added_images:
+                data = path.read_bytes()
+                name = f"images/{hashlib.sha256(data).hexdigest()[:16]}{path.suffix.lower()}"
+                if name not in added_images.values():
+                    book.add_item(
+                        epub.EpubItem(
+                            uid=f"img_{len(added_images)}",
+                            file_name=name,
+                            media_type=image_mime_type(path),
+                            content=data,
+                        )
+                    )
+                added_images[path] = name
+            return added_images[path]
 
         # Content chapters
         chapter_idx = 0
@@ -129,10 +158,12 @@ class EpubRenderer:
             )
 
             # Build chapter body
-            body = f'<h1 id="{page_id}">{item.title}</h1>\n'
+            body = f'<h1 id="{page_id}">{escape(item.title)}</h1>\n'
             if watermark_html:
                 body += watermark_html + "\n"
-            body += replace_checkboxes(html_content)
+            body += rewrite_local_images(
+                replace_checkboxes(html_content), self._asset_policy, add_image
+            )
 
             chapter.content = self._wrap_html(body, css_item)
             chapter.add_link(href="style/leafpress.css", rel="stylesheet", type="text/css")

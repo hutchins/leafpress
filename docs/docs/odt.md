@@ -39,7 +39,7 @@ The ODT output includes:
 | Code blocks | Yes |
 | Lists (bullet, numbered) | Yes |
 | Blockquotes | Yes |
-| Images (local files) | Yes |
+| Images (local files) | Yes (raster formats; sized to keep their aspect ratio, max 5.5in wide) |
 | Admonitions | Yes |
 | Mermaid diagrams | Yes |
 | Annotations | Yes |

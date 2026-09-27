@@ -16,9 +16,8 @@ from leafpress.exceptions import DiagramError
 
 logger = logging.getLogger(__name__)
 
-_MERMAID_INK_PNG_BASE = "https://mermaid.ink/img"
+DEFAULT_MERMAID_SERVER = "https://mermaid.ink"
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
-_MERMAID_INK_SVG_BASE = "https://mermaid.ink/svg"
 MAX_MERMAID_BYTES = 20 * 1024 * 1024
 
 
@@ -79,13 +78,14 @@ def _sanitize_mermaid_source(source: str) -> str:
     return source
 
 
-def render_mermaid(source: str, dest: Path, timeout: int = 30) -> Path:
+def render_mermaid(source: str, dest: Path, timeout: int = 30, server: str | None = None) -> Path:
     """Render mermaid source to a PNG image via mermaid.ink.
 
     Args:
         source: Mermaid diagram source text.
         dest: Path to write the PNG file.
         timeout: HTTP request timeout in seconds.
+        server: Base URL of a mermaid.ink-compatible server (default mermaid.ink).
 
     Returns:
         The dest path on success.
@@ -94,7 +94,7 @@ def render_mermaid(source: str, dest: Path, timeout: int = 30) -> Path:
         DiagramError: If rendering fails.
     """
     encoded = base64.urlsafe_b64encode(source.encode()).decode()
-    url = f"{_MERMAID_INK_PNG_BASE}/{encoded}"
+    url = f"{server or DEFAULT_MERMAID_SERVER}/img/{encoded}"
 
     try:
         body, headers = download(url, max_bytes=MAX_MERMAID_BYTES, timeout=timeout)
@@ -110,13 +110,16 @@ def render_mermaid(source: str, dest: Path, timeout: int = 30) -> Path:
     return dest
 
 
-def render_mermaid_svg(source: str, dest: Path, timeout: int = 30) -> Path:
+def render_mermaid_svg(
+    source: str, dest: Path, timeout: int = 30, server: str | None = None
+) -> Path:
     """Render mermaid source to an SVG image via mermaid.ink.
 
     Args:
         source: Mermaid diagram source text.
         dest: Path to write the SVG file.
         timeout: HTTP request timeout in seconds.
+        server: Base URL of a mermaid.ink-compatible server (default mermaid.ink).
 
     Returns:
         The dest path on success.
@@ -125,7 +128,7 @@ def render_mermaid_svg(source: str, dest: Path, timeout: int = 30) -> Path:
         DiagramError: If rendering fails.
     """
     encoded = base64.urlsafe_b64encode(source.encode()).decode()
-    url = f"{_MERMAID_INK_SVG_BASE}/{encoded}"
+    url = f"{server or DEFAULT_MERMAID_SERVER}/svg/{encoded}"
 
     try:
         body, headers = download(url, max_bytes=MAX_MERMAID_BYTES, timeout=timeout)
@@ -173,6 +176,7 @@ def render_mermaid_blocks(
     html: str,
     output_dir: Path,
     source_path: Path | None = None,
+    server: str | None = None,
 ) -> tuple[str, list[str]]:
     """Find mermaid code blocks in HTML, render to images, and replace them.
 
@@ -180,6 +184,7 @@ def render_mermaid_blocks(
         html: HTML string potentially containing mermaid code blocks.
         output_dir: Directory to store rendered PNG images.
         source_path: Path to the source .md file (for warning context).
+        server: Base URL of a mermaid.ink-compatible server (default mermaid.ink).
 
     Returns:
         Tuple of (HTML string with mermaid blocks replaced, list of warning messages).
@@ -210,7 +215,7 @@ def render_mermaid_blocks(
 
         try:
             if not dest.exists() or not _is_valid_png(dest):
-                render_mermaid(source, dest)
+                render_mermaid(source, dest, server=server)
 
             img = soup.new_tag(
                 "img",

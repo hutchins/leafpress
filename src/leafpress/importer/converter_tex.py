@@ -585,9 +585,11 @@ class _TexToMarkdownConverter:
 
         body = self._convert_nodes(node.nodelist)
 
-        if self._figure_caption and "![](" in body:
+        # _convert_nodes() sets _figure_caption as a side effect when it meets
+        # \caption, which ty's narrowing doesn't model.
+        if self._figure_caption and "![](" in body:  # ty: ignore[redundant-condition]
             body = body.replace("![](", f"![{self._figure_caption}](", 1)
-        elif self._figure_caption and body.strip():
+        elif self._figure_caption and body.strip():  # ty: ignore[redundant-condition]
             body = body.strip() + f"\n\n*{self._figure_caption}*"
 
         return f"\n\n{body.strip()}\n\n"

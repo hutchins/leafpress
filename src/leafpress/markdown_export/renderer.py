@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from leafpress.config import BrandingConfig
@@ -69,7 +69,7 @@ class MarkdownExportRenderer:
 
     def _build_front_matter(self, local_time: bool) -> str:
         """Build YAML front matter with document metadata."""
-        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        now = datetime.now() if local_time else datetime.now(UTC)
         b = self._branding
 
         lines = ["---"]

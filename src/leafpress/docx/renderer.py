@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from docx import Document
@@ -143,7 +143,7 @@ class DocxRenderer:
                 footer_parts.append(" | ".join(version_parts))
 
         if self._branding is None or self._branding.footer.include_render_date:
-            now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+            now = datetime.now() if self._local_time else datetime.now(UTC)
             footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
 
         footer_parts.append("Made with LeafPress · leafpress.dev")
@@ -233,7 +233,7 @@ class DocxRenderer:
 
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+        now = datetime.now() if self._local_time else datetime.now(UTC)
         run = para.add_run(now.strftime("%B %d, %Y"))
         run.font.size = Pt(10)
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)

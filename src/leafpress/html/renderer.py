@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
 
-from leafpress.base_renderer import make_anchor_id, replace_checkboxes, resolve_logo_uri
+from leafpress.asset_policy import AssetPolicy
+from leafpress.base_renderer import (
+    build_asset_policy,
+    image_data_uri,
+    make_anchor_id,
+    replace_checkboxes,
+    resolve_logo_uri,
+    rewrite_local_images,
+)
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -22,10 +30,12 @@ class HtmlRenderer:
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
         self._jinja = Environment(
             loader=PackageLoader("leafpress.html", "templates"),
             autoescape=True,
@@ -43,7 +53,7 @@ class HtmlRenderer:
         from leafpress.html.styles import generate_html_css
 
         css = generate_html_css(self._branding)
-        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        now = datetime.now() if local_time else datetime.now(UTC)
 
         # Build cover HTML
         cover_html = ""
@@ -120,6 +130,8 @@ class HtmlRenderer:
 
         # Post-process checkboxes
         full_html = replace_checkboxes(full_html)
+        # Embed local images (content, mermaid, logo) so the file is portable
+        full_html = rewrite_local_images(full_html, self._asset_policy, image_data_uri)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(full_html, encoding="utf-8")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.resources import files
 
 from leafpress.config import BrandingConfig
@@ -96,7 +96,7 @@ def _build_page_rules(
             footer_parts.append(" | ".join(version_parts))
 
     if branding is None or branding.footer.include_render_date:
-        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        now = datetime.now() if local_time else datetime.now(UTC)
         footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
 
     footer_parts.append("Made with LeafPress · leafpress.dev")

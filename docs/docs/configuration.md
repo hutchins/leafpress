@@ -60,6 +60,11 @@ watermark:
   color: "#cccccc"              # watermark text color
   opacity: 0.15                 # 0.0 to 1.0
   angle: -45                    # -90 to 90
+
+# Mermaid diagram rendering
+mermaid:
+  enabled: true                 # false keeps diagrams as code blocks (nothing sent)
+  server: https://mermaid.ink   # or a self-hosted mermaid.ink instance
 ```
 
 ## Diagrams
@@ -133,6 +138,15 @@ diagrams:
 | `color` | hex string | `#cccccc` | Watermark text color |
 | `opacity` | float | `0.15` | Opacity from `0.0` (invisible) to `1.0` (solid) |
 | `angle` | int | `-45` | Rotation angle from `-90` to `90` degrees |
+
+### `mermaid` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | bool | `true` | Render mermaid code blocks to images. `false` leaves them as code blocks and sends nothing over the network |
+| `server` | URL | `https://mermaid.ink` | Base URL of a [mermaid.ink](https://github.com/jihchi/mermaid.ink)-compatible server. Diagram source is sent there to be rendered |
+
+See [Markdown Extensions → Mermaid diagrams](extensions.md#mermaid-diagrams) for privacy guidance.
 
 ### `diagrams` fields
 
@@ -319,6 +333,8 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` (e.g. `0.2`) |
 | `LEAFPRESS_WATERMARK_ANGLE` | `watermark.angle` (e.g. `-30`) |
 | `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` |
+| `LEAFPRESS_MERMAID_ENABLED` | `mermaid.enabled` (`true`/`false`). Applies even without a `leafpress.yml` |
+| `LEAFPRESS_MERMAID_SERVER` | `mermaid.server`. Applies even without a `leafpress.yml` |
 
 !!! tip "Env-only mode"
     If both `LEAFPRESS_COMPANY_NAME` and `LEAFPRESS_PROJECT_NAME` are set and no `leafpress.yml` is present, LeafPress builds the branding config entirely from environment variables.

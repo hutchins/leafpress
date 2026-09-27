@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Generator
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 import typer
@@ -36,7 +36,7 @@ cli = typer.Typer(
 console = Console()
 
 
-class OutputFormat(str, Enum):
+class OutputFormat(StrEnum):
     pdf = "pdf"
     docx = "docx"
     html = "html"
@@ -127,6 +127,14 @@ def convert(
         "--footer-date/--no-footer-date",
         help="Include the generation date in the footer.",
     ),
+    mermaid: bool | None = typer.Option(
+        None,
+        "--mermaid/--no-mermaid",
+        help=(
+            "Render mermaid diagrams via the configured mermaid.ink server "
+            "(--no-mermaid keeps them as code blocks; nothing is sent)."
+        ),
+    ),
     watermark: str | None = typer.Option(
         None,
         "--watermark",
@@ -194,6 +202,7 @@ def convert(
             local_time=local_time,
             watermark=watermark,
             footer_render_date=footer_render_date,
+            mermaid=mermaid,
             verbose=verbose,
         )
 
@@ -516,7 +525,7 @@ _DOC_CONTENT_TYPE_TO_EXT: dict[str, str] = {
 
 
 @contextlib.contextmanager
-def _resolve_import_source(source: str) -> Generator[Path, None, None]:
+def _resolve_import_source(source: str) -> Generator[Path]:
     """Resolve an import source (local path or URL) to a local file path.
 
     For local paths, yields the path directly. For URLs, downloads to a

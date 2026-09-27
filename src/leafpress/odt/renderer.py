@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -25,6 +25,7 @@ from odf.style import (
 )
 from odf.table import Table, TableCell, TableColumn, TableRow
 from odf.text import H, P, Span
+from PIL import Image as PILImage
 
 from leafpress.asset_policy import AssetPolicy, file_uri_to_path
 from leafpress.base_renderer import build_asset_policy
@@ -61,6 +62,9 @@ class OdtRenderer:
         """Build an ODT document from converted HTML pages."""
         self._local_time = local_time
         doc = OpenDocumentText()
+        # Inline content (e.g. <img> inside <p>) needs the document to embed pictures
+        self._odt_doc = doc
+        self._image_style: Style | None = None
         self._setup_styles(doc)
         self._setup_page_layout(doc)
         self._add_watermark_style(doc)
@@ -248,7 +252,7 @@ class OdtRenderer:
         if self._git_info:
             footer_parts.append(self._git_info.format_version_string())
         if self._branding is None or self._branding.footer.include_render_date:
-            now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+            now = datetime.now() if self._local_time else datetime.now(UTC)
             footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
         footer_parts.append("Made with LeafPress")
 
@@ -280,7 +284,11 @@ class OdtRenderer:
                     logo_path,
                 )
             elif not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
-                self._add_image(doc, Path(logo_path))
+                frame = self._image_frame(doc, Path(logo_path).resolve().as_uri())
+                if frame is not None:
+                    p = P(stylename="Normal")
+                    p.addElement(frame)
+                    doc.text.addElement(p)
 
         # Company
         if self._branding and self._branding.company_name:
@@ -320,7 +328,7 @@ class OdtRenderer:
 
         # Date
         p = P(stylename="CoverMeta")
-        now = datetime.now() if self._local_time else datetime.now(timezone.utc)
+        now = datetime.now() if self._local_time else datetime.now(UTC)
         p.addText(now.strftime("%B %d, %Y"))
         doc.text.addElement(p)
 
@@ -405,15 +413,11 @@ class OdtRenderer:
             p.addText("─" * 40)
             doc.text.addElement(p)
         elif tag == "img":
-            src = element.get("src", "")
-            image_path = file_uri_to_path(src)
-            if image_path is not None and image_path.exists():
-                # addPicture embeds raw bytes without checking the file is an
-                # image, so the path must be confined to the project.
-                if self._asset_policy.allows(image_path):
-                    self._add_image(doc, image_path)
-                else:
-                    logger.warning("Skipping image outside the project: %r", src)
+            frame = self._image_frame(doc, element.get("src", ""))
+            if frame is not None:
+                p = P(stylename="Normal")
+                p.addElement(frame)
+                doc.text.addElement(p)
         elif tag in ("div", "section", "article", "details"):
             for child in element.children:
                 if isinstance(child, Tag):
@@ -451,6 +455,12 @@ class OdtRenderer:
                     alt = child.get("alt", "")
                     if alt:
                         parent.addText(alt)
+                elif child.name == "img":
+                    frame = self._image_frame(self._odt_doc, child.get("src", ""))
+                    if frame is not None:
+                        parent.addElement(frame)
+                    elif child.get("alt"):
+                        parent.addText(f"[{child['alt']}]")
                 else:
                     self._add_inline(parent, child)
 
@@ -505,29 +515,50 @@ class OdtRenderer:
 
         doc.text.addElement(table)
 
-    def _add_image(self, doc: OpenDocumentText, image_path: Path) -> None:
-        """Add an image to the document."""
-        p = P(stylename="Normal")
-        img_style = Style(name="ImageFrame", family="graphic")
-        img_style.addElement(
-            GraphicProperties(
-                verticalpos="top",
-                verticalrel="paragraph",
-                horizontalpos="center",
-                horizontalrel="paragraph",
+    def _image_frame(self, doc: OpenDocumentText, src: str) -> Frame | None:
+        """Build an inline picture frame for a ``file://`` image, or None to skip.
+
+        ``addPicture`` embeds raw bytes without checking the file is an image,
+        so the path must be inside the project and must open as an image.
+        The frame keeps the image's aspect ratio (max 5.5in wide at 96 dpi).
+        """
+        image_path = file_uri_to_path(src)
+        if image_path is None or not image_path.is_file():
+            return None
+        if not self._asset_policy.allows(image_path):
+            logger.warning("Skipping image outside the project: %r", src)
+            return None
+        try:
+            with PILImage.open(image_path) as im:
+                px_width, px_height = im.size
+        except Exception:
+            logger.warning("Skipping unreadable or unsupported image in ODT: %r", src)
+            return None
+
+        width_in = min(5.5, px_width / 96)
+        height_in = width_in * px_height / px_width if px_width else width_in
+
+        if self._image_style is None:
+            self._image_style = Style(name="ImageFrame", family="graphic")
+            self._image_style.addElement(
+                GraphicProperties(
+                    verticalpos="top",
+                    verticalrel="baseline",
+                    horizontalpos="center",
+                    horizontalrel="paragraph",
+                )
             )
-        )
-        doc.automaticstyles.addElement(img_style)
+            doc.automaticstyles.addElement(self._image_style)
 
         frame = Frame(
-            stylename="ImageFrame",
-            width="4in",
-            height="2in",
+            stylename=self._image_style,
+            width=f"{width_in:.2f}in",
+            height=f"{height_in:.2f}in",
+            anchortype="as-char",
         )
         href = doc.addPicture(str(image_path))
         frame.addElement(Image(href=href))
-        p.addElement(frame)
-        doc.text.addElement(p)
+        return frame
 
     def _add_watermark_style(self, doc: OpenDocumentText) -> None:
         """Add watermark style and insert watermark text on each page via header."""

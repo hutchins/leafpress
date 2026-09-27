@@ -1,5 +1,6 @@
 """Tests for git_info module."""
 
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -25,14 +26,14 @@ def test_extract_from_non_repo(tmp_path: Path) -> None:
 
 
 def test_version_string_with_tag() -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from leafpress.git_info import GitVersion
 
     info = GitVersion(
         commit_hash="abc1234",
         commit_hash_full="abc1234" * 6 + "ab",
-        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 1, 15, tzinfo=UTC),
         branch="main",
         tag="v1.2.3",
         is_dirty=False,
@@ -43,14 +44,14 @@ def test_version_string_with_tag() -> None:
 
 
 def test_version_string_without_tag() -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from leafpress.git_info import GitVersion
 
     info = GitVersion(
         commit_hash="def5678",
         commit_hash_full="def5678" * 6 + "de",
-        commit_date=datetime(2025, 3, 1, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 3, 1, tzinfo=UTC),
         branch="feature/test",
         tag=None,
         is_dirty=True,
@@ -61,12 +62,12 @@ def test_version_string_without_tag() -> None:
 
 
 def test_version_string_tag_with_distance() -> None:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     info = GitVersion(
         commit_hash="aaa1111",
         commit_hash_full="aaa1111" * 6 + "aa",
-        commit_date=datetime(2025, 6, 1, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 6, 1, tzinfo=UTC),
         branch="main",
         tag="v2.0.0",
         is_dirty=False,
@@ -78,12 +79,12 @@ def test_version_string_tag_with_distance() -> None:
 
 def test_version_string_no_tag_with_package_version() -> None:
     """When no tag exists, package version becomes the primary version."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     info = GitVersion(
         commit_hash="def5678",
         commit_hash_full="def5678" * 6 + "de",
-        commit_date=datetime(2025, 3, 1, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 3, 1, tzinfo=UTC),
         branch="develop",
         tag=None,
         is_dirty=False,
@@ -96,12 +97,12 @@ def test_version_string_no_tag_with_package_version() -> None:
 
 def test_version_string_tag_matches_package_version() -> None:
     """When tag and package version match, package version is not shown."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     info = GitVersion(
         commit_hash="abc1234",
         commit_hash_full="abc1234" * 6 + "ab",
-        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 1, 15, tzinfo=UTC),
         branch="main",
         tag="v1.2.3",
         is_dirty=False,
@@ -115,12 +116,12 @@ def test_version_string_tag_matches_package_version() -> None:
 
 def test_version_string_tag_differs_from_package_version() -> None:
     """When tag and package version differ, both are shown."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     info = GitVersion(
         commit_hash="abc1234",
         commit_hash_full="abc1234" * 6 + "ab",
-        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 1, 15, tzinfo=UTC),
         branch="main",
         tag="v1.2.3",
         is_dirty=False,
@@ -133,12 +134,12 @@ def test_version_string_tag_differs_from_package_version() -> None:
 
 def test_version_string_no_tag_package_version_dirty() -> None:
     """Package version as primary with dirty flag."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     info = GitVersion(
         commit_hash="ccc3333",
         commit_hash_full="ccc3333" * 6 + "cc",
-        commit_date=datetime(2025, 6, 1, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 6, 1, tzinfo=UTC),
         branch="main",
         tag=None,
         is_dirty=True,
