@@ -8,7 +8,7 @@ from pathlib import Path
 
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
-from leafpress.mkdocs_parser import MkDocsConfig, NavItem
+from leafpress.mkdocs_parser import MkDocsConfig, NavItem, resolve_page_path
 
 
 class MarkdownExportRenderer:
@@ -49,8 +49,8 @@ class MarkdownExportRenderer:
                     parts.append(f"{'#' * level} {item.title}")
                 continue
 
-            md_file = self._mkdocs_cfg.docs_dir / item.path
-            if not md_file.exists():
+            md_file = resolve_page_path(self._mkdocs_cfg.docs_dir, item.path)
+            if md_file is None or not md_file.exists():
                 continue
 
             content = md_file.read_text(encoding="utf-8").strip()

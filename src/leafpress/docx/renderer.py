@@ -14,6 +14,8 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import nsmap, qn
 from docx.shared import Inches, Pt, RGBColor
 
+from leafpress.asset_policy import AssetPolicy
+from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter
 from leafpress.docx.styles import apply_branding_styles
@@ -35,10 +37,12 @@ class DocxRenderer:
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
 
     def render(
         self,
@@ -67,7 +71,7 @@ class DocxRenderer:
         if include_toc:
             self._add_toc_placeholder(doc)
 
-        converter = HtmlToDocxConverter(doc, self._mkdocs_cfg.docs_dir)
+        converter = HtmlToDocxConverter(doc, self._mkdocs_cfg.docs_dir, self._asset_policy)
         first_content = True
         for item, html_content in html_pages:
             if item.path is None:

@@ -6,6 +6,17 @@
 
 - Upgraded all locked dependencies to clear known advisories (`pip-audit` now reports none), including GitPython 3.1.62 (option-smuggling / config-injection RCEs during clone), pymdown-extensions 12.1 (`snippets` path traversal, ReDoS), WeasyPrint 70.0 (`url_fetcher` bypass), lxml 6.1 (XXE via default entity resolution), Pillow 12.3 (image parser memory corruption), urllib3 2.8 / requests 2.34, soupsieve, idna, and pygments
 - Raised minimum dependency versions in `pyproject.toml` so fresh installs can't resolve to vulnerable releases: `gitpython>=3.1.60`, `pymdown-extensions>=11.0.1`, `lxml>=6.1`, `requests>=2.33`, `pygments>=2.20`, `weasyprint>=70.0`
+- **Untrusted repository hardening.** Converting a repository you don't control (a git URL, monorepo `projects[].url`, or a CI checkout) can no longer read local files or reach internal hosts. See [Remote Sources](remote-sources.md#converting-untrusted-repositories)
+    - `.env` is not loaded from cloned repositories. Only `LEAFPRESS_*` keys are read from local `.env` files, so a `.env` can no longer set `GIT_SSH_COMMAND` or `GIT_CONFIG_*`
+    - PDF rendering uses a restricted WeasyPrint URL fetcher: `file://` is limited to the project, and private, loopback, and link-local hosts are blocked, including on redirects. This closes local file disclosure via `<a rel="attachment" href="file:///...">` and SSRF via `<img>`
+    - Pages must resolve inside `docs_dir`, and `docs_dir` must be inside the project. `..` and absolute `nav` entries are dropped, and pages that symlink outside `docs_dir` are skipped
+    - Images in PDF, DOCX, and ODT output must resolve inside the project, which blocks `../` traversal, raw `file://` URIs, and symlinks. ODT previously embedded any file's bytes
+    - `pymdownx.snippets` and `pymdownx.b64` are confined to the project directory, and `url_download` is disabled
+    - `module:ClassName` extension references must name a Markdown `Extension` subclass
+    - Monorepo `projects[].path` in a cloned repository's `leafpress.yml` must stay inside that repository
+    - PDF header and footer text is now correctly escaped in CSS, since a trailing backslash could previously break out of the string. `watermark.color` is now validated as a hex color
+- Relative `pymdownx.snippets` `base_path` entries now resolve from the project directory, as MkDocs does, instead of the current working directory
+- Image `file://` URIs containing percent-encoded characters (e.g. spaces) now embed correctly in DOCX
 - Note: pymdown-extensions 12 rewrote BetterEm/Tilde/Caret/Mark emphasis parsing to be CommonMark compliant — mid-word `~~`, `^^`, and `==` are now allowed by default, and edge cases of nested emphasis may render slightly differently
 
 ---

@@ -62,7 +62,7 @@ leafpress uses the system `git` command, so any configured authentication method
 
 ## `.env` and branding config
 
-When converting a remote source, leafpress looks for `leafpress.yml` and `.env` inside the cloned repository. You can also provide branding via `--config` pointing to a local file, or via `LEAFPRESS_*` environment variables:
+When converting a remote source, leafpress looks for `leafpress.yml` inside the cloned repository. A `.env` file in a cloned repository is **not** loaded, since it could set variables that change how git or other tools run on your machine. Provide branding via `--config` pointing to a local file, or via `LEAFPRESS_*` environment variables:
 
 ```bash
 # Use a local branding config with a remote source
@@ -72,3 +72,17 @@ leafpress convert https://github.com/org/repo -b main -c ./my-branding.yml
 LEAFPRESS_COMPANY_NAME="Acme" LEAFPRESS_PROJECT_NAME="Docs" \
   leafpress convert https://github.com/org/repo
 ```
+
+## Converting untrusted repositories
+
+A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdown, so leafpress treats that content as untrusted and confines what it can reach. This applies to every source, not only remote ones. For example, a local CI checkout of a contributor's branch gets the same protections.
+
+- **Pages** must live inside `docs_dir`. `docs_dir` must be inside the project directory. `nav` entries that are absolute or use `..` are dropped. Pages that are symlinks pointing outside `docs_dir` are skipped with a warning.
+- **Images and other embedded files** must resolve inside the project directory, after following symlinks. This applies to Markdown images, raw HTML `<img>`, and `file://` URIs. References outside the project are blanked and listed in the "missing assets" warning. This applies to PDF, DOCX, and ODT output.
+- **PDF resources** are fetched through a restricted fetcher (see [PDF Output](pdf.md#external-resources)). It blocks local files outside the project and requests to private or internal network addresses.
+- **`pymdownx.snippets` and `pymdownx.b64`** are confined to the project directory. Remote snippet downloads (`url_download`) are disabled. See [Markdown Extensions](extensions.md#how-extensions-are-loaded).
+- **`.env`** is not loaded from cloned repositories. For local projects, only `LEAFPRESS_*` keys are read from it.
+- **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` must stay inside that repository.
+
+Diagram fetching (`fetch-diagrams`) and the Mermaid renderer still make network requests. Only enable them for repositories you trust.
+

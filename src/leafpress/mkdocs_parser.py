@@ -78,10 +78,17 @@ def parse_mkdocs_config(config_path: Path) -> MkDocsConfig:
 
     site_name = raw.get("site_name", "Untitled")
     docs_dir_str = raw.get("docs_dir", "docs")
-    docs_dir = (config_path.parent / docs_dir_str).resolve()
+    docs_dir = (config_path.parent / str(docs_dir_str)).resolve()
 
     if not docs_dir.is_dir():
         raise ConfigError(f"docs_dir not found: {docs_dir}")
+    # Every page is read from docs_dir, so it must not point elsewhere on disk
+    # (e.g. docs_dir: /etc in an untrusted repo).
+    project_dir = config_path.parent.resolve()
+    if not docs_dir.is_relative_to(project_dir):
+        raise ConfigError(
+            f"docs_dir must be inside the project directory ({project_dir}), got: {docs_dir}"
+        )
 
     # Parse navigation
     nav_raw = raw.get("nav")
@@ -124,19 +131,47 @@ def _parse_nav(nav_raw: list[Any], docs_dir: Path, level: int = 0) -> list[NavIt
     for entry in nav_raw:
         if isinstance(entry, str):
             # Bare path
-            title = _title_from_path(entry)
-            items.append(NavItem(title=title, path=Path(entry), level=level))
+            if _is_safe_nav_path(entry):
+                title = _title_from_path(entry)
+                items.append(NavItem(title=title, path=Path(entry), level=level))
         elif isinstance(entry, dict):
             for title, value in entry.items():
                 if isinstance(value, str):
                     # Explicit title with path
-                    items.append(NavItem(title=title, path=Path(value), level=level))
+                    if _is_safe_nav_path(value):
+                        items.append(NavItem(title=title, path=Path(value), level=level))
                 elif isinstance(value, list):
                     # Section with children
                     children = _parse_nav(value, docs_dir, level=level + 1)
                     items.append(NavItem(title=title, path=None, children=children, level=level))
 
     return items
+
+
+def _is_safe_nav_path(path_str: str) -> bool:
+    """Reject nav paths that are absolute or climb out of docs_dir.
+
+    Symlinks inside docs_dir are checked separately at read time by
+    :func:`resolve_page_path`.
+    """
+    path = Path(path_str)
+    return not path.is_absolute() and ".." not in path.parts
+
+
+def resolve_page_path(docs_dir: Path, page_path: Path) -> Path | None:
+    """Return the file for a nav page, or None if it resolves outside docs_dir.
+
+    Resolving follows symlinks, so a symlink in the repo pointing at
+    ``/etc/passwd`` or ``~/.ssh/id_rsa`` is rejected.
+    """
+    candidate = docs_dir / page_path
+    try:
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError):
+        return None
+    if not resolved.is_relative_to(docs_dir.resolve()):
+        return None
+    return candidate
 
 
 def _auto_discover_nav(docs_dir: Path) -> list[NavItem]:
