@@ -4,6 +4,7 @@ These tests exercise leafpress against a real MkDocs project with Material theme
 pymdownx extensions (including !!python/name references), and auto-discovered pages.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -15,12 +16,19 @@ from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import MkDocsConfig, flatten_nav, parse_mkdocs_config
 from leafpress.pdf.renderer import PdfRenderer
 
-CIBUTLER_DOCS = Path("/Users/hutchins/projects/cibutler/docs")
-CIBUTLER_REPO = Path("/Users/hutchins/projects/cibutler")
+# Point LEAFPRESS_CIBUTLER_DOCS at a checkout's docs/ directory (the one that
+# contains mkdocs.yml) to run these; the default is the maintainer's checkout.
+CIBUTLER_DOCS = Path(
+    os.environ.get("LEAFPRESS_CIBUTLER_DOCS", "/Users/hutchins/projects/cibutler/docs")
+)
+CIBUTLER_REPO = CIBUTLER_DOCS.parent
 
 pytestmark = pytest.mark.skipif(
-    not CIBUTLER_DOCS.exists(),
-    reason="CIButler docs not available at expected path",
+    not (CIBUTLER_DOCS / "mkdocs.yml").exists(),
+    reason=(
+        f"CIButler docs not found at {CIBUTLER_DOCS}; set LEAFPRESS_CIBUTLER_DOCS "
+        "to a cibutler checkout's docs/ directory to run these integration tests"
+    ),
 )
 
 

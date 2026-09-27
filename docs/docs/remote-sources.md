@@ -82,6 +82,9 @@ A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdow
 - **PDF resources** are fetched through a restricted fetcher (see [PDF Output](pdf.md#external-resources)). It blocks local files outside the project and requests to private or internal network addresses.
 - **`pymdownx.snippets` and `pymdownx.b64`** are confined to the project directory. Remote snippet downloads (`url_download`) are disabled. See [Markdown Extensions](extensions.md#how-extensions-are-loaded).
 - **`.env`** is not loaded from cloned repositories. For local projects, only `LEAFPRESS_*` keys are read from it.
+- **Raw HTML is sanitized.** Scripts, event handlers (`onerror=`), `javascript:` links, iframes, forms, and resource-loading inline CSS are removed from page HTML. The normal MkDocs/Material markup is kept: admonitions, tabs, details, tables, task lists, footnotes, and highlighted code. This matters most for HTML and EPUB output, which would otherwise carry active content wherever they're published.
+    - Sanitizing is automatic for git URL sources and monorepo `url:` projects, and a cloned repository's own `leafpress.yml` can't turn it off.
+    - For local sources you don't fully trust, such as a CI checkout of a pull request, enable it with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML=true`, or `sanitize_html: true`.
 - **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` must stay inside that repository.
 
 Diagram fetching (`fetch-diagrams`) and the Mermaid renderer still make network requests. Only enable them for repositories you trust.
