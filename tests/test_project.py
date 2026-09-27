@@ -146,7 +146,7 @@ def test_detect_raises_when_not_found(tmp_path: Path) -> None:
     """Raises SourceError when no mkdocs.yml is found anywhere."""
     with (
         patch("leafpress.project._find_git_root", return_value=None),
-        pytest.raises(SourceError, match=r"No mkdocs\.yml found"),
+        pytest.raises(SourceError, match=r"No mkdocs\.yml or zensical\.toml found"),
     ):
         detect_project(cwd=tmp_path)
 

@@ -40,7 +40,7 @@ def convert(
     mkdocs_config: Path | None = typer.Option(
         None,
         "--mkdocs-config",
-        help="Override path to mkdocs.yml.",
+        help="Override path to mkdocs.yml (or zensical.toml, experimental).",
     ),
     branch: str | None = typer.Option(
         None,

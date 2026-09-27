@@ -10,7 +10,7 @@ from rich.table import Table
 from leafpress.cli.app import console
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
-from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
+from leafpress.mkdocs_parser import find_site_config, flatten_nav, parse_mkdocs_config
 from leafpress.source import resolve_source
 
 
@@ -37,15 +37,9 @@ def info(
 
         with resolve_source(source, branch) as project_dir:
             # Find config
-            config_file = None
-            for name in ("mkdocs.yml", "mkdocs.yaml"):
-                candidate = project_dir / name
-                if candidate.exists():
-                    config_file = candidate
-                    break
-
+            config_file = find_site_config(project_dir)
             if not config_file:
-                console.print("[red]No mkdocs.yml found.[/red]")
+                console.print("[red]No mkdocs.yml or zensical.toml found.[/red]")
                 raise typer.Exit(code=1)
 
             mkdocs_cfg = parse_mkdocs_config(config_file)

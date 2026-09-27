@@ -39,7 +39,9 @@ from leafpress.mkdocs_parser import (
     MkDocsConfig,
     NavItem,
     bump_nav_levels,
+    find_site_config,
     flatten_nav,
+    is_zensical_config,
     parse_mkdocs_config,
     resolve_page_path,
 )
@@ -625,13 +627,20 @@ def convert(
     return generated_files
 
 
-def _find_mkdocs_config(project_dir: Path) -> Path:
-    """Locate mkdocs.yml or mkdocs.yaml in the project directory."""
-    for name in ("mkdocs.yml", "mkdocs.yaml"):
-        config_path = project_dir / name
-        if config_path.exists():
-            return config_path
-    raise LeafpressError(f"No mkdocs.yml or mkdocs.yaml found in {project_dir}")
+def _find_mkdocs_config(project_dir: Path, con: Console | None = None) -> Path:
+    """Locate mkdocs.yml/mkdocs.yaml, or (experimentally) zensical.toml."""
+    config_path = find_site_config(project_dir)
+    if config_path is None:
+        raise LeafpressError(f"No mkdocs.yml, mkdocs.yaml, or zensical.toml found in {project_dir}")
+    out = con or console
+    if is_zensical_config(config_path):
+        out.print(f"  [dim]Using {config_path.name} (experimental Zensical support)[/dim]")
+    elif (project_dir / "zensical.toml").is_file():
+        out.print(
+            f"  [dim]Both {config_path.name} and zensical.toml found; using {config_path.name}. "
+            "Pass --mkdocs-config zensical.toml to use the Zensical config.[/dim]"
+        )
+    return config_path
 
 
 def _safe_filename(name: str) -> str:
@@ -694,7 +703,7 @@ def _collect_monorepo_pages(
                     raise SourceError(f"Monorepo project directory not found: {project_dir}")
                 source_label = entry.path
 
-            mkdocs_file = _find_mkdocs_config(project_dir)
+            mkdocs_file = _find_mkdocs_config(project_dir, con)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
             # Projects cloned from a URL are untrusted even if the top-level
             # source is local

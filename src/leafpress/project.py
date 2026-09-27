@@ -6,10 +6,9 @@ import logging
 from pathlib import Path
 
 from leafpress.exceptions import SourceError
+from leafpress.mkdocs_parser import find_site_config
 
 logger = logging.getLogger(__name__)
-
-_MKDOCS_NAMES = ("mkdocs.yml", "mkdocs.yaml")
 
 
 def detect_project(cwd: Path | None = None) -> Path:
@@ -22,10 +21,10 @@ def detect_project(cwd: Path | None = None) -> Path:
     4. CWD / "docs/"
 
     Returns:
-        The directory containing mkdocs.yml/mkdocs.yaml.
+        The directory containing mkdocs.yml/mkdocs.yaml (or zensical.toml).
 
     Raises:
-        SourceError: If no mkdocs.yml can be found.
+        SourceError: If no site config can be found.
     """
     cwd = (cwd or Path.cwd()).resolve()
 
@@ -52,7 +51,7 @@ def detect_project(cwd: Path | None = None) -> Path:
 
     searched = ", ".join(str(p) for p in search_roots)
     raise SourceError(
-        f"No mkdocs.yml found. Searched: {searched}\n"
+        f"No mkdocs.yml or zensical.toml found. Searched: {searched}\n"
         "Specify a source path: leafpress convert /path/to/project"
     )
 
@@ -74,7 +73,6 @@ def _find_git_root(cwd: Path) -> Path | None:
 def _find_mkdocs_dir(search_roots: list[Path]) -> Path | None:
     """Return the first directory in *search_roots* that contains an mkdocs config."""
     for root in search_roots:
-        for name in _MKDOCS_NAMES:
-            if (root / name).is_file():
-                return root
+        if find_site_config(root) is not None:
+            return root
     return None

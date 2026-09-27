@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,16 +63,40 @@ class MkDocsConfig:
     config_path: Path
 
 
+# Site config file names, in discovery order. mkdocs.yml wins when both it
+# and zensical.toml exist, so existing projects behave exactly as before.
+SITE_CONFIG_NAMES = ("mkdocs.yml", "mkdocs.yaml", "zensical.toml")
+
+
+def find_site_config(directory: Path) -> Path | None:
+    """Return the site config (mkdocs.yml/.yaml or zensical.toml) in ``directory``."""
+    for name in SITE_CONFIG_NAMES:
+        candidate = directory / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def is_zensical_config(config_path: Path) -> bool:
+    """True for a Zensical ``.toml`` config (experimental support)."""
+    return config_path.suffix.lower() == ".toml"
+
+
 def parse_mkdocs_config(config_path: Path) -> MkDocsConfig:
-    """Parse mkdocs.yml and return structured config."""
+    """Parse mkdocs.yml (or, experimentally, zensical.toml) into a structured config."""
     if not config_path.exists():
         raise ConfigError(f"MkDocs config not found: {config_path}")
 
-    try:
-        with open(config_path) as f:
-            raw = yaml.load(f, Loader=_MkDocsLoader)
-    except yaml.YAMLError as e:
-        raise ConfigError(f"Invalid YAML in {config_path}: {e}") from e
+    if is_zensical_config(config_path):
+        from leafpress.zensical_parser import load_zensical_project
+
+        raw = load_zensical_project(config_path)
+    else:
+        try:
+            with open(config_path) as f:
+                raw = yaml.load(f, Loader=_MkDocsLoader)
+        except yaml.YAMLError as e:
+            raise ConfigError(f"Invalid YAML in {config_path}: {e}") from e
 
     if raw is None:
         raise ConfigError(f"Empty mkdocs config: {config_path}")
@@ -148,12 +173,18 @@ def _parse_nav(nav_raw: list[Any], docs_dir: Path, level: int = 0) -> list[NavIt
     return items
 
 
-def _is_safe_nav_path(path_str: str) -> bool:
-    """Reject nav paths that are absolute or climb out of docs_dir.
+_URL_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
-    Symlinks inside docs_dir are checked separately at read time by
-    :func:`resolve_page_path`.
+
+def _is_safe_nav_path(path_str: str) -> bool:
+    """Accept only relative page paths that stay inside docs_dir.
+
+    External links (``https://...``, ``mailto:``) are nav-only entries with no
+    page to render, so they are skipped too. Symlinks inside docs_dir are
+    checked separately at read time by :func:`resolve_page_path`.
     """
+    if _URL_SCHEME.match(path_str):
+        return False
     path = Path(path_str)
     return not path.is_absolute() and ".." not in path.parts
 

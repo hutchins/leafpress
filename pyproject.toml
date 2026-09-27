@@ -48,6 +48,7 @@ dependencies = [
     "openpyxl>=3.1",
     "pylatexenc>=2.10",
     "nh3>=0.3",
+    "tomli>=2.3",
 ]
 
 [project.optional-dependencies]

@@ -28,6 +28,7 @@ nav:
     - Markdown Extensions: extensions.md
     - Git Integration: git-integration.md
     - Remote Sources: remote-sources.md
+    - Zensical Projects: zensical.md
     - Diagrams: diagrams.md
   - Project:
     - About: about.md
