@@ -26,6 +26,8 @@ diagrams:
 
 Each source needs a `dest` path (relative to your `leafpress.yml`) and either a `url` or `lucidchart` document ID.
 
+`dest` must resolve inside the directory containing `leafpress.yml`. Absolute paths and `..` segments that escape it are rejected. `url` must be `http://` or `https://`, and each download is capped at 50 MB. Lucidchart document IDs may only contain letters, digits, `-`, and `_`.
+
 ### Source fields
 
 | Field | Type | Default | Description |

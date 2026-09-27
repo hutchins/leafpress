@@ -33,7 +33,7 @@ from leafpress.mkdocs_parser import (
     parse_mkdocs_config,
     resolve_page_path,
 )
-from leafpress.source import resolve_source
+from leafpress.source import redact_url, resolve_source
 
 console = Console()
 
@@ -604,7 +604,8 @@ def _collect_monorepo_pages(
             if entry.url:
                 resolved = stack.enter_context(resolve_source(entry.url, entry.branch))
                 project_dir = resolved
-                source_label = entry.url
+                # Shown in the console and on the chapter cover page
+                source_label = redact_url(entry.url)
             else:
                 project_dir = (config_dir / entry.path).resolve()
                 if untrusted_source and not is_within(project_dir, config_dir):

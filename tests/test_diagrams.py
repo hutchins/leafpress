@@ -114,9 +114,10 @@ class TestResolveToken:
 
 
 class TestFetchUrl:
-    @patch("leafpress.diagrams.requests.get")
+    @patch("leafpress.downloads.requests.get")
     def test_success(self, mock_get: MagicMock, tmp_path: Path) -> None:
         mock_resp = MagicMock()
+        mock_resp.is_redirect = False
         mock_resp.iter_content.return_value = [b"PNG_DATA"]
         mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
@@ -126,9 +127,12 @@ class TestFetchUrl:
 
         assert result == dest
         assert dest.read_bytes() == b"PNG_DATA"
-        mock_get.assert_called_once_with("https://example.com/diagram.png", stream=True, timeout=30)
+        mock_get.assert_called_once()
+        assert mock_get.call_args.args == ("https://example.com/diagram.png",)
+        assert mock_get.call_args.kwargs["timeout"] == 30
+        assert mock_get.call_args.kwargs["allow_redirects"] is False
 
-    @patch("leafpress.diagrams.requests.get")
+    @patch("leafpress.downloads.requests.get")
     def test_http_error(self, mock_get: MagicMock, tmp_path: Path) -> None:
         import requests
 
@@ -142,11 +146,12 @@ class TestFetchUrl:
 
 
 class TestFetchLucidchart:
-    @patch("leafpress.diagrams.requests.get")
+    @patch("leafpress.downloads.requests.get")
     def test_success(self, mock_get: MagicMock, tmp_path: Path) -> None:
         mock_resp = MagicMock()
+        mock_resp.is_redirect = False
         mock_resp.headers = {"Content-Type": "image/png"}
-        mock_resp.content = b"PNG_IMAGE_DATA"
+        mock_resp.iter_content.return_value = [b"PNG_IMAGE_DATA"]
         mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
 
@@ -161,9 +166,10 @@ class TestFetchLucidchart:
         assert call_kwargs.kwargs["headers"]["Accept"] == "image/png"
         assert call_kwargs.kwargs["params"]["pageIndex"] == 1  # 0-based
 
-    @patch("leafpress.diagrams.requests.get")
+    @patch("leafpress.downloads.requests.get")
     def test_bad_content_type(self, mock_get: MagicMock, tmp_path: Path) -> None:
         mock_resp = MagicMock()
+        mock_resp.is_redirect = False
         mock_resp.headers = {"Content-Type": "application/json"}
         mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
@@ -171,11 +177,13 @@ class TestFetchLucidchart:
         with pytest.raises(DiagramError, match="unexpected content type"):
             fetch_lucidchart("doc123", tmp_path / "out.png", "tok")
 
-    @patch("leafpress.diagrams.requests.get")
+    @patch("leafpress.downloads.requests.get")
     def test_auth_error(self, mock_get: MagicMock, tmp_path: Path) -> None:
         import requests
 
         mock_resp = MagicMock()
+
+        mock_resp.is_redirect = False
         mock_resp.raise_for_status.side_effect = requests.HTTPError("401 Unauthorized")
         mock_get.return_value = mock_resp
 

@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 
-import requests
 from rich.console import Console
 
+from leafpress.asset_policy import is_within
 from leafpress.config import DiagramsConfig
+from leafpress.downloads import DownloadError, download
 from leafpress.exceptions import DiagramError
 
 _LUCIDCHART_API_BASE = "https://api.lucid.co/documents"
+_LUCIDCHART_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+MAX_DIAGRAM_BYTES = 50 * 1024 * 1024
 
 
 def _is_stale(dest: Path, max_age: int) -> bool:
@@ -37,17 +41,14 @@ def _resolve_lucidchart_token(config: DiagramsConfig) -> str:
 
 
 def fetch_url(url: str, dest: Path, timeout: int = 30) -> Path:
-    """Download a file from an HTTP/HTTPS URL."""
+    """Download a file from an HTTP/HTTPS URL (capped at MAX_DIAGRAM_BYTES)."""
     try:
-        resp = requests.get(url, stream=True, timeout=timeout)
-        resp.raise_for_status()
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with open(dest, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-        return dest
-    except requests.RequestException as e:
-        raise DiagramError(f"Failed to download {url}: {e}") from e
+        body, _ = download(url, max_bytes=MAX_DIAGRAM_BYTES, timeout=timeout)
+    except DownloadError as e:
+        raise DiagramError(str(e)) from e
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(body)
+    return dest
 
 
 def fetch_lucidchart(
@@ -58,6 +59,10 @@ def fetch_lucidchart(
     timeout: int = 30,
 ) -> Path:
     """Export a diagram from Lucidchart as PNG via the REST API."""
+    # The ID goes into the URL path alongside the bearer token, so keep it to
+    # a plain identifier (no "/", "..", or query characters).
+    if not _LUCIDCHART_ID_PATTERN.match(document_id):
+        raise DiagramError(f"Invalid Lucidchart document ID: {document_id!r}")
     url = f"{_LUCIDCHART_API_BASE}/{document_id}"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -66,22 +71,26 @@ def fetch_lucidchart(
     params = {"pageIndex": page - 1, "crop": "true"}
 
     try:
-        resp = requests.get(url, headers=headers, params=params, timeout=timeout)
-        resp.raise_for_status()
-
-        content_type = resp.headers.get("Content-Type", "")
-        if "image" not in content_type:
-            raise DiagramError(
-                f"Lucidchart returned unexpected content type '{content_type}' "
-                f"for document {document_id}"
-            )
-
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        with open(dest, "wb") as f:
-            f.write(resp.content)
-        return dest
-    except requests.RequestException as e:
+        body, resp_headers = download(
+            url,
+            max_bytes=MAX_DIAGRAM_BYTES,
+            timeout=timeout,
+            headers=headers,
+            params=params,
+        )
+    except DownloadError as e:
         raise DiagramError(f"Failed to export Lucidchart document {document_id}: {e}") from e
+
+    content_type = resp_headers.get("Content-Type", "")
+    if "image" not in content_type:
+        raise DiagramError(
+            f"Lucidchart returned unexpected content type '{content_type}' "
+            f"for document {document_id}"
+        )
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(body)
+    return dest
 
 
 def fetch_diagrams(
@@ -99,9 +108,13 @@ def fetch_diagrams(
     token: str | None = None
 
     for source in config.sources:
-        dest = Path(source.dest)
-        if not dest.is_absolute():
-            dest = base_dir / dest
+        dest = base_dir / source.dest
+        # dest comes from leafpress.yml; don't let it write outside the project
+        # (e.g. dest: ../../.bashrc or an absolute path).
+        if not is_within(dest, base_dir):
+            raise DiagramError(
+                f"Diagram dest must be inside the project directory ({base_dir}): {source.dest}"
+            )
 
         if not source.url and not source.lucidchart:
             console.print(

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import platform
 import subprocess
+import sys
 import tempfile
 from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
 
-import requests
 import typer
 from rich.console import Console
 from rich.markup import escape
@@ -529,6 +530,9 @@ def _resolve_import_source(source: str) -> Generator[Path, None, None]:
         yield Path(source)
 
 
+_MAX_IMPORT_BYTES = 200 * 1024 * 1024
+
+
 def _download_import_file(url: str, dest_dir: Path) -> Path:
     """Download a file from a URL for import.
 
@@ -540,33 +544,31 @@ def _download_import_file(url: str, dest_dir: Path) -> Path:
     url_path = urlparse(url).path
     ext = Path(url_path).suffix.lower() if url_path else ""
 
+    from leafpress.downloads import DownloadError, download
+
     console.print(f"  [blue]Downloading[/blue] {url}")
     try:
-        resp = requests.get(url, stream=True, timeout=60)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise LeafpressError(f"Failed to download {url}: {e}") from e
+        body, headers = download(url, max_bytes=_MAX_IMPORT_BYTES, timeout=60)
+    except DownloadError as e:
+        raise LeafpressError(str(e)) from e
 
     # Fall back to Content-Type if URL has no recognized extension
     if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
-        content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+        content_type = headers.get("content-type", "").split(";")[0].strip()
         ext = _DOC_CONTENT_TYPE_TO_EXT.get(content_type, ext)
 
     if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
         raise LeafpressError(
             f"Cannot determine file type for {url}. "
             f"URL has no recognized extension and Content-Type "
-            f"'{resp.headers.get('content-type', '')}' is not a supported format."
+            f"'{headers.get('content-type', '')}' is not a supported format."
         )
 
     # Derive filename from URL path or use a default
     stem = Path(url_path).stem if url_path and Path(url_path).stem else "download"
     dest = dest_dir / f"{stem}{ext}"
 
-    with open(dest, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=8192):
-            f.write(chunk)
-
+    dest.write_bytes(body)
     return dest
 
 
@@ -626,11 +628,13 @@ def _import_single_file(
 
 def _open_file(path: Path) -> None:
     """Open a file with the system default application."""
-    system = platform.system()
-    if system == "Darwin":
+    if sys.platform == "win32":
+        # Opens via the shell association without spawning cmd.exe, so file
+        # names can't be interpreted as shell syntax.
+        os.startfile(path)
+        return
+    if platform.system() == "Darwin":
         subprocess.run(["open", str(path)], check=False)
-    elif system == "Windows":
-        subprocess.run(["start", "", str(path)], shell=True, check=False)
     else:
         subprocess.run(["xdg-open", str(path)], check=False)
 

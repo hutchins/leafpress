@@ -162,12 +162,13 @@ def test_resolve_local_path(sample_docx: Path) -> None:
 def test_resolve_url_downloads_file() -> None:
     """URLs are downloaded to a temp file with the correct extension."""
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {"content-type": "application/octet-stream"}
     mock_resp.iter_content.return_value = [b"fake docx content"]
     mock_resp.raise_for_status = MagicMock()
 
     with (
-        patch("leafpress.cli.requests.get", return_value=mock_resp),
+        patch("leafpress.downloads.requests.get", return_value=mock_resp),
         _resolve_import_source("https://example.com/report.docx") as resolved,
     ):
         assert resolved.suffix == ".docx"
@@ -179,12 +180,13 @@ def test_resolve_url_downloads_file() -> None:
 def test_resolve_url_infers_tex_from_extension() -> None:
     """URL with .tex extension is recognized."""
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {"content-type": "text/plain"}
     mock_resp.iter_content.return_value = [b"\\documentclass{article}"]
     mock_resp.raise_for_status = MagicMock()
 
     with (
-        patch("leafpress.cli.requests.get", return_value=mock_resp),
+        patch("leafpress.downloads.requests.get", return_value=mock_resp),
         _resolve_import_source("https://example.com/paper.tex") as resolved,
     ):
         assert resolved.suffix == ".tex"
@@ -193,6 +195,7 @@ def test_resolve_url_infers_tex_from_extension() -> None:
 def test_resolve_url_falls_back_to_content_type() -> None:
     """URLs without extension use Content-Type to determine format."""
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {
         "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     }
@@ -200,7 +203,7 @@ def test_resolve_url_falls_back_to_content_type() -> None:
     mock_resp.raise_for_status = MagicMock()
 
     with (
-        patch("leafpress.cli.requests.get", return_value=mock_resp),
+        patch("leafpress.downloads.requests.get", return_value=mock_resp),
         _resolve_import_source("https://example.com/download") as resolved,
     ):
         assert resolved.suffix == ".docx"
@@ -209,12 +212,13 @@ def test_resolve_url_falls_back_to_content_type() -> None:
 def test_resolve_url_unknown_type_raises() -> None:
     """URLs with no extension and unrecognized Content-Type raise an error."""
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {"content-type": "text/html"}
     mock_resp.iter_content.return_value = [b"<html>"]
     mock_resp.raise_for_status = MagicMock()
 
     with (
-        patch("leafpress.cli.requests.get", return_value=mock_resp),
+        patch("leafpress.downloads.requests.get", return_value=mock_resp),
         pytest.raises(LeafpressError, match="Cannot determine file type"),
         _resolve_import_source("https://example.com/page"),
     ):
@@ -226,10 +230,12 @@ def test_resolve_url_http_error_raises() -> None:
     import requests
 
     mock_resp = MagicMock()
+
+    mock_resp.is_redirect = False
     mock_resp.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
 
     with (
-        patch("leafpress.cli.requests.get", return_value=mock_resp),
+        patch("leafpress.downloads.requests.get", return_value=mock_resp),
         pytest.raises(LeafpressError, match="Failed to download"),
         _resolve_import_source("https://example.com/missing.docx"),
     ):
@@ -239,11 +245,12 @@ def test_resolve_url_http_error_raises() -> None:
 def test_resolve_url_temp_dir_cleaned_up() -> None:
     """Temp directory is cleaned up after the context manager exits."""
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {"content-type": "application/octet-stream"}
     mock_resp.iter_content.return_value = [b"data"]
     mock_resp.raise_for_status = MagicMock()
 
-    with patch("leafpress.cli.requests.get", return_value=mock_resp):
+    with patch("leafpress.downloads.requests.get", return_value=mock_resp):
         with _resolve_import_source("https://example.com/file.docx") as resolved:
             temp_dir = resolved.parent
             assert temp_dir.exists()
@@ -256,13 +263,14 @@ def test_import_cli_with_url(sample_docx: Path, tmp_output: Path) -> None:
     # Serve the real sample_docx content via a mocked URL
     docx_bytes = sample_docx.read_bytes()
     mock_resp = MagicMock()
+    mock_resp.is_redirect = False
     mock_resp.headers = {
         "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     }
     mock_resp.iter_content.return_value = [docx_bytes]
     mock_resp.raise_for_status = MagicMock()
 
-    with patch("leafpress.cli.requests.get", return_value=mock_resp):
+    with patch("leafpress.downloads.requests.get", return_value=mock_resp):
         result = runner.invoke(
             cli,
             ["import", "https://example.com/test.docx", "-o", str(tmp_output)],

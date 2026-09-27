@@ -19,6 +19,7 @@ from pylatexenc.latexwalker import (
 from pylatexenc.macrospec import LatexContextDb, MacroSpec
 from rich.console import Console
 
+from leafpress.asset_policy import is_within
 from leafpress.exceptions import TexImportError
 from leafpress.importer.base import (
     ImportResult,
@@ -420,14 +421,22 @@ class _TexToMarkdownConverter:
             return f"![{image_path_str}]({image_path_str})"
 
     def _resolve_image_path(self, path_str: str) -> Path | None:
+        """Find an \\includegraphics file, confined to the .tex file's directory.
+
+        Absolute paths, ``..`` traversal, and symlinks leading outside are
+        rejected so importing a third-party .tex can't copy arbitrary local
+        files into the output ``assets/`` folder.
+        """
         path = self._tex_dir / path_str
-        if path.exists():
-            return path
+        candidates = [path]
         if not path.suffix:
-            for ext in _IMAGE_EXTENSIONS:
-                candidate = path.with_suffix(ext)
-                if candidate.exists():
-                    return candidate
+            candidates += [path.with_suffix(ext) for ext in _IMAGE_EXTENSIONS]
+        for candidate in candidates:
+            if candidate.exists():
+                if not is_within(candidate, self._tex_dir):
+                    self._warnings.append(f"Image outside the source directory skipped: {path_str}")
+                    return None
+                return candidate
         return None
 
     def _convert_footnote(self, node: LatexMacroNode) -> str:

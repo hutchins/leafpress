@@ -7,7 +7,6 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
@@ -19,10 +18,13 @@ from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter
 from leafpress.docx.styles import apply_branding_styles
+from leafpress.downloads import download
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
 logger = logging.getLogger(__name__)
+
+_MAX_LOGO_BYTES = 10 * 1024 * 1024
 
 # Register VML and Office namespaces for watermark support (must be after docx imports)
 nsmap["v"] = "urn:schemas-microsoft-com:vml"
@@ -251,9 +253,12 @@ class DocxRenderer:
             )
             return None
         if logo.startswith(("http://", "https://")):
-            response = requests.get(logo, timeout=30)
-            response.raise_for_status()
-            return io.BytesIO(response.content)
+            # logo_path may come from an untrusted leafpress.yml, so refuse
+            # internal hosts (same rule as the PDF fetcher).
+            body, _ = download(
+                logo, max_bytes=_MAX_LOGO_BYTES, timeout=30, require_public_host=True
+            )
+            return io.BytesIO(body)
         path = Path(logo)
         if path.exists():
             return io.BytesIO(path.read_bytes())

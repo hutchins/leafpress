@@ -16,6 +16,24 @@ console = Console()
 
 GIT_URL_PATTERN = re.compile(r"^(https?://|git@|git://|ssh://)")
 
+# Matches the "user:password@" / "token@" part of a URL authority
+_URL_USERINFO_PATTERN = re.compile(r"(?<=://)[^/@\s]+@")
+
+
+def redact_url(text: str) -> str:
+    """Remove credentials from any URLs in ``text``.
+
+    ``https://user:TOKEN@github.com/org/repo`` becomes
+    ``https://***@github.com/org/repo``. Used for anything printed, raised, or
+    rendered into documents (GitPython errors echo the full clone command).
+    SSH-style ``git@host:org/repo`` has no secret and is left unchanged.
+
+    Example:
+        >>> redact_url("https://x:ghp_abc@github.com/o/r.git")
+        'https://***@github.com/o/r.git'
+    """
+    return _URL_USERINFO_PATTERN.sub("***@", text)
+
 
 class ResolvedSource:
     """Context manager for a resolved source directory.
@@ -65,10 +83,11 @@ def _clone_repo(url: str, branch: str | None) -> Path:
         clone_kwargs["branch"] = branch
 
     try:
-        console.print(f"[dim]Cloning {url}...[/dim]")
+        console.print(f"[dim]Cloning {redact_url(url)}...[/dim]")
         Repo.clone_from(url, str(tmp_dir), **clone_kwargs)
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise SourceError(f"Failed to clone {url}: {e}") from e
+        # `from None`: the chained GitPython error would repeat the raw URL
+        raise SourceError(f"Failed to clone {redact_url(url)}: {redact_url(str(e))}") from None
 
     return tmp_dir

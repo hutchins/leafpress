@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import platform
 import subprocess
 import sys
@@ -33,11 +34,13 @@ from PyQt6.QtWidgets import (
 
 def _open_file(path: Path) -> None:
     """Open a file with the system default application."""
-    system = platform.system()
-    if system == "Darwin":
+    if sys.platform == "win32":
+        # Opens via the shell association without spawning cmd.exe, so file
+        # names can't be interpreted as shell syntax.
+        os.startfile(path)
+        return
+    if platform.system() == "Darwin":
         subprocess.run(["open", str(path)], check=False)
-    elif system == "Windows":
-        subprocess.run(["start", "", str(path)], shell=True, check=False)
     else:
         subprocess.run(["xdg-open", str(path)], check=False)
 
