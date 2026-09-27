@@ -30,6 +30,16 @@
 
 ### Improvements
 
+- **LaTeX import overhaul**, clearing every item in the LaTeX TODO list:
+    - Multi-file projects (`\input`, `\include`, `\subfile`, `\import`) are inlined, confined to the document directory, with cycle detection
+    - Theorem-like environments and `\newtheorem` (shared counters, starred forms) render as numbered blockquotes; `proof` ends with ∎
+    - Accents and symbols convert to Unicode, and `---` / `--` / `` `` '' `` / `~` become typographic characters
+    - `\multicolumn` cell content is kept, and table cells are converted instead of left as raw LaTeX
+    - Sub-figures render with `(a)`/`(b)` captions
+    - siunitx quantities convert: `\SI{3e8}{\metre\per\second}` → 3 × 10⁸ m·s⁻¹
+    - Equations get `\tag{n}`, with `\label`/`\nonumber` removed and `align*` wrapped in `aligned`
+    - `\ref`/`\eqref`/`\autoref`/`\cref`/`\nameref` resolve to real numbers, including forward references
+    - Beamer frames become headings with their content, and overlays are flattened. Frames were previously dropped entirely
 - `LEAFPRESS_LOG_LEVEL` env var (`DEBUG`/`INFO`/`WARNING`/`ERROR`/`CRITICAL`) sets console log verbosity without `--verbose`, which is useful in CI. Console log lines are now styled by level
 - **HTML sanitizing.** Uses [nh3](https://github.com/messense/nh3) to strip scripts, event handlers, `javascript:` / `data:` links, iframes, forms, and resource-loading CSS from page HTML, while keeping normal MkDocs/Material markup.
     - Automatic for git URL sources and monorepo `url:` projects, and a cloned repo's `leafpress.yml` can't disable it.
@@ -39,6 +49,12 @@
 
 ### Fixes
 
+- **LaTeX import data loss:**
+    - Accented letters and `\&`, `\%` were silently dropped ("Schön" → "Schon", "100\%" → "100").
+    - `~`, `--`, `---` and TeX quotes vanished.
+    - `\paragraph` produced an empty heading.
+    - `\caption` was never parsed, so figure captions leaked out as loose text instead of becoming alt text.
+    - Beamer slides were discarded.
 - DOCX watermark font was written as `&amp;quot;Calibri&amp;quot;` (double-escaped), so Word didn't get the intended font
 - **Batch `import`:**
     - A failed file no longer aborts the batch, and errors now name the file that failed.

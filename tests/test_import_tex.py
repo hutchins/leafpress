@@ -441,8 +441,10 @@ class TestAcademicPaper:
         assert "[allen2019]" in self.content
 
     def test_cross_references(self) -> None:
-        """\\ref and \\eqref produce ref markers."""
-        assert "[ref:sec:theory]" in self.content
+        """\\ref resolves to the label's number; undefined labels stay as markers."""
+        assert "(Section 2)" in self.content  # Section~\ref{sec:theory}
+        assert "(see Section 1.1)" in self.content  # subsection sec:related
+        # tab:comparison is referenced but never defined in the fixture
         assert "[ref:tab:comparison]" in self.content
 
     def test_table_with_booktabs(self) -> None:
