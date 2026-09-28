@@ -17,7 +17,8 @@ jobs:
           persist-credentials: false
 
       - name: Install WeasyPrint system dependencies
-        run: sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
+        # poppler-utils provides pdftotext for the PDF text assertions
+        run: sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1 poppler-utils
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
