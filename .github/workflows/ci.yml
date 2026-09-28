@@ -12,18 +12,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install WeasyPrint system dependencies
         run: sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
       - name: Install dependencies
         run: uv sync --group dev
@@ -44,3 +44,31 @@ jobs:
 
       - name: Test with coverage
         run: uv run pytest tests/ --cov --cov-report=term-missing --cov-report=xml -q
+
+  # Exercise the composite action (action.yml) from this checkout end to end
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the leafpress action on this repo's docs
+        id: leafpress
+        uses: ./
+        with:
+          source: docs
+          format: html
+          # Shell syntax in an input must stay a literal path (injection regression test)
+          output: "dist/$(echo injected)"
+
+      - name: Check outputs
+        env:
+          FILES: ${{ steps.leafpress.outputs.files }}
+        run: |
+          echo "$FILES"
+          test -n "$FILES"
+          test -d 'dist/$(echo injected)'
+          test ! -e dist/injected
+          ls 'dist/$(echo injected)'/*.html
+
