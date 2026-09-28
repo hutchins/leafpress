@@ -56,6 +56,15 @@
 
 ### Fixes
 
+- **Desktop UI import:**
+    - A failing file no longer aborts the rest of the batch.
+    - Same-named files can no longer overwrite each other's output.
+    - The result dialog lists every failure.
+    - The UI and `leafpress import` now share one importer dispatch, `leafpress.importer.dispatch.import_document`.
+- `ui.md` corrected:
+    - the convert window doesn't cover every CLI option;
+    - the import output folder defaults to next to the source files;
+    - the local-timezone option and keyboard shortcuts are now documented.
 - **LaTeX import data loss:**
     - Accented letters and `\&`, `\%` were silently dropped ("Schön" → "Schon", "100\%" → "100").
     - `~`, `--`, `---` and TeX quotes vanished.

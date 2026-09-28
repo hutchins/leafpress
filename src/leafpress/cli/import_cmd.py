@@ -15,6 +15,7 @@ from rich.table import Table
 from leafpress.cli.app import console
 from leafpress.exceptions import LeafpressError
 from leafpress.importer.base import ImportResult, resolve_output_path
+from leafpress.importer.dispatch import SUPPORTED_IMPORT_EXTENSIONS, import_document
 
 
 def import_file(
@@ -143,7 +144,7 @@ def _import_summary_table(outcomes: list[_ImportOutcome]) -> Table:
     return table
 
 
-_SUPPORTED_IMPORT_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".tex"}
+_SUPPORTED_IMPORT_EXTENSIONS = SUPPORTED_IMPORT_EXTENSIONS
 
 
 _DOC_CONTENT_TYPE_TO_EXT: dict[str, str] = {
@@ -222,46 +223,11 @@ def _import_single_file(
     include_notes: bool,
 ) -> ImportResult:
     """Import a single .docx, .pptx, .xlsx, or .tex file and return the result."""
-    suffix = file.suffix.lower()
-
-    if suffix == ".docx":
-        from leafpress.importer.converter import import_docx as do_import
-
-        style_list = (
-            [s.strip() for s in code_styles.split(",") if s.strip()] if code_styles else None
-        )
-        return do_import(
-            docx_path=file,
-            output_path=output,
-            extract_images=extract_images,
-            code_styles=style_list,
-        )
-
-    if suffix == ".pptx":
-        from leafpress.importer.converter_pptx import import_pptx
-
-        return import_pptx(
-            pptx_path=file,
-            output_path=output,
-            extract_images=extract_images,
-            include_notes=include_notes,
-        )
-
-    if suffix == ".xlsx":
-        from leafpress.importer.converter_xlsx import import_xlsx
-
-        return import_xlsx(
-            xlsx_path=file,
-            output_path=output,
-        )
-
-    if suffix == ".tex":
-        from leafpress.importer.converter_tex import import_tex
-
-        return import_tex(
-            tex_path=file,
-            output_path=output,
-            extract_images=extract_images,
-        )
-
-    raise LeafpressError(f"Unsupported file type '{suffix}'. Use .docx, .pptx, .xlsx, or .tex")
+    style_list = [s.strip() for s in code_styles.split(",") if s.strip()] if code_styles else None
+    return import_document(
+        file,
+        output=output,
+        extract_images=extract_images,
+        code_styles=style_list,
+        include_notes=include_notes,
+    )
