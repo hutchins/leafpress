@@ -186,7 +186,7 @@ projects:
   - shared/docs
 ```
 
-Each entry is a path (relative to the config file) to a directory containing its own `mkdocs.yml`.
+Each entry is a path (relative to the config file) to a directory containing its own `mkdocs.yml` (or [`zensical.toml`](zensical.md)).
 
 ### Git URL projects
 
@@ -300,7 +300,8 @@ Section headings from the sub-project's `nav` in `mkdocs.yml` are also bumped. A
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | `File not found: path/to/page.md (in Project)` | Page listed in `nav` but missing from the project's docs directory | Check the `nav` entries in the sub-project's `mkdocs.yml` match actual files |
-| `No mkdocs.yml or mkdocs.yaml found in ...` | Project directory exists but has no MkDocs config | Ensure each project directory listed under `projects` contains a `mkdocs.yml` |
+| `No mkdocs.yml, mkdocs.yaml, or zensical.toml found in ...` | Project directory exists but has no site config | Ensure each project directory listed under `projects` contains a `mkdocs.yml` (or `zensical.toml`) |
+| `Monorepo project path escapes the cloned repository` | A cloned repo's `leafpress.yml` lists a `path:` outside the clone | Use paths inside the repository; see [Remote Sources](remote-sources.md#converting-untrusted-repositories) |
 | `Monorepo project directory not found: ...` | The `path` in `projects` does not exist | Check that paths are relative to the `leafpress.yml` file location |
 | Missing images in a sub-project's output | Relative image paths resolve from the sub-project's `docs/` directory | Use paths relative to each sub-project's `docs/` directory, not the monorepo root |
 | Wrong version shown for a sub-project | Version detected from the wrong `pyproject.toml` or manifest | Use the `root` field to point to the correct package directory — see [sub-project version detection](git-integration.md#sub-project-version-detection) |

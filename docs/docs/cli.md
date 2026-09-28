@@ -190,7 +190,7 @@ leafpress import SOURCES... [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--output`, `-o` | `<stem>.md` | Output `.md` file path or directory. Must be a directory when importing multiple files. |
+| `--output`, `-o` | `<stem>.md` | Output `.md` file path or directory. Must be a directory when importing multiple files. Without it, local files are written next to the source and URLs to the current directory. |
 | `--extract-images` / `--no-extract-images` | `--extract-images` | Extract embedded images to an `assets/` folder |
 | `--code-styles` | _(none)_ | Comma-separated Word style names to treat as code blocks (DOCX only) |
 | `--notes` / `--no-notes` | `--notes` | Include speaker notes as blockquotes (PPTX only) |
@@ -233,6 +233,13 @@ leafpress import deck.pptx --no-extract-images
 leafpress import report.docx --code-styles "Code Block,Source Code"
 ```
 
+**Batch behavior**
+
+- **Failures don't stop the batch.** Each error names its source file, and the command exits with code 1 if any file failed.
+- **Summary.** After importing more than one file, a table summarizes each source: status, output or error, and image and warning counts.
+- **Name collisions are refused.** Two inputs that would write the same output file (e.g. `a/report.docx` and `b/report.docx` with `-o docs/`) would otherwise overwrite each other, so the second is refused.
+- **Downloads.** URLs must be `http(s)` and are capped at 200 MB. See [Document Import](import.md) for format-specific details.
+
 ---
 
 ## `init`
@@ -263,7 +270,7 @@ leafpress init /path/to/project
 
 ## `info`
 
-Display detected MkDocs site info: navigation structure, markdown extensions, and git information.
+Display detected site info (from `mkdocs.yml`, or `zensical.toml` for [Zensical projects](zensical.md)): navigation structure, markdown extensions, and git information.
 
 ```bash
 leafpress info [SOURCE] [OPTIONS]
@@ -323,6 +330,12 @@ leafpress fetch-diagrams -c path/to/leafpress.yml
 leafpress fetch-diagrams --refresh
 ```
 
+**How it works:**
+
+1. **Checks first.** Before any request is made, every `dest` is validated: it must stay inside the directory containing `leafpress.yml`, and no two sources may share one. The Lucidchart token is also checked, if any source needs it.
+2. **Downloads in parallel,** up to 4 at a time. Each download is capped at 50 MB.
+3. **Reports all failures together.** If some downloads fail, the rest still finish, then the command lists every failure and exits with code 1.
+
 See [Diagrams](diagrams.md) for full configuration and usage details.
 
 ---
@@ -358,12 +371,12 @@ When `SOURCE` is omitted from `convert` or `info`, leafpress automatically searc
 
 **Search order:**
 
-1. **Git repo root** — if you're inside a git repository, leafpress checks the repo root for `mkdocs.yml`
+1. **Git repo root** — if you're inside a git repository, leafpress checks the repo root for a site config
 2. **Git root / `docs/`** — checks a `docs/` subdirectory of the repo root
 3. **Current directory** — falls back to CWD if not in a git repo
 4. **CWD / `docs/`** — checks a `docs/` subdirectory of CWD
 
-The first directory containing `mkdocs.yml` (or `mkdocs.yaml`) is used.
+The first directory containing `mkdocs.yml`, `mkdocs.yaml`, or `zensical.toml` is used. If a directory has both `mkdocs.yml` and `zensical.toml`, `mkdocs.yml` wins; pass `--mkdocs-config zensical.toml` to use the Zensical config (see [Zensical Projects](zensical.md)).
 
 **Examples**
 
@@ -381,4 +394,4 @@ cd /tmp/some-docs
 leafpress info
 ```
 
-If no `mkdocs.yml` is found, leafpress exits with an error and suggests specifying the path explicitly.
+If no site config is found, leafpress exits with an error and suggests specifying the path explicitly.
