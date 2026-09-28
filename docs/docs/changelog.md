@@ -105,6 +105,11 @@
 
 ### Tooling
 
+- **Test coverage raised to 94.9% of lines and 88.1% of branches** (1,020 tests):
+    - New end-to-end integration suite: a malicious repository converted to every format leaks nothing; images and mermaid are embedded in every format; CLI flags reach the output; a multi-file LaTeX import runs through the CLI.
+    - Docker tests cover running as the host user with git version detection.
+    - Security helpers' edge cases (redirect loops, size caps, unresolvable and multicast hosts, include depth) are now at 97–100%.
+    - Desktop UI tests (87% of `ui/app.py`) now run in CI in a new `ui` job.
 - `pillow` is now a declared dependency (ODT image sizing imports it directly; it was previously only installed transitively via python-pptx)
 - Cross-format watermark tests check that the text appears (and is escaped) in PDF, DOCX, HTML, ODT, and EPUB
 - `src/leafpress/cli.py` (~700 lines) is split into a `leafpress.cli` package with one module per subcommand. The `leafpress.cli:cli` entry point and `--help` output are unchanged, and new tests cover the CLI error paths

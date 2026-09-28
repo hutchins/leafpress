@@ -433,3 +433,108 @@ class TestMonorepoConfinement:
                 Console(quiet=True),
                 untrusted_source=True,
             )
+
+
+# ---------------------------------------------------------------------------
+# Edge cases in the security helpers
+# ---------------------------------------------------------------------------
+
+
+class TestFetcherEdgeCases:
+    def test_data_uri_allowed(self, project: Path) -> None:
+        resp = _fetcher(project).fetch("data:text/plain;base64,aGk=")
+        assert resp.read() == b"hi"
+
+    def test_non_redirect_http_error_propagates(
+        self, project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from weasyprint.urls import URLFetcher
+
+        fetcher = _fetcher(project)
+        monkeypatch.setattr("leafpress.pdf.url_fetcher.is_public_http_url", lambda url: True)
+
+        def not_found(self, url, headers=None):
+            raise HTTPError(url, 404, "Not Found", EmailMessage(), None)
+
+        monkeypatch.setattr(URLFetcher, "fetch", not_found)
+        with pytest.raises(HTTPError):
+            fetcher.fetch("https://example.com/missing.png")
+
+    def test_redirect_loop_stops(self, project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from weasyprint.urls import URLFetcher
+
+        fetcher = _fetcher(project)
+        monkeypatch.setattr("leafpress.pdf.url_fetcher.is_public_http_url", lambda url: True)
+        headers = EmailMessage()
+        headers["Location"] = "https://example.com/again"
+
+        def loop(self, url, headers_=None):
+            raise HTTPError(url, 302, "Found", headers, None)
+
+        monkeypatch.setattr(URLFetcher, "fetch", loop)
+        with pytest.raises(ValueError, match="Too many redirects"):
+            fetcher.fetch("https://example.com/start")
+
+    def test_oversized_response_refused(
+        self, project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from io import BytesIO
+
+        from weasyprint.urls import URLFetcher, URLFetcherResponse
+
+        from leafpress.pdf import url_fetcher
+
+        fetcher = _fetcher(project)
+        monkeypatch.setattr(url_fetcher, "MAX_RESPONSE_BYTES", 10)
+        monkeypatch.setattr(url_fetcher, "is_public_http_url", lambda url: True)
+        monkeypatch.setattr(
+            URLFetcher,
+            "fetch",
+            lambda self, url, headers=None: URLFetcherResponse(url, BytesIO(b"x" * 11)),
+        )
+        with pytest.raises(ValueError, match="too large"):
+            fetcher.fetch("https://example.com/big.png")
+
+
+class TestAssetPolicyEdgeCases:
+    def test_unresolvable_and_empty_hosts_are_not_public(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from leafpress.asset_policy import is_public_host
+
+        def fail(*a: object) -> None:
+            raise socket.gaierror("no such host")
+
+        monkeypatch.setattr(socket, "getaddrinfo", fail)
+        assert not is_public_host("nonexistent.invalid")
+        assert not is_public_host("")
+
+    def test_multicast_and_no_addresses_are_not_public(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from leafpress.asset_policy import is_public_host
+
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a: [(0, 0, 0, "", ("224.0.0.1", 0))])
+        assert not is_public_host("multicast.example")
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a: [])
+        assert not is_public_host("empty.example")
+
+    def test_ipv6_scope_id_handled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from leafpress.asset_policy import is_public_host
+
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a: [(0, 0, 0, "", ("fe80::1%en0", 0))])
+        assert not is_public_host("linklocal.example")
+
+    def test_invalid_file_uri(self) -> None:
+        assert file_uri_to_path("file:relative/path") is None
+
+    def test_policy_rejects_unresolvable_path(
+        self, project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        policy = AssetPolicy([project])
+
+        def boom(self: Path, strict: bool = False) -> Path:
+            raise RuntimeError("symlink loop")
+
+        monkeypatch.setattr(Path, "resolve", boom)
+        assert not policy.allows(project / "docs" / "index.md")

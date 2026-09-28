@@ -318,3 +318,51 @@ def test_beamer_frames_and_overlays() -> None:
     for leaked in ("<1->", "<+->", "[fragile]", "\\pause"):
         assert leaked not in out
     assert not any("frame" in w for w in warnings)
+
+
+class TestIncludeEdgeCases:
+    def test_import_without_directory_left_alone(self, tmp_path: Path) -> None:
+        from leafpress.importer.tex_includes import expand_includes
+
+        warnings: list[str] = []
+        assert expand_includes("\\import{x}", tmp_path, warnings) == "\\import{x}"
+        assert warnings == []
+
+    def test_depth_limit(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from leafpress.importer import tex_includes
+
+        monkeypatch.setattr(tex_includes, "MAX_INCLUDE_DEPTH", 3)
+        for i in range(6):
+            (tmp_path / f"f{i}.tex").write_text(f"L{i} \\input{{f{i + 1}}}")
+        warnings: list[str] = []
+        out = tex_includes.expand_includes("\\input{f0}", tmp_path, warnings)
+        assert "L2" in out and "L3" not in out
+        assert any("nested too deeply" in w for w in warnings)
+
+    def test_unreadable_include_reported(self, tmp_path: Path) -> None:
+        from leafpress.importer.tex_includes import expand_includes
+
+        (tmp_path / "bin.tex").write_bytes(b"\xff\xfe\x00bad")
+        warnings: list[str] = []
+        assert expand_includes("\\input{bin}", tmp_path, warnings) == ""
+        assert any("Could not read included file bin" in w for w in warnings)
+
+    def test_explicit_extension_kept(self, tmp_path: Path) -> None:
+        from leafpress.importer.tex_includes import expand_includes
+
+        (tmp_path / "part.v2.tex").write_text("versioned")
+        assert expand_includes("\\input{part.v2}", tmp_path, []) == "versioned"
+
+
+class TestSiunitxEdgeCases:
+    def test_literal_and_macro_units_mixed(self) -> None:
+        assert format_si_unit("\\kilo\\gram\\per m") == "kg·m⁻¹"
+
+    def test_tothe_power(self) -> None:
+        assert format_si_unit("\\metre\\tothe{4}") == "m⁴"
+
+    def test_quantity_without_unit_and_range_without_unit(self) -> None:
+        from leafpress.importer.tex_symbols import format_si_range
+
+        assert format_si_quantity("42", "") == "42"
+        assert format_si_range("1", "5") == "1–5"

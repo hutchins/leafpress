@@ -54,13 +54,14 @@ Tests live in `tests/`, one file per module (`test_<module>.py`), plus a few cro
 | File | Covers |
 |------|--------|
 | `test_pipeline.py`, `test_pipeline_monorepo.py` | End-to-end `convert()` for each format and monorepo mode |
+| `test_integration_e2e.py` | Real pipeline and CLI runs across all formats: a malicious repository leaks nothing, images and mermaid are embedded everywhere, and CLI flags reach the output. Only the mermaid server is mocked |
 | `test_untrusted_content.py`, `test_download_hardening.py`, `test_sanitize.py`, `test_security.py` | Security boundaries: file confinement, URL fetching, downloads, HTML sanitizing, YAML safety. **Add a regression test here for any change that touches what content can read, fetch, or execute** |
 | `test_images_and_mermaid_config.py` | Image embedding per format, mermaid configuration, temp-dir cleanup |
 | `test_watermark_formats_and_logging.py` | Watermark text in every output format; `LEAFPRESS_LOG_LEVEL` |
 | `test_cli_commands.py`, `test_batch_import_and_parallel_diagrams.py` | CLI error paths and flags, batch import reporting, parallel diagram fetching |
 | `test_import_tex.py`, `test_import_tex_improvements.py` | LaTeX import, including includes, theorems, siunitx, cross-references, and Beamer |
 | `test_zensical.py` | Experimental `zensical.toml` parsing and discovery |
-| `test_ui.py` | Desktop UI windows and workers under headless Qt (`QT_QPA_PLATFORM=offscreen`); skipped unless PyQt6 is installed (`uv sync --all-extras`) |
+| `test_ui.py` | Desktop UI windows, workers, and tray under headless Qt (`QT_QPA_PLATFORM=offscreen`). Skipped locally unless PyQt6 is installed (`uv sync --all-extras`); CI runs them in a dedicated `ui` job |
 | `test_cibutler_integration.py` | A real Material for MkDocs site (see below) |
 | `test_docker.py` | Builds and runs the Docker image (marked `docker`) |
 | `test_docs_site.py` | Sanity checks on this repo's own `docs/` site |

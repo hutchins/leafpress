@@ -98,6 +98,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 # Maps LaTeX to typographic Unicode (dashes, quotes, ×, ı, primes) on purpose
 "src/leafpress/importer/tex_symbols.py" = ["RUF001", "RUF002"]
 "tests/test_import_tex_improvements.py" = ["RUF001"]
+"tests/test_integration_e2e.py" = ["RUF001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
