@@ -93,8 +93,16 @@ class ConvertWorker(QThread):
         include_toc: bool,
         open_after: bool = False,
         local_time: bool = False,
+        branch: str | None = None,
+        watermark: str | None = None,
+        mermaid: bool | None = None,
+        sanitize_html: bool | None = None,
     ) -> None:
         super().__init__()
+        self._branch = branch
+        self._watermark = watermark
+        self._mermaid = mermaid
+        self._sanitize_html = sanitize_html
         self._source = source
         self._output_dir = output_dir
         self._fmt = fmt
@@ -117,6 +125,10 @@ class ConvertWorker(QThread):
                 cover_page=self._cover_page,
                 include_toc=self._include_toc,
                 local_time=self._local_time,
+                branch=self._branch,
+                watermark=self._watermark,
+                mermaid=self._mermaid,
+                sanitize_html=self._sanitize_html,
             )
             names = "\n".join(str(f) for f in files)
             self.log.emit(f"Done!\n{names}")
@@ -127,6 +139,19 @@ class ConvertWorker(QThread):
         except Exception as exc:
             self.log.emit(f"Error: {exc}")
             self.finished.emit(False, str(exc))
+
+
+# (label, value) for three-way options; None defers to leafpress.yml / env vars
+_MERMAID_CHOICES: list[tuple[str, bool | None]] = [
+    ("From config (default: render)", None),
+    ("Render diagrams", True),
+    ("Keep as code (nothing sent)", False),
+]
+_SANITIZE_CHOICES: list[tuple[str, bool | None]] = [
+    ("Auto (on for git URL sources)", None),
+    ("On", True),
+    ("Off", False),
+]
 
 
 class LeafpressWindow(QMainWindow):
@@ -198,6 +223,35 @@ class LeafpressWindow(QMainWindow):
         cfg_row.addWidget(self._config)
         cfg_row.addWidget(cfg_btn)
         form.addRow("Branding config:", cfg_row)
+
+        # Git branch (only used for git URL sources)
+        self._branch = QLineEdit()
+        self._branch.setPlaceholderText("Optional: branch to clone (git URL sources only)")
+        self._branch.setToolTip("Same as --branch; ignored for local folders")
+        form.addRow("Git branch:", self._branch)
+
+        # Watermark text overrides leafpress.yml
+        self._watermark = QLineEdit()
+        self._watermark.setPlaceholderText("Optional: e.g. DRAFT or CONFIDENTIAL")
+        self._watermark.setToolTip("Same as --watermark; overrides watermark.text in leafpress.yml")
+        form.addRow("Watermark:", self._watermark)
+
+        # Three-way options: blank CLI flag = defer to leafpress.yml / env vars
+        self._mermaid = QComboBox()
+        self._mermaid.addItems([label for label, _ in _MERMAID_CHOICES])
+        self._mermaid.setToolTip(
+            "Diagrams are rendered by sending their source to the configured "
+            "mermaid.ink server; 'Keep as code' sends nothing"
+        )
+        form.addRow("Mermaid diagrams:", self._mermaid)
+
+        self._sanitize = QComboBox()
+        self._sanitize.addItems([label for label, _ in _SANITIZE_CHOICES])
+        self._sanitize.setToolTip(
+            "Strip scripts and event handlers from page HTML. "
+            "Auto = on for git URL sources, otherwise sanitize_html in leafpress.yml"
+        )
+        form.addRow("Sanitize HTML:", self._sanitize)
 
         root.addLayout(form)
 
@@ -297,10 +351,25 @@ class LeafpressWindow(QMainWindow):
             include_toc=self._toc.isChecked(),
             open_after=self._open_after.isChecked(),
             local_time=self._local_time.isChecked(),
+            **self._extra_options(),
         )
         self._worker.log.connect(self._log.append)
         self._worker.finished.connect(self._on_finished)
         self._worker.start()
+
+    def _extra_options(self) -> dict[str, str | bool | None]:
+        """Branch, watermark, mermaid, and sanitize settings for ``convert()``.
+
+        Blank text fields and "From config"/"Auto" choices become None so the
+        pipeline falls back to leafpress.yml and LEAFPRESS_* env vars, exactly
+        as when the CLI flag is omitted.
+        """
+        return {
+            "branch": self._branch.text().strip() or None,
+            "watermark": self._watermark.text().strip() or None,
+            "mermaid": _MERMAID_CHOICES[self._mermaid.currentIndex()][1],
+            "sanitize_html": _SANITIZE_CHOICES[self._sanitize.currentIndex()][1],
+        }
 
     def _on_finished(self, success: bool, message: str) -> None:
         self._convert_btn.setEnabled(True)

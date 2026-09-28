@@ -30,6 +30,7 @@
 
 ### Improvements
 
+- Desktop UI convert window gains **Git branch**, **Watermark**, **Mermaid diagrams** (from config / render / keep as code), and **Sanitize HTML** (auto / on / off), matching the CLI flags
 - **Experimental Zensical support.** `zensical.toml` projects convert like MkDocs ones.
     - Reads `site_name`, `docs_dir`, `nav`, and `markdown_extensions` from `[project]`.
     - Dotted extension tables are flattened back to extension names.
