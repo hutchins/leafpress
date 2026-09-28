@@ -86,6 +86,26 @@ def resolve_logo_uri(branding: BrandingConfig | None) -> str:
     return ""
 
 
+_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
+
+
+def is_image_file(path: Path) -> bool:
+    """True if ``path`` is an existing image file (checked by content, not just name)."""
+    if path.suffix.lower() not in _IMAGE_SUFFIXES or not path.is_file():
+        return False
+    if path.suffix.lower() == ".svg":
+        with path.open("rb") as f:
+            return b"<svg" in f.read(4096).lower()
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(path) as img:
+            img.verify()
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        return False
+    return True
+
+
 def build_asset_policy(
     mkdocs_cfg: MkDocsConfig,
     branding: BrandingConfig | None,
@@ -102,7 +122,10 @@ def build_asset_policy(
         branding
         and branding.logo_path
         and not branding.logo_path.startswith(("http://", "https://"))
+        and is_image_file(Path(branding.logo_path))
     ):
+        # Only a real image is allowlisted, so logo_path can't smuggle an
+        # arbitrary file (a key, /proc/self/environ) into the output.
         files.append(Path(branding.logo_path))
     roots = [mkdocs_cfg.config_path.parent, mkdocs_cfg.docs_dir, *extra_roots]
     return AssetPolicy(roots, files)
@@ -137,6 +160,10 @@ def rewrite_local_images(
             return f"{prefix}{quote}{quote}"
         if not path.is_file():
             return match.group(0)
+        if not is_image_file(path):
+            # Only real images are embedded: an <img> pointing at .env or a
+            # key inside the project must not be base64'd into the output.
+            return f"{prefix}{quote}{quote}"
         new_src = replace(path)
         return match.group(0) if new_src is None else f"{prefix}{quote}{new_src}{quote}"
 

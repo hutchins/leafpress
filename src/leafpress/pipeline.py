@@ -256,15 +256,16 @@ def convert(
     _pkg_logger.addHandler(_log_handler)
     _pkg_logger.setLevel(log_level)
 
-    resolved_source = resolve_source(source, branch)
-    # A cloned repo is someone else's content: don't trust its .env or let its
-    # leafpress.yml point monorepo projects at local directories outside it.
-    untrusted_source = resolved_source.is_temporary
-    # Cleanup (cloned repo, mermaid temp dir, log handler) runs on success
-    # and on error, in reverse order of registration.
+    # Cleanup (log handler, cloned repos, mermaid temp dir) runs on success
+    # and on error, in reverse order of registration. The handler callbacks
+    # are registered first so a failed clone still detaches it.
     with contextlib.ExitStack() as cleanup:
         cleanup.callback(_pkg_logger.setLevel, _prev_log_level)
         cleanup.callback(_pkg_logger.removeHandler, _log_handler)
+        resolved_source = resolve_source(source, branch)
+        # A cloned repo is someone else's content: don't trust its .env or let
+        # its leafpress.yml point monorepo projects at local directories outside it.
+        untrusted_source = resolved_source.is_temporary
         project_dir = cleanup.enter_context(resolved_source)
         if not untrusted_source:
             _load_project_env(project_dir / ".env")
@@ -282,6 +283,12 @@ def convert(
                     break
             if branding is None:
                 branding = config_from_env()
+
+        # A leafpress.yml auto-detected inside a cloned repo is untrusted; an
+        # explicit -c file and LEAFPRESS_* env vars come from the operator.
+        repo_config_untrusted = untrusted_source and config_path is None
+        if branding is not None and repo_config_untrusted:
+            branding = _confine_untrusted_logo(branding, project_dir, console)
 
         # Parse mkdocs.yml (not required in monorepo mode)
         is_monorepo = branding is not None and bool(branding.projects)
@@ -359,6 +366,11 @@ def convert(
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
         cleanup.callback(shutil.rmtree, mermaid_dir, ignore_errors=True)
         mermaid_cfg = resolve_mermaid_config(branding, enabled_override=mermaid)
+        # An untrusted repo config can't aim rendering at internal hosts; an
+        # operator-set LEAFPRESS_MERMAID_SERVER (e.g. self-hosted) is trusted.
+        mermaid_public_only = repo_config_untrusted and not os.environ.get(
+            "LEAFPRESS_MERMAID_SERVER"
+        )
         config_sanitize = bool(branding and branding.sanitize_html)
         sanitize_pages = should_sanitize(
             cli_override=sanitize_html,
@@ -389,6 +401,9 @@ def convert(
                 config_sanitize=config_sanitize,
                 asset_policy=asset_policy,
                 untrusted_source=untrusted_source,
+                resources=cleanup,
+                mermaid_public_only=mermaid_public_only,
+                source_root=project_dir,
             )
             console.print(
                 f"  [green]Projects:[/green] {len(branding.projects)} ({page_count} documents)\n"
@@ -400,7 +415,9 @@ def convert(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_dir if mermaid_cfg.enabled else None,
                 mermaid_server=mermaid_cfg.server,
+                mermaid_public_only=mermaid_public_only,
                 project_root=mkdocs_cfg.config_path.parent,
+                asset_roots=[project_dir],
             )
             for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:
@@ -648,6 +665,26 @@ def _safe_filename(name: str) -> str:
     return "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip()
 
 
+def _confine_untrusted_logo(
+    branding: BrandingConfig, project_dir: Path, con: Console
+) -> BrandingConfig:
+    """Drop a local logo from an untrusted repo config if it lies outside the repo.
+
+    Otherwise a cloned repo could name any readable file (``~/.ssh/id_rsa``,
+    ``/proc/self/environ``) as its logo and have it embedded in the output.
+    A logo set via ``LEAFPRESS_LOGO_PATH`` comes from the operator and is kept.
+    """
+    logo = branding.logo_path
+    if not logo or logo.startswith(("http://", "https://")):
+        return branding
+    if os.environ.get("LEAFPRESS_LOGO_PATH") or is_within(Path(logo), project_dir):
+        return branding
+    con.print(
+        f"  [yellow]⚠[/yellow] Ignoring logo_path outside the cloned repository: {escape(logo)}"
+    )
+    return branding.model_copy(update={"logo_path": None})
+
+
 def _load_project_env(env_file: Path) -> None:
     """Load ``LEAFPRESS_*`` settings from a project's ``.env`` file.
 
@@ -673,11 +710,15 @@ def _collect_monorepo_pages(
     untrusted_source: bool = False,
     sanitize_override: bool | None = None,
     config_sanitize: bool = False,
+    resources: contextlib.ExitStack | None = None,
+    mermaid_public_only: bool = False,
+    source_root: Path | None = None,
 ) -> tuple[list[tuple[NavItem, str]], int]:
     """Parse and render pages from multiple MkDocs projects.
 
-    Supports both local paths and git URL entries. Git repos are cloned
-    to temporary directories and cleaned up after all pages are collected.
+    Supports both local paths and git URL entries. Git repos are cloned to
+    temporary directories registered on ``resources`` (the caller's cleanup
+    stack), so their images still exist when the output is rendered.
 
     Returns (combined html_pages, total page count).
     """
@@ -685,7 +726,8 @@ def _collect_monorepo_pages(
     total_pages = 0
     mermaid_cfg = mermaid_cfg or MermaidConfig()
 
-    with contextlib.ExitStack() as stack:
+    with contextlib.ExitStack() as local_stack:
+        stack = resources if resources is not None else local_stack
         for entry in projects:
             # Resolve project directory (local path or git clone)
             if entry.url:
@@ -739,7 +781,9 @@ def _collect_monorepo_pages(
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_output_dir if mermaid_cfg.enabled else None,
                 mermaid_server=mermaid_cfg.server,
+                mermaid_public_only=mermaid_public_only,
                 project_root=mkdocs_cfg.config_path.parent,
+                asset_roots=[source_root] if source_root and not entry.url else [],
             )
             for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:

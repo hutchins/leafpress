@@ -9,9 +9,9 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from leafpress import __version__
-from leafpress.cli._files import _open_file
 from leafpress.cli.app import OutputFormat, console
 from leafpress.exceptions import LeafpressError
+from leafpress.opener import open_file
 
 
 def convert(
@@ -159,7 +159,7 @@ def convert(
             console.print(f"\n[bold green]Done![/bold green] Generated {len(generated)} file(s).")
             if open_after:
                 for path in generated:
-                    _open_file(path)
+                    open_file(path)
         else:
             console.print("\n[yellow]No files were generated.[/yellow]")
 

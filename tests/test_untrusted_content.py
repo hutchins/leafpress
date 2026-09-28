@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import os
 import socket
-from email.message import EmailMessage
 from pathlib import Path
-from urllib.error import HTTPError
+from unittest.mock import patch
 
 import pytest
 
@@ -321,6 +320,44 @@ class TestImageEmbedding:
 # ---------------------------------------------------------------------------
 
 
+class _HttpResp:
+    """Streaming response stand-in for requests.get(..., stream=True)."""
+
+    def __init__(
+        self,
+        body: bytes = b"data",
+        status: int = 200,
+        headers: dict[str, str] | None = None,
+        location: str | None = None,
+    ) -> None:
+        self._body = body
+        self.status_code = status
+        self.headers = dict(headers or {})
+        if location:
+            self.headers["Location"] = location
+        self.is_redirect = location is not None
+
+    def __enter__(self) -> _HttpResp:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        pass
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            import requests
+
+            raise requests.HTTPError(str(self.status_code))
+
+    def iter_content(self, chunk_size: int = 1) -> list[bytes]:
+        return [self._body]
+
+
+def _fake_dns(host: str, *args: object) -> list[tuple[object, ...]]:
+    ip = "169.254.169.254" if host == "metadata.internal" else "93.184.216.34"
+    return [(0, 0, 0, "", (ip, 0))]
+
+
 def _fetcher(project: Path):
     pytest.importorskip("weasyprint", exc_type=OSError)
     from leafpress.pdf.url_fetcher import RestrictedURLFetcher
@@ -333,9 +370,16 @@ class TestPdfFetcher:
         with pytest.raises(ValueError, match="outside the project"):
             _fetcher(project).fetch((project.parent / "secret.txt").as_uri())
 
-    def test_allows_file_inside_project(self, project: Path) -> None:
-        resp = _fetcher(project).fetch((project / "docs" / "index.md").as_uri())
-        assert resp.read() == b"# Home\n"
+    def test_allows_image_inside_project(self, project: Path) -> None:
+        from tests.helpers import make_png
+
+        (project / "docs" / "pic.png").write_bytes(make_png())
+        resp = _fetcher(project).fetch((project / "docs" / "pic.png").as_uri())
+        assert resp.read() == make_png()
+
+    def test_blocks_non_image_inside_project(self, project: Path) -> None:
+        with pytest.raises(ValueError, match="non-image"):
+            _fetcher(project).fetch((project / "docs" / "index.md").as_uri())
 
     def test_blocks_unknown_schemes(self, project: Path) -> None:
         with pytest.raises(ValueError, match="scheme"):
@@ -355,24 +399,15 @@ class TestPdfFetcher:
     def test_redirect_to_internal_host_blocked(
         self, project: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from weasyprint.urls import URLFetcher
-
         fetcher = _fetcher(project)
-        monkeypatch.setattr(
-            socket, "getaddrinfo", lambda host, *a: [(0, 0, 0, "", ("93.184.216.34", 0))]
-        )
-        headers = EmailMessage()
-        headers["Location"] = "http://169.254.169.254/latest/"
-
-        def fake_fetch(self, url, headers_=None):
-            raise HTTPError(url, 302, "Found", headers, None)
-
-        monkeypatch.setattr(URLFetcher, "fetch", fake_fetch)
-        monkeypatch.setattr(
-            "leafpress.pdf.url_fetcher.is_public_http_url",
-            lambda url: "169.254" not in url,
-        )
-        with pytest.raises(ValueError, match="non-public"):
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_dns)
+        with (
+            patch(
+                "leafpress.downloads.requests.get",
+                return_value=_HttpResp(location="http://metadata.internal/latest/"),
+            ),
+            pytest.raises(ValueError, match="non-public"),
+        ):
             fetcher.fetch("http://example.com/img.png")
 
     def test_public_url_check(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -445,55 +480,61 @@ class TestFetcherEdgeCases:
         resp = _fetcher(project).fetch("data:text/plain;base64,aGk=")
         assert resp.read() == b"hi"
 
-    def test_non_redirect_http_error_propagates(
+    def test_non_redirect_http_error_reported(
         self, project: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from weasyprint.urls import URLFetcher
-
         fetcher = _fetcher(project)
-        monkeypatch.setattr("leafpress.pdf.url_fetcher.is_public_http_url", lambda url: True)
-
-        def not_found(self, url, headers=None):
-            raise HTTPError(url, 404, "Not Found", EmailMessage(), None)
-
-        monkeypatch.setattr(URLFetcher, "fetch", not_found)
-        with pytest.raises(HTTPError):
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_dns)
+        with (
+            patch("leafpress.downloads.requests.get", return_value=_HttpResp(status=404)),
+            pytest.raises(ValueError, match="Failed to download"),
+        ):
             fetcher.fetch("https://example.com/missing.png")
 
     def test_redirect_loop_stops(self, project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from weasyprint.urls import URLFetcher
-
         fetcher = _fetcher(project)
-        monkeypatch.setattr("leafpress.pdf.url_fetcher.is_public_http_url", lambda url: True)
-        headers = EmailMessage()
-        headers["Location"] = "https://example.com/again"
-
-        def loop(self, url, headers_=None):
-            raise HTTPError(url, 302, "Found", headers, None)
-
-        monkeypatch.setattr(URLFetcher, "fetch", loop)
-        with pytest.raises(ValueError, match="Too many redirects"):
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_dns)
+        with (
+            patch(
+                "leafpress.downloads.requests.get",
+                side_effect=lambda *a, **k: _HttpResp(location="https://example.com/again"),
+            ),
+            pytest.raises(ValueError, match="Too many redirects"),
+        ):
             fetcher.fetch("https://example.com/start")
 
     def test_oversized_response_refused(
         self, project: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from io import BytesIO
-
-        from weasyprint.urls import URLFetcher, URLFetcherResponse
-
         from leafpress.pdf import url_fetcher
 
         fetcher = _fetcher(project)
         monkeypatch.setattr(url_fetcher, "MAX_RESPONSE_BYTES", 10)
-        monkeypatch.setattr(url_fetcher, "is_public_http_url", lambda url: True)
-        monkeypatch.setattr(
-            URLFetcher,
-            "fetch",
-            lambda self, url, headers=None: URLFetcherResponse(url, BytesIO(b"x" * 11)),
-        )
-        with pytest.raises(ValueError, match="too large"):
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_dns)
+        with (
+            patch("leafpress.downloads.requests.get", return_value=_HttpResp(b"x" * 11)),
+            pytest.raises(ValueError, match="too large"),
+        ):
             fetcher.fetch("https://example.com/big.png")
+
+    def test_success_returns_body_and_final_url(
+        self, project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        fetcher = _fetcher(project)
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_dns)
+        responses = [
+            _HttpResp(location="https://cdn.example.com/final.png"),
+            _HttpResp(
+                b"PNGDATA", headers={"Content-Type": "image/png", "Content-Encoding": "gzip"}
+            ),
+        ]
+        with patch("leafpress.downloads.requests.get", side_effect=responses):
+            resp = fetcher.fetch("https://example.com/img.png")
+        assert resp.read() == b"PNGDATA"
+        assert resp.url == "https://cdn.example.com/final.png"
+        assert resp.content_type == "image/png"
+        # requests already decoded the body, so the encoding header is dropped
+        assert "Content-Encoding" not in resp.headers
 
 
 class TestAssetPolicyEdgeCases:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -519,8 +520,9 @@ class OdtRenderer:
         """Build an inline picture frame for a ``file://`` image, or None to skip.
 
         ``addPicture`` embeds raw bytes without checking the file is an image,
-        so the path must be inside the project and must open as an image.
-        The frame keeps the image's aspect ratio (max 5.5in wide at 96 dpi).
+        so the path must be inside the project and must be a real image
+        (raster via Pillow, or SVG). The frame keeps the image's aspect ratio
+        (max 5.5in wide at 96 dpi).
         """
         image_path = file_uri_to_path(src)
         if image_path is None or not image_path.is_file():
@@ -528,12 +530,11 @@ class OdtRenderer:
         if not self._asset_policy.allows(image_path):
             logger.warning("Skipping image outside the project: %r", src)
             return None
-        try:
-            with PILImage.open(image_path) as im:
-                px_width, px_height = im.size
-        except Exception:
+        size = _image_pixel_size(image_path)
+        if size is None:
             logger.warning("Skipping unreadable or unsupported image in ODT: %r", src)
             return None
+        px_width, px_height = size
 
         width_in = min(5.5, px_width / 96)
         height_in = width_in * px_height / px_width if px_width else width_in
@@ -588,3 +589,37 @@ class OdtRenderer:
             doc.text.insertBefore(wm_para, doc.text.childNodes[0])
         else:
             doc.text.addElement(wm_para)
+
+
+_SVG_DEFAULT_SIZE = (528.0, 396.0)  # 5.5in x 4.125in at 96 dpi
+
+
+def _image_pixel_size(path: Path) -> tuple[float, float] | None:
+    """Pixel size of a raster image or SVG, or None if it isn't a usable image.
+
+    SVGs can't be measured by Pillow, so their size comes from the root
+    element's ``viewBox`` (or plain numeric ``width``/``height``), with a 4:3
+    default when neither is present.
+    """
+    from leafpress.base_renderer import is_image_file
+
+    if not is_image_file(path):
+        return None
+    if path.suffix.lower() == ".svg":
+        head = path.read_text(encoding="utf-8", errors="replace")[:4096]
+        root = re.search(r"<svg\b[^>]*>", head, re.IGNORECASE)
+        attrs = root.group(0) if root else ""
+        view_box = re.search(r'viewBox\s*=\s*["\']([^"\']+)["\']', attrs)
+        if view_box:
+            numbers = [float(n) for n in re.split(r"[\s,]+", view_box.group(1).strip()) if n]
+            if len(numbers) == 4 and numbers[2] > 0 and numbers[3] > 0:
+                return numbers[2], numbers[3]
+        dims = [
+            re.search(rf'\b{name}\s*=\s*["\']([\d.]+)(?:px)?["\']', attrs)
+            for name in ("width", "height")
+        ]
+        if dims[0] and dims[1]:
+            return float(dims[0].group(1)), float(dims[1].group(1))
+        return _SVG_DEFAULT_SIZE
+    with PILImage.open(path) as im:
+        return float(im.size[0]), float(im.size[1])

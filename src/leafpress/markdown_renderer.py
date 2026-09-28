@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import logging
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -114,13 +115,17 @@ class MarkdownRenderer:
         mermaid_output_dir: Path | None = None,
         project_root: Path | None = None,
         mermaid_server: str | None = None,
+        mermaid_public_only: bool = False,
+        asset_roots: Iterable[Path] = (),
     ) -> None:
         self._docs_dir = docs_dir
         self._mermaid_server = mermaid_server
-        # Directory that content may reference files from (the mkdocs.yml
-        # directory). Anything outside it is treated as untrusted access.
+        self._mermaid_public_only = mermaid_public_only
+        # Directories that content may reference files from: the mkdocs.yml
+        # directory, docs_dir, and any extra roots such as the conversion
+        # source (so a monorepo page can use ../../shared/logo.png).
         self._project_root = (project_root or docs_dir.parent).resolve()
-        self._asset_policy = AssetPolicy([self._project_root, docs_dir])
+        self._asset_policy = AssetPolicy([self._project_root, docs_dir, *asset_roots])
         self.config_warnings: list[str] = []
         self._mermaid_output_dir = mermaid_output_dir
         self._extension_names: list[str] = []
@@ -344,5 +349,9 @@ class MarkdownRenderer:
         from leafpress.mermaid import render_mermaid_blocks
 
         return render_mermaid_blocks(
-            html, self._mermaid_output_dir, source_path, server=self._mermaid_server
+            html,
+            self._mermaid_output_dir,
+            source_path,
+            server=self._mermaid_server,
+            require_public_host=self._mermaid_public_only,
         )

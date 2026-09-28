@@ -78,9 +78,11 @@ LEAFPRESS_COMPANY_NAME="Acme" LEAFPRESS_PROJECT_NAME="Docs" \
 A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdown, so leafpress treats that content as untrusted and confines what it can reach. This applies to every source, not only remote ones. For example, a local CI checkout of a contributor's branch gets the same protections.
 
 - **Pages** must live inside `docs_dir`. `docs_dir` must be inside the project directory. `nav` entries that are absolute or use `..` are dropped. Pages that are symlinks pointing outside `docs_dir` are skipped with a warning.
-- **Images and other embedded files** must resolve inside the project directory, after following symlinks. This applies to Markdown images, raw HTML `<img>`, and `file://` URIs. References outside the project are blanked and listed in the "missing assets" warning. This applies to PDF, DOCX, and ODT output.
+- **Images and other embedded files** must resolve inside the project directory (or the folder you ran `convert` on), after following symlinks, and must be real image files. Anything else, such as `<img src="../.env">`, is never embedded. This applies to Markdown images, raw HTML `<img>`, and `file://` URIs. References outside the project are blanked and listed in the "missing assets" warning. This applies to PDF, DOCX, and ODT output.
 - **PDF resources** are fetched through a restricted fetcher (see [PDF Output](pdf.md#external-resources)). It blocks local files outside the project and requests to private or internal network addresses.
 - **`pymdownx.snippets` and `pymdownx.b64`** are confined to the project directory. Remote snippet downloads (`url_download`) are disabled. See [Markdown Extensions](extensions.md#how-extensions-are-loaded).
+- **A cloned repository's own `leafpress.yml` is untrusted.** Its `logo_path` must point inside the repository and be a real image. Its `mermaid.server` must be a public host. An explicit `-c` config and your `LEAFPRESS_*` environment variables are trusted, so a self-hosted internal mermaid server (`LEAFPRESS_MERMAID_SERVER`) keeps working.
+- **Downloads never forward credentials to another origin.** When a redirect changes host, scheme, or port, `Authorization`, `Cookie`, and `Proxy-Authorization` headers are dropped. This covers, for example, the Lucidchart token following a redirect to a storage bucket.
 - **`.env`** is not loaded from cloned repositories. For local projects, only `LEAFPRESS_*` keys are read from it.
 - **Raw HTML is sanitized.** Scripts, event handlers (`onerror=`), `javascript:` links, iframes, forms, and resource-loading inline CSS are removed from page HTML. The normal MkDocs/Material markup is kept: admonitions, tabs, details, tables, task lists, footnotes, and highlighted code. This matters most for HTML and EPUB output, which would otherwise carry active content wherever they're published.
     - Sanitizing is automatic for git URL sources and monorepo `url:` projects, and a cloned repository's own `leafpress.yml` can't turn it off.
@@ -88,4 +90,7 @@ A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdow
 - **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` must stay inside that repository.
 
 Diagram fetching (`fetch-diagrams`) and the Mermaid renderer still make network requests. Only enable them for repositories you trust.
+
+!!! note "Known limitation: DNS rebinding"
+    The internal-host check resolves a hostname, then the HTTP client resolves it again to connect. A hostname built for DNS rebinding (public on the first lookup, internal on the second) can therefore slip through. The check stops ordinary SSRF payloads and misconfiguration, including IPv4 addresses wrapped in IPv6 such as NAT64 `64:ff9b::7f00:1`. If you convert untrusted repositories on hosts with sensitive internal endpoints, also restrict egress at the network level.
 

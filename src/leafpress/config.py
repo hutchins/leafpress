@@ -213,6 +213,12 @@ class BrandingConfig(BaseModel):
 
 _BOOL_MAP = {"true": True, "1": True, "yes": True, "false": False, "0": False, "no": False}
 
+
+def env_bool(name: str) -> bool | None:
+    """Read a true/false env var (true/1/yes, false/0/no); None if unset or invalid."""
+    return _BOOL_MAP.get(os.environ.get(name, "").strip().lower())
+
+
 _STR_FIELDS = [
     ("company_name", "LEAFPRESS_COMPANY_NAME"),
     ("project_name", "LEAFPRESS_PROJECT_NAME"),

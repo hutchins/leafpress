@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import platform
-import subprocess
 import sys
 from pathlib import Path
 
@@ -31,19 +28,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-
-def _open_file(path: Path) -> None:
-    """Open a file with the system default application."""
-    if sys.platform == "win32":
-        # Opens via the shell association without spawning cmd.exe, so file
-        # names can't be interpreted as shell syntax.
-        os.startfile(path)
-        return
-    if platform.system() == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
-    else:
-        subprocess.run(["xdg-open", str(path)], check=False)
-
+from leafpress.opener import open_file
 
 _LOGO_SVG = """\
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -134,7 +119,7 @@ class ConvertWorker(QThread):
             self.log.emit(f"Done!\n{names}")
             if self._open_after:
                 for f in files:
-                    _open_file(f)
+                    open_file(f)
             self.finished.emit(True, f"Generated {len(files)} file(s).")
         except Exception as exc:
             self.log.emit(f"Error: {exc}")
@@ -442,7 +427,7 @@ class ImportWorker(QThread):
             self.log.emit("Done!\n" + "\n".join(str(p) for p in results))
         if self._open_after:
             for p in results:
-                _open_file(p)
+                open_file(p)
         summary = f"Imported {len(results)} of {len(self._files)} file(s)."
         if failures:
             self.finished.emit(False, summary + "\n\nFailed:\n" + "\n".join(failures))
