@@ -1,4 +1,4 @@
-"""Tests for the desktop UI's import worker (headless Qt; skipped without PyQt6)."""
+"""Tests for the desktop UI windows and workers (headless Qt; skipped without PyQt6)."""
 
 from __future__ import annotations
 
@@ -68,3 +68,63 @@ def test_unsupported_file_skipped(tmp_path: Path) -> None:
     logs, (ok, _message) = _run([txt], tmp_path / "out")
     assert ok
     assert any("Skipped (unsupported: .txt)" in line for line in logs)
+
+
+# ---------------------------------------------------------------------------
+# Convert window options
+# ---------------------------------------------------------------------------
+
+
+def test_convert_options_default_to_config() -> None:
+    from leafpress.ui.app import LeafpressWindow
+
+    window = LeafpressWindow()
+    assert window._extra_options() == {
+        "branch": None,
+        "watermark": None,
+        "mermaid": None,
+        "sanitize_html": None,
+    }
+
+
+def test_convert_options_map_to_pipeline_arguments() -> None:
+    from leafpress.ui.app import LeafpressWindow
+
+    window = LeafpressWindow()
+    window._branch.setText("  release/1.0 ")
+    window._watermark.setText("DRAFT")
+    window._mermaid.setCurrentIndex(2)  # Keep as code
+    window._sanitize.setCurrentIndex(1)  # On
+    assert window._extra_options() == {
+        "branch": "release/1.0",
+        "watermark": "DRAFT",
+        "mermaid": False,
+        "sanitize_html": True,
+    }
+
+
+def test_convert_worker_passes_options(tmp_path: Path) -> None:
+    from unittest.mock import patch
+
+    from leafpress.ui.app import ConvertWorker
+
+    worker = ConvertWorker(
+        source="https://example.com/r.git",
+        output_dir=tmp_path,
+        fmt="html",
+        config_path=None,
+        cover_page=True,
+        include_toc=True,
+        branch="main",
+        watermark="DRAFT",
+        mermaid=False,
+        sanitize_html=None,
+    )
+    finished: list[tuple[bool, str]] = []
+    worker.finished.connect(lambda ok, msg: finished.append((ok, msg)))
+    with patch("leafpress.pipeline.convert", return_value=[]) as convert:
+        worker.run()
+    kwargs = convert.call_args.kwargs
+    assert kwargs["branch"] == "main" and kwargs["watermark"] == "DRAFT"
+    assert kwargs["mermaid"] is False and kwargs["sanitize_html"] is None
+    assert finished == [(True, "Generated 0 file(s).")]

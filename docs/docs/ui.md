@@ -65,6 +65,10 @@ The conversion window covers the common `convert` options:
 | **Output dir** | Directory for generated files (default: `output/`). |
 | **Format** | `pdf`, `docx`, `html`, `odt`, `epub`, `markdown`, `both` (PDF + DOCX), or `all`. |
 | **Branding config** | Optional path to a `leafpress.yml` file. Leave blank to auto-detect one in the project or use `LEAFPRESS_*` environment variables. |
+| **Git branch** | Branch to clone when the source is a git URL (same as `--branch`). Ignored for local folders. |
+| **Watermark** | Watermark text such as `DRAFT` (same as `--watermark`). Overrides `watermark.text` from `leafpress.yml`; leave blank to use the config. |
+| **Mermaid diagrams** | *From config* (default: render), *Render diagrams*, or *Keep as code*, which sends nothing to the rendering server. Same as `--mermaid` / `--no-mermaid`; see [privacy notes](extensions.md#mermaid-diagrams). |
+| **Sanitize HTML** | *Auto* (on for git URL sources, otherwise `sanitize_html` from `leafpress.yml`), *On*, or *Off*. Same as `--sanitize-html` / `--no-sanitize-html`. |
 | **Cover page** | Include a cover page (default: checked). |
 | **Table of contents** | Include a TOC page (default: checked). |
 | **Open after conversion** | Open the generated file(s) with their default applications when done. |
@@ -72,10 +76,7 @@ The conversion window covers the common `convert` options:
 
 Click **Convert** (or press **⌘↩** / **Ctrl+Enter**) to start. A progress bar and the log show what's happening, and a dialog reports success or the error.
 
-Everything else is configured the same way as for the CLI:
-
-- **Branding, watermark, mermaid, HTML sanitizing:** set them in `leafpress.yml` (e.g. `watermark:`, `mermaid:`, `sanitize_html:`) or via `LEAFPRESS_*` environment variables. See [Configuration](configuration.md).
-- **CLI-only options:** a git branch (`--branch`), an explicit site config (`--mkdocs-config`), `--fetch-diagrams`, and `--verbose` have no UI equivalent yet; use the [CLI](cli.md#convert) for these.
+Branding (company, logo, colors, footer) comes from `leafpress.yml` or `LEAFPRESS_*` environment variables; see [Configuration](configuration.md). A few options are CLI-only: an explicit site config (`--mkdocs-config`), `--fetch-diagrams`, `--footer-date`, and `--verbose`. For those, use the [CLI](cli.md#convert).
 
 ## Using the import window
 
