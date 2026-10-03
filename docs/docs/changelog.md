@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The desktop app's log now shows the pipeline's own output (detected config, extensions, skipped pages, missing images, files written) instead of only "Converting…" and "Done!"
+- A crash inside any output renderer is now reported with a format-specific explanation. PDF and Markdown export previously surfaced it as an "Unexpected error"
+
+### Internal
+
+- `pipeline.py`: one table of output formats replaces six copy-pasted blocks, single-project and monorepo mode share one page-render loop, and `convert()` is split into small steps. `convert()` takes an optional `console`
+- Renderer error messages come from one rule table in `render_errors.py` instead of five near-identical functions
+
 ## 0.8.3 — 2026-09-27
 
 ### Security

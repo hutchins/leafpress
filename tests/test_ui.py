@@ -282,3 +282,41 @@ class TestTray:
         assert "leafpress" in about.call_args.args[2]
         tray._window.close()
         tray._import_window.close()
+
+
+class TestLogConsole:
+    def test_line_emitter_splits_and_skips_blank_lines(self) -> None:
+        from leafpress.ui.app import _LineEmitter
+
+        lines: list[str] = []
+        stream = _LineEmitter(lines.append)
+        stream.write("first\n\n  second")
+        assert lines == ["first"]
+        stream.write(" half\n")
+        stream.write("tail")
+        stream.flush()
+        assert lines == ["first", "  second half", "tail"]
+
+    def test_worker_routes_pipeline_output_to_log(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui.app import ConvertWorker
+
+        worker = ConvertWorker(
+            source=str(tmp_path),
+            output_dir=tmp_path,
+            fmt="html",
+            config_path=None,
+            cover_page=True,
+            include_toc=True,
+        )
+        logged: list[str] = []
+        worker.log.connect(logged.append)
+
+        def fake_convert(**kwargs: object) -> list[Path]:
+            kwargs["console"].print("  [green]Site:[/green] Demo")  # type: ignore[union-attr]
+            return []
+
+        with patch("leafpress.pipeline.convert", side_effect=fake_convert):
+            worker.run()
+        assert "  Site: Demo" in logged

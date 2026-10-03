@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, QThread, pyqtSignal
@@ -27,6 +29,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from rich.console import Console
 
 from leafpress.opener import open_file
 
@@ -60,6 +63,40 @@ def _make_tray_icon(size: int = 32) -> QIcon:
     renderer.render(p)
     p.end()
     return QIcon(px)
+
+
+class _LineEmitter(io.TextIOBase):
+    """Text stream that hands each complete, non-blank line to ``emit``.
+
+    Lets a Rich console (the pipeline's progress and warnings) write into the
+    window's log panel instead of the terminal the app was launched from.
+    """
+
+    def __init__(self, emit: Callable[[str], None]) -> None:
+        super().__init__()
+        self._emit = emit
+        self._pending = ""
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, text: str) -> int:
+        self._pending += text
+        while "\n" in self._pending:
+            line, self._pending = self._pending.split("\n", 1)
+            if line.strip():
+                self._emit(line.rstrip())
+        return len(text)
+
+    def flush(self) -> None:
+        if self._pending.strip():
+            self._emit(self._pending.rstrip())
+        self._pending = ""
+
+
+def _log_console(emit: Callable[[str], None]) -> Console:
+    """A plain-text Rich console (no colors or live redraws) that writes to ``emit``."""
+    return Console(file=_LineEmitter(emit), force_terminal=False, no_color=True, width=100)
 
 
 class ConvertWorker(QThread):
@@ -114,6 +151,7 @@ class ConvertWorker(QThread):
                 watermark=self._watermark,
                 mermaid=self._mermaid,
                 sanitize_html=self._sanitize_html,
+                console=_log_console(self.log.emit),
             )
             names = "\n".join(str(f) for f in files)
             self.log.emit(f"Done!\n{names}")

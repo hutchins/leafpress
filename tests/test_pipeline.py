@@ -11,13 +11,10 @@ from leafpress.exceptions import LeafpressError
 from leafpress.pipeline import (
     _ConsoleWarningHandler,
     _find_mkdocs_config,
-    _format_docx_error,
-    _format_epub_error,
-    _format_html_error,
-    _format_odt_error,
     _safe_filename,
     convert,
 )
+from leafpress.render_errors import format_render_error
 
 
 def test_convert_pdf(
@@ -358,14 +355,14 @@ def test_convert_verbose_param_accepted(
 
 class TestFormatDocxError:
     def test_image_error(self) -> None:
-        msg = _format_docx_error(Exception("Cannot load image data"))
+        msg = format_render_error("DOCX", Exception("Cannot load image data"))
         assert "DOCX rendering failed due to an image error" in msg
         assert "PNG, JPEG" in msg
         assert "SVG" in msg
         assert "leafpress doctor" in msg
 
     def test_generic_error(self) -> None:
-        msg = _format_docx_error(Exception("something went wrong"))
+        msg = format_render_error("DOCX", Exception("something went wrong"))
         assert "DOCX rendering failed" in msg
         assert "leafpress doctor" in msg
         assert "report it at" in msg
@@ -373,46 +370,118 @@ class TestFormatDocxError:
 
 class TestFormatHtmlError:
     def test_image_error(self) -> None:
-        msg = _format_html_error(Exception("broken image reference"))
+        msg = format_render_error("HTML", Exception("broken image reference"))
         assert "HTML rendering failed due to an image error" in msg
         assert "leafpress doctor" in msg
 
     def test_template_error(self) -> None:
-        msg = _format_html_error(Exception("Jinja template not found"))
+        msg = format_render_error("HTML", Exception("Jinja template not found"))
         assert "template error" in msg
         assert "reinstall" in msg
 
     def test_generic_error(self) -> None:
-        msg = _format_html_error(Exception("something went wrong"))
+        msg = format_render_error("HTML", Exception("something went wrong"))
         assert "HTML rendering failed" in msg
         assert "report it at" in msg
 
 
 class TestFormatOdtError:
     def test_image_error(self) -> None:
-        msg = _format_odt_error(Exception("Failed to embed image"))
+        msg = format_render_error("ODT", Exception("Failed to embed image"))
         assert "ODT rendering failed due to an image error" in msg
         assert "SVG" in msg
         assert "PNG" in msg
 
     def test_generic_error(self) -> None:
-        msg = _format_odt_error(Exception("something went wrong"))
+        msg = format_render_error("ODT", Exception("something went wrong"))
         assert "ODT rendering failed" in msg
         assert "report it at" in msg
 
 
 class TestFormatEpubError:
     def test_image_error(self) -> None:
-        msg = _format_epub_error(Exception("Cannot process image"))
+        msg = format_render_error("EPUB", Exception("Cannot process image"))
         assert "EPUB rendering failed due to an image error" in msg
         assert "embedded" in msg
 
     def test_encoding_error(self) -> None:
-        msg = _format_epub_error(Exception("unicode decode error"))
+        msg = format_render_error("EPUB", Exception("unicode decode error"))
         assert "encoding error" in msg
         assert "UTF-8" in msg
 
     def test_generic_error(self) -> None:
-        msg = _format_epub_error(Exception("something went wrong"))
+        msg = format_render_error("EPUB", Exception("something went wrong"))
         assert "EPUB rendering failed" in msg
         assert "report it at" in msg
+
+
+class TestPipelineStructure:
+    """The console parameter, the output-format table, and renderer error wrapping."""
+
+    def test_injected_console_receives_progress(
+        self, sample_mkdocs_config: Path, tmp_output: Path
+    ) -> None:
+        import io
+
+        buf = io.StringIO()
+        files = convert(
+            source=str(sample_mkdocs_config.parent),
+            output_dir=tmp_output,
+            format="markdown",
+            console=Console(file=buf, force_terminal=False, width=200),
+        )
+        out = buf.getvalue()
+        assert [f.suffix for f in files] == [".md"]
+        assert "Site:" in out and "Markdown:" in out
+
+    def test_format_table_selection(self) -> None:
+        from leafpress.pipeline import _OUTPUT_FORMATS
+
+        def selected(fmt: str) -> list[str]:
+            return [spec.extension for spec in _OUTPUT_FORMATS if fmt in spec.selected_by]
+
+        assert selected("both") == ["pdf", "docx"]
+        assert selected("all") == ["pdf", "docx", "html", "odt", "epub", "md"]
+        assert selected("epub") == ["epub"]
+        assert selected("bogus") == []
+
+    def test_unexpected_renderer_error_becomes_render_error(
+        self, sample_mkdocs_config: Path, tmp_output: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from leafpress.exceptions import RenderError
+        from leafpress.html.renderer import HtmlRenderer
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            raise ValueError("broken image reference")
+
+        monkeypatch.setattr(HtmlRenderer, "render", boom)
+        with pytest.raises(RenderError, match="HTML rendering failed due to an image error"):
+            convert(source=str(sample_mkdocs_config.parent), output_dir=tmp_output, format="html")
+
+    def test_leafpress_errors_pass_through_unwrapped(
+        self, sample_mkdocs_config: Path, tmp_output: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from leafpress.markdown_export.renderer import MarkdownExportRenderer
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            raise LeafpressError("specific problem")
+
+        monkeypatch.setattr(MarkdownExportRenderer, "render", boom)
+        with pytest.raises(LeafpressError) as exc_info:
+            convert(
+                source=str(sample_mkdocs_config.parent), output_dir=tmp_output, format="markdown"
+            )
+        assert type(exc_info.value) is LeafpressError
+        assert str(exc_info.value) == "specific problem"
+
+
+class TestFormatRenderError:
+    def test_unknown_label_gets_generic_message(self) -> None:
+        msg = format_render_error("Markdown", Exception("image went missing"))
+        assert msg.startswith("Markdown rendering failed: Exception: image went missing")
+        assert "report it at" in msg
+
+    def test_rule_order_prefers_first_match(self) -> None:
+        # An HTML template error that mentions an image is reported as an image error
+        msg = format_render_error("HTML", Exception("template image"))
+        assert "due to an image error" in msg

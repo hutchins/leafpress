@@ -296,13 +296,15 @@ To add a new output format (e.g., LaTeX):
 
 1. **Create a renderer module** at `src/leafpress/{format}/renderer.py` with a class that satisfies the `BaseRenderer` protocol defined in `src/leafpress/base_renderer.py`. The class must accept `(branding, git_info, mkdocs_cfg)` and implement a `render()` method that produces the output file. Use shared helpers from `base_renderer` (e.g., `replace_checkboxes`, `make_anchor_id`, `resolve_logo_uri`) rather than reimplementing common logic.
 
-2. **Register in `pipeline.py`** — add a branch in the format dispatch logic that instantiates your renderer and calls `render()`.
+2. **Register in `pipeline.py`** — add an `_OutputFormat` entry to `_OUTPUT_FORMATS`: its label, file extension, the `--format` values that select it (include `"all"`), and a loader that imports your renderer class. Set `takes_asset_policy=False` only if the renderer never reads local files. The pipeline constructs the renderer, calls `render()`, and turns unexpected exceptions into a `RenderError`.
 
-3. **Add the CLI format option** — extend `OutputFormat` in `cli/app.py` so users can pass `-f {format}`, and pass `asset_policy=asset_policy` from the pipeline if the renderer reads local files (see `CONTRIBUTING.md`).
+3. **Explain common failures** (optional) — add rules for your format's label to `_RULES` in `render_errors.py`, such as "images must be PNG". Formats without rules get the generic "run `leafpress doctor`" message.
 
-4. **Add tests** — create `tests/test_{format}_renderer.py` with cover page, TOC, branding, and watermark tests following the patterns in existing test files.
+4. **Add the CLI format option** — extend `OutputFormat` in `cli/app.py` so users can pass `-f {format}`.
 
-5. **Document** — add a page in `docs/docs/` and update the nav in `docs/mkdocs.yml`.
+5. **Add tests** — create `tests/test_{format}_renderer.py` with cover page, TOC, branding, and watermark tests following the patterns in existing test files.
+
+6. **Document** — add a page in `docs/docs/` and update the nav in `docs/mkdocs.yml`.
 
 ## Key Dependencies
 

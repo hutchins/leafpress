@@ -9,7 +9,10 @@ import os
 import re
 import shutil
 import tempfile
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
@@ -30,13 +33,14 @@ from leafpress.config import (
     BrandingConfig,
     MermaidConfig,
     ProjectEntry,
+    WatermarkConfig,
     config_from_env,
     env_bool,
     load_config,
     resolve_mermaid_config,
 )
 from leafpress.exceptions import LeafpressError, RenderError, SourceError
-from leafpress.git_info import extract_git_info
+from leafpress.git_info import GitVersion, extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import (
     MkDocsConfig,
@@ -48,11 +52,13 @@ from leafpress.mkdocs_parser import (
     parse_mkdocs_config,
     resolve_page_path,
 )
+from leafpress.render_errors import format_render_error
 from leafpress.sanitize import sanitize_html as sanitize
 from leafpress.sanitize import should_sanitize
 from leafpress.source import redact_url, resolve_source
 
-console = Console()
+# Used when convert() is not given a console (the CLI's case)
+_default_console = Console()
 
 
 class _ConsoleWarningHandler(logging.Handler):
@@ -108,106 +114,87 @@ def _resolve_log_level(verbose: bool, con: Console) -> int:
     return _LOG_LEVELS[raw]
 
 
-def _format_docx_error(exc: Exception) -> str:
-    """Produce a user-friendly error message for DOCX rendering failures."""
-    exc_name = type(exc).__name__
-    exc_msg = str(exc)
+@dataclass(frozen=True)
+class _OutputFormat:
+    """One output format and the ``--format`` values that produce it."""
 
-    if "image" in exc_msg.lower() or "image" in exc_name.lower():
-        return (
-            f"DOCX rendering failed due to an image error.\n"
-            f"  Check that all images are in a supported format (PNG, JPEG).\n"
-            f"  SVG images are not supported in DOCX output — convert them to PNG first.\n"
-            f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
-
-    return (
-        f"DOCX rendering failed: {exc_name}: {exc_msg}\n"
-        f"  Run 'leafpress doctor' to check your environment.\n"
-        f"  If this persists, please report it at"
-        f" https://github.com/hutchins/leafpress/issues"
-    )
+    label: str  # shown in progress messages and error text, e.g. "PDF"
+    extension: str
+    selected_by: frozenset[str]
+    load_renderer: Callable[[], Any]  # imported lazily: some need optional extras
+    takes_asset_policy: bool = True
 
 
-def _format_html_error(exc: Exception) -> str:
-    """Produce a user-friendly error message for HTML rendering failures."""
-    exc_name = type(exc).__name__
-    exc_msg = str(exc)
-
-    if "image" in exc_msg.lower() or "image" in exc_name.lower():
-        return (
-            f"HTML rendering failed due to an image error.\n"
-            f"  Check that all referenced images exist and paths are correct.\n"
-            f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
-
-    if "template" in exc_msg.lower() or "jinja" in exc_msg.lower():
-        return (
-            f"HTML rendering failed due to a template error.\n"
-            f"  This may indicate a corrupted installation.\n"
-            f"  Try reinstalling: pip install --force-reinstall leafpress\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
-
-    return (
-        f"HTML rendering failed: {exc_name}: {exc_msg}\n"
-        f"  Run 'leafpress doctor' to check your environment.\n"
-        f"  If this persists, please report it at"
-        f" https://github.com/hutchins/leafpress/issues"
-    )
+def _load_pdf_renderer() -> Any:
+    try:
+        from leafpress.pdf.renderer import PdfRenderer
+    except ImportError as e:
+        raise LeafpressError(
+            "PDF output requires WeasyPrint. Install it with:\n"
+            "  uv tool install 'leafpress[pdf]'  (or pip install 'leafpress[pdf]')\n"
+            "  Run 'leafpress doctor' to diagnose your environment."
+        ) from e
+    except OSError as e:
+        raise LeafpressError(
+            "WeasyPrint is installed but its system libraries could not be loaded.\n"
+            "  This usually means cairo/pango/gdk-pixbuf are missing or not on the path.\n"
+            "  macOS:  brew install cairo pango gdk-pixbuf libffi\n"
+            "          (NOTE: 'brew install weasyprint' is a different package)\n"
+            "  Apple Silicon: "
+            "export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH\n"
+            "  Linux:  sudo apt install libcairo2-dev libpango1.0-dev "
+            "libgdk-pixbuf2.0-dev libffi-dev\n"
+            "  Run 'leafpress doctor' for a full diagnosis.\n"
+            f"  Original error: {e}"
+        ) from e
+    return PdfRenderer
 
 
-def _format_odt_error(exc: Exception) -> str:
-    """Produce a user-friendly error message for ODT rendering failures."""
-    exc_name = type(exc).__name__
-    exc_msg = str(exc)
+def _load_docx_renderer() -> Any:
+    from leafpress.docx.renderer import DocxRenderer
 
-    if "image" in exc_msg.lower() or "image" in exc_name.lower():
-        return (
-            f"ODT rendering failed due to an image error.\n"
-            f"  Check that all images are in a supported format (PNG, JPEG).\n"
-            f"  SVG images are not supported in ODT output — convert them to PNG first.\n"
-            f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
-
-    return (
-        f"ODT rendering failed: {exc_name}: {exc_msg}\n"
-        f"  Run 'leafpress doctor' to check your environment.\n"
-        f"  If this persists, please report it at"
-        f" https://github.com/hutchins/leafpress/issues"
-    )
+    return DocxRenderer
 
 
-def _format_epub_error(exc: Exception) -> str:
-    """Produce a user-friendly error message for EPUB rendering failures."""
-    exc_name = type(exc).__name__
-    exc_msg = str(exc)
+def _load_html_renderer() -> Any:
+    from leafpress.html.renderer import HtmlRenderer
 
-    if "image" in exc_msg.lower() or "image" in exc_name.lower():
-        return (
-            f"EPUB rendering failed due to an image error.\n"
-            f"  Check that all images are in a supported format (PNG, JPEG, GIF).\n"
-            f"  EPUB requires images to be embedded — ensure files exist on disk.\n"
-            f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
+    return HtmlRenderer
 
-    if "encoding" in exc_msg.lower() or "unicode" in exc_msg.lower():
-        return (
-            f"EPUB rendering failed due to an encoding error.\n"
-            f"  Ensure all Markdown files are saved as UTF-8.\n"
-            f"  Original error: {exc_name}: {exc_msg}"
-        )
 
-    return (
-        f"EPUB rendering failed: {exc_name}: {exc_msg}\n"
-        f"  Run 'leafpress doctor' to check your environment.\n"
-        f"  If this persists, please report it at"
-        f" https://github.com/hutchins/leafpress/issues"
-    )
+def _load_odt_renderer() -> Any:
+    from leafpress.odt.renderer import OdtRenderer
+
+    return OdtRenderer
+
+
+def _load_epub_renderer() -> Any:
+    from leafpress.epub.renderer import EpubRenderer
+
+    return EpubRenderer
+
+
+def _load_markdown_renderer() -> Any:
+    from leafpress.markdown_export.renderer import MarkdownExportRenderer
+
+    return MarkdownExportRenderer
+
+
+# Generated in this order; "both" is the legacy PDF + DOCX choice
+_OUTPUT_FORMATS: tuple[_OutputFormat, ...] = (
+    _OutputFormat("PDF", "pdf", frozenset({"pdf", "both", "all"}), _load_pdf_renderer),
+    _OutputFormat("DOCX", "docx", frozenset({"docx", "both", "all"}), _load_docx_renderer),
+    _OutputFormat("HTML", "html", frozenset({"html", "all"}), _load_html_renderer),
+    _OutputFormat("ODT", "odt", frozenset({"odt", "all"}), _load_odt_renderer),
+    _OutputFormat("EPUB", "epub", frozenset({"epub", "all"}), _load_epub_renderer),
+    _OutputFormat(
+        "Markdown",
+        "md",
+        frozenset({"markdown", "all"}),
+        _load_markdown_renderer,
+        takes_asset_policy=False,
+    ),
+)
 
 
 def convert(
@@ -225,36 +212,43 @@ def convert(
     mermaid: bool | None = None,
     sanitize_html: bool | None = None,
     verbose: bool = False,
+    console: Console | None = None,
 ) -> list[Path]:
     """Main conversion pipeline.
 
     Args:
         source: Local path or git URL to an MkDocs project.
         output_dir: Directory for generated output files.
-        format: Output format - "pdf", "docx", "html", "odt", or "all".
+        format: Output format - "pdf", "docx", "html", "odt", "epub",
+            "markdown", "both" (PDF + DOCX), or "all".
         config_path: Optional path to leafpress branding config YAML.
         mkdocs_config_path: Optional override path to mkdocs.yml.
         branch: Git branch to clone (only for git URL sources).
         cover_page: Include a cover page.
         include_toc: Include a table of contents.
+        local_time: Use local time instead of UTC for dates (also
+            ``LEAFPRESS_LOCAL_TIME``).
+        watermark: Override the watermark text.
         footer_render_date: Override include_render_date in footer config.
         mermaid: Override whether mermaid diagrams are rendered (None = use config).
         sanitize_html: Override HTML sanitizing (None = on for git URL sources,
             else ``LEAFPRESS_SANITIZE_HTML`` / leafpress.yml ``sanitize_html``).
         verbose: Enable verbose output (surfaces DEBUG-level log messages).
+        console: Where progress and warnings are printed (default: stdout).
+            The desktop app passes one that writes to its log panel.
 
     Returns:
         List of generated output file paths.
     """
-    generated_files: list[Path] = []
+    con = console or _default_console
+    # --local-time wins; otherwise LEAFPRESS_LOCAL_TIME=true turns it on
+    local_time = local_time or env_bool("LEAFPRESS_LOCAL_TIME") is True
 
     # Attach a handler that routes leafpress logger warnings to the console.
     # This surfaces logger.warning() calls from renderers (SVG logo skip,
     # extension failures, etc.) that would otherwise be invisible.
-    # --local-time wins; otherwise LEAFPRESS_LOCAL_TIME=true turns it on
-    local_time = local_time or env_bool("LEAFPRESS_LOCAL_TIME") is True
-    log_level = _resolve_log_level(verbose, console)
-    _log_handler = _ConsoleWarningHandler(console)
+    log_level = _resolve_log_level(verbose, con)
+    _log_handler = _ConsoleWarningHandler(con)
     _log_handler.setLevel(log_level)
     _pkg_logger = logging.getLogger("leafpress")
     _prev_log_level = _pkg_logger.level
@@ -278,97 +272,19 @@ def convert(
             loaded_env = _load_project_env(project_dir / ".env")
             cleanup.callback(_unset_env, loaded_env)
 
-        # Load branding config (before mkdocs.yml so monorepo mode can skip it)
-        branding: BrandingConfig | None = None
-        if config_path:
-            branding = load_config(config_path)
-        else:
-            for name in ("leafpress.yml", "leafpress.yaml"):
-                candidate = project_dir / name
-                if candidate.exists():
-                    branding = load_config(candidate)
-                    console.print(f"  [green]Config:[/green] Auto-detected {candidate.name}")
-                    break
-            if branding is None:
-                branding = config_from_env()
-
+        # Branding is loaded before mkdocs.yml so monorepo mode can skip it
+        branding = _load_branding(config_path, project_dir, con)
         # A leafpress.yml auto-detected inside a cloned repo is untrusted; an
         # explicit -c file and LEAFPRESS_* env vars come from the operator.
         repo_config_untrusted = untrusted_source and config_path is None
         if branding is not None and repo_config_untrusted:
-            branding = _confine_untrusted_paths(branding, project_dir, console)
+            branding = _confine_untrusted_paths(branding, project_dir, con)
 
-        # Parse mkdocs.yml (not required in monorepo mode)
-        is_monorepo = branding is not None and bool(branding.projects)
-        mkdocs_cfg = None
-        if not is_monorepo:
-            with console.status("[bold blue]Parsing MkDocs configuration..."):
-                config_file = mkdocs_config_path or _find_mkdocs_config(project_dir)
-                mkdocs_cfg = parse_mkdocs_config(config_file)
-            console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
-        elif mkdocs_config_path:
-            # Monorepo mode but an explicit mkdocs config was given
-            mkdocs_cfg = parse_mkdocs_config(mkdocs_config_path)
-            console.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
-        else:
-            # Monorepo mode without top-level mkdocs.yml — synthesize a minimal config
-            mkdocs_cfg = MkDocsConfig(
-                site_name=branding.project_name,
-                docs_dir=project_dir,
-                nav_items=[],
-                markdown_extensions=[],
-                theme_name=None,
-                extra_css=[],
-                config_path=project_dir / "mkdocs.yml",
-            )
-        # CLI --watermark flag overrides config
-        if watermark and branding:
-            branding = branding.model_copy(
-                update={"watermark": branding.watermark.model_copy(update={"text": watermark})}
-            )
-        elif watermark and not branding:
-            from leafpress.config import WatermarkConfig
-
-            branding = BrandingConfig(
-                company_name=mkdocs_cfg.site_name,
-                project_name=mkdocs_cfg.site_name,
-                watermark=WatermarkConfig(text=watermark),
-            )
-
-        # CLI --footer-date flag overrides config
-        if footer_render_date is not None and branding:
-            branding = branding.model_copy(
-                update={
-                    "footer": branding.footer.model_copy(
-                        update={"include_render_date": footer_render_date}
-                    )
-                }
-            )
-
-        if branding:
-            console.print(
-                f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}"
-            )
-            if branding.logo_path:
-                logo = branding.logo_path
-                if logo.startswith(("http://", "https://")) or Path(logo).exists():
-                    console.print(f"  [green]✓[/green] Logo: {logo}")
-                else:
-                    console.print(f"  [yellow]⚠[/yellow] Logo not found: {logo}")
-            if branding.watermark.text:
-                console.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
-
-        # Extract git info and package version
-        git_info = extract_git_info(project_dir)
-        from leafpress.package_version import detect_package_version
-
-        pkg_ver = detect_package_version(project_dir)
-        if git_info and pkg_ver:
-            git_info = dataclasses.replace(git_info, package_version=pkg_ver)
-        if git_info:
-            console.print(f"  [green]Version:[/green] {git_info.format_version_string()}")
-        elif pkg_ver:
-            console.print(f"  [green]Version:[/green] {pkg_ver}")
+        monorepo = branding if branding is not None and branding.projects else None
+        mkdocs_cfg = _load_site_config(project_dir, mkdocs_config_path, monorepo, con)
+        branding = _apply_cli_overrides(branding, mkdocs_cfg, watermark, footer_render_date)
+        _report_branding(branding, con)
+        git_info = _detect_version(project_dir, con)
 
         # Initialize temp dir for mermaid images
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
@@ -386,24 +302,23 @@ def convert(
             config_value=config_sanitize,
         )
         if sanitize_pages:
-            console.print("  [dim]Sanitizing page HTML (scripts and event handlers removed)[/dim]")
+            con.print("  [dim]Sanitizing page HTML (scripts and event handlers removed)[/dim]")
         if not mermaid_cfg.enabled:
-            console.print("  [dim]Mermaid rendering disabled; diagrams kept as code[/dim]")
+            con.print("  [dim]Mermaid rendering disabled; diagrams kept as code[/dim]")
         # Local files that document content may embed (monorepo projects are
         # added as they are resolved)
         asset_policy = build_asset_policy(
             mkdocs_cfg, branding, extra_roots=[project_dir, mermaid_dir]
         )
 
-        # Monorepo mode: collect pages from multiple projects
-        if is_monorepo:
+        if monorepo is not None:
             config_dir = config_path.parent if config_path else project_dir
             html_pages, page_count = _collect_monorepo_pages(
-                branding.projects,
+                monorepo.projects,
                 config_dir,
                 mermaid_dir,
-                branding,
-                console,
+                monorepo,
+                con,
                 mermaid_cfg=mermaid_cfg,
                 sanitize_override=sanitize_html,
                 config_sanitize=config_sanitize,
@@ -413,238 +328,308 @@ def convert(
                 mermaid_public_only=mermaid_public_only,
                 source_root=project_dir,
             )
-            console.print(
-                f"  [green]Projects:[/green] {len(branding.projects)} ({page_count} documents)\n"
+            con.print(
+                f"  [green]Projects:[/green] {len(monorepo.projects)} ({page_count} documents)\n"
             )
         else:
-            # Single-project mode (unchanged)
-            renderer = MarkdownRenderer(
-                extensions=mkdocs_cfg.markdown_extensions,
-                docs_dir=mkdocs_cfg.docs_dir,
-                mermaid_output_dir=mermaid_dir if mermaid_cfg.enabled else None,
-                mermaid_server=mermaid_cfg.server,
+            renderer = _make_md_renderer(
+                mkdocs_cfg,
+                mermaid_dir,
+                mermaid_cfg,
                 mermaid_public_only=mermaid_public_only,
-                project_root=mkdocs_cfg.config_path.parent,
                 asset_roots=[project_dir],
+                con=con,
             )
-            for ext, ok, err_msg in renderer.extension_load_results:
-                if ok:
-                    console.print(f"  [green]✓[/green] Extension: {ext}")
+            html_pages = _render_single_project(mkdocs_cfg, renderer, sanitize_pages, con)
+
+        return _write_outputs(
+            html_pages,
+            format,
+            output_dir,
+            _safe_filename(mkdocs_cfg.site_name),
+            branding=branding,
+            git_info=git_info,
+            mkdocs_cfg=mkdocs_cfg,
+            asset_policy=asset_policy,
+            cover_page=cover_page,
+            include_toc=include_toc,
+            local_time=local_time,
+            con=con,
+        )
+
+
+def _load_branding(
+    config_path: Path | None, project_dir: Path, con: Console
+) -> BrandingConfig | None:
+    """Load ``-c`` config, else an auto-detected leafpress.yml, else ``LEAFPRESS_*`` env vars."""
+    if config_path:
+        return load_config(config_path)
+    for name in ("leafpress.yml", "leafpress.yaml"):
+        candidate = project_dir / name
+        if candidate.exists():
+            con.print(f"  [green]Config:[/green] Auto-detected {candidate.name}")
+            return load_config(candidate)
+    return config_from_env()
+
+
+def _load_site_config(
+    project_dir: Path,
+    explicit_path: Path | None,
+    monorepo: BrandingConfig | None,
+    con: Console,
+) -> MkDocsConfig:
+    """Parse the site config (mkdocs.yml or zensical.toml).
+
+    A monorepo needs no top-level site config; without an explicit one, a
+    minimal config named after the branding project is synthesized.
+    """
+    if monorepo is not None and explicit_path is None:
+        return MkDocsConfig(
+            site_name=monorepo.project_name,
+            docs_dir=project_dir,
+            nav_items=[],
+            markdown_extensions=[],
+            theme_name=None,
+            extra_css=[],
+            config_path=project_dir / "mkdocs.yml",
+        )
+    with con.status("[bold blue]Parsing MkDocs configuration..."):
+        config_file = explicit_path or _find_mkdocs_config(project_dir, con)
+        mkdocs_cfg = parse_mkdocs_config(config_file)
+    con.print(f"  [green]Site:[/green] {mkdocs_cfg.site_name}")
+    return mkdocs_cfg
+
+
+def _apply_cli_overrides(
+    branding: BrandingConfig | None,
+    mkdocs_cfg: MkDocsConfig,
+    watermark: str | None,
+    footer_render_date: bool | None,
+) -> BrandingConfig | None:
+    """Apply ``--watermark`` and ``--footer-date``, which win over any config."""
+    if watermark and branding:
+        branding = branding.model_copy(
+            update={"watermark": branding.watermark.model_copy(update={"text": watermark})}
+        )
+    elif watermark:
+        # No branding config at all: a watermark alone still needs one
+        branding = BrandingConfig(
+            company_name=mkdocs_cfg.site_name,
+            project_name=mkdocs_cfg.site_name,
+            watermark=WatermarkConfig(text=watermark),
+        )
+    if footer_render_date is not None and branding:
+        branding = branding.model_copy(
+            update={
+                "footer": branding.footer.model_copy(
+                    update={"include_render_date": footer_render_date}
+                )
+            }
+        )
+    return branding
+
+
+def _report_branding(branding: BrandingConfig | None, con: Console) -> None:
+    """Print the branding summary (names, logo status, watermark)."""
+    if not branding:
+        return
+    con.print(f"  [green]Branding:[/green] {branding.company_name} / {branding.project_name}")
+    if branding.logo_path:
+        logo = branding.logo_path
+        if logo.startswith(("http://", "https://")) or Path(logo).exists():
+            con.print(f"  [green]✓[/green] Logo: {logo}")
+        else:
+            con.print(f"  [yellow]⚠[/yellow] Logo not found: {logo}")
+    if branding.watermark.text:
+        con.print(f'  [green]Watermark:[/green] "{branding.watermark.text}"')
+
+
+def _detect_version(project_dir: Path, con: Console) -> GitVersion | None:
+    """Git info for the cover and footer, with the package version folded in."""
+    from leafpress.package_version import detect_package_version
+
+    git_info = extract_git_info(project_dir)
+    pkg_ver = detect_package_version(project_dir)
+    if git_info and pkg_ver:
+        git_info = dataclasses.replace(git_info, package_version=pkg_ver)
+    if git_info:
+        con.print(f"  [green]Version:[/green] {git_info.format_version_string()}")
+    elif pkg_ver:
+        con.print(f"  [green]Version:[/green] {pkg_ver}")
+    return git_info
+
+
+def _make_md_renderer(
+    mkdocs_cfg: MkDocsConfig,
+    mermaid_dir: Path,
+    mermaid_cfg: MermaidConfig,
+    *,
+    mermaid_public_only: bool,
+    asset_roots: list[Path],
+    con: Console,
+) -> MarkdownRenderer:
+    """Build the Markdown renderer for one project and report its extensions."""
+    renderer = MarkdownRenderer(
+        extensions=mkdocs_cfg.markdown_extensions,
+        docs_dir=mkdocs_cfg.docs_dir,
+        mermaid_output_dir=mermaid_dir if mermaid_cfg.enabled else None,
+        mermaid_server=mermaid_cfg.server,
+        mermaid_public_only=mermaid_public_only,
+        project_root=mkdocs_cfg.config_path.parent,
+        asset_roots=asset_roots,
+    )
+    for ext, ok, err_msg in renderer.extension_load_results:
+        if ok:
+            con.print(f"  [green]✓[/green] Extension: {ext}")
+        else:
+            hint = ""
+            if "No module named" in err_msg:
+                pkg = _pip_package_for(ext)
+                hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
+            con.print(
+                f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
+                f"\n    Error: {err_msg}{hint}"
+            )
+    for warning in renderer.config_warnings:
+        con.print(f"  [yellow]⚠[/yellow] {warning}")
+    return renderer
+
+
+def _render_single_project(
+    mkdocs_cfg: MkDocsConfig,
+    renderer: MarkdownRenderer,
+    sanitize_pages: bool,
+    con: Console,
+) -> list[tuple[NavItem, str]]:
+    """Render a single project's nav to HTML with a progress bar."""
+    items = flatten_nav(mkdocs_cfg.nav_items)
+    page_count = sum(1 for p in items if p.path is not None)
+    con.print(f"  [green]Pages:[/green] {page_count} documents to convert\n")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        console=con,
+    ) as progress:
+        task = progress.add_task("Converting Markdown to HTML", total=page_count)
+        html_pages, _ = _render_nav_pages(
+            items,
+            renderer,
+            mkdocs_cfg.docs_dir,
+            sanitize_pages=sanitize_pages,
+            con=con,
+            on_page=lambda: progress.update(task, advance=1),
+        )
+    return html_pages
+
+
+def _render_nav_pages(
+    items: list[NavItem],
+    renderer: MarkdownRenderer,
+    docs_dir: Path,
+    *,
+    sanitize_pages: bool,
+    con: Console,
+    site_label: str | None = None,
+    on_page: Callable[[], None] | None = None,
+) -> tuple[list[tuple[NavItem, str]], int]:
+    """Render flattened nav items to HTML, shared by single-project and monorepo mode.
+
+    Section headers (no path) are kept with an empty body. Pages outside
+    ``docs_dir`` or missing on disk are skipped with a warning. Missing
+    images and other assets are summarized at the end.
+
+    Args:
+        site_label: Project name added to warnings (monorepo chapters).
+        on_page: Called once per nav page, rendered or skipped (progress bar).
+
+    Returns:
+        (rendered pages, number of pages actually rendered).
+    """
+    where = f" (in {site_label})" if site_label else ""
+    html_pages: list[tuple[NavItem, str]] = []
+    unresolved: list[tuple[str, str]] = []
+    rendered = 0
+    for item in items:
+        if item.path is None:
+            html_pages.append((item, ""))
+            continue
+        md_file = resolve_page_path(docs_dir, item.path)
+        if md_file is None:
+            con.print(
+                f"  [yellow]Warning:[/yellow] Skipping page outside docs_dir: {item.path}{where}"
+            )
+        elif not md_file.exists():
+            con.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}{where}")
+        else:
+            html, render_warnings = renderer.render(md_file.read_text(encoding="utf-8"), md_file)
+            if sanitize_pages:
+                html = sanitize(html)
+            for w in render_warnings:
+                if "failed" in w:
+                    con.print(f"  [yellow]⚠ {w}[/yellow]")
                 else:
-                    hint = ""
-                    if "No module named" in err_msg:
-                        pkg = _pip_package_for(ext)
-                        hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
-                    console.print(
-                        f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
-                        f"\n    Error: {err_msg}{hint}"
-                    )
-            for warning in renderer.config_warnings:
-                console.print(f"  [yellow]⚠[/yellow] {warning}")
+                    con.print(f"  [green]✓ {w}[/green]")
+            unresolved.extend(renderer.unresolved_assets)
+            html_pages.append((dataclasses.replace(item, source_file=md_file), html))
+            rendered += 1
+        if on_page is not None:
+            on_page()
 
-            pages = flatten_nav(mkdocs_cfg.nav_items)
-            page_count = sum(1 for p in pages if p.path is not None)
-            console.print(f"  [green]Pages:[/green] {page_count} documents to convert\n")
+    if unresolved:
+        scope = f"in {site_label}" if site_label else "found"
+        con.print(f"  [yellow]⚠[/yellow] {len(unresolved)} missing asset(s) {scope}:")
+        for page, ref in unresolved:
+            con.print(f"    [yellow]•[/yellow] {Path(page).name}: {ref}")
+    return html_pages, rendered
 
-            html_pages: list[tuple[NavItem, str]] = []
-            all_unresolved: list[tuple[str, str]] = []
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("{task.completed}/{task.total}"),
-                TimeElapsedColumn(),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Converting Markdown to HTML", total=page_count)
-                for item in pages:
-                    if item.path is None:
-                        html_pages.append((item, ""))
-                        continue
-                    md_file = resolve_page_path(mkdocs_cfg.docs_dir, item.path)
-                    if md_file is None:
-                        console.print(
-                            f"  [yellow]Warning:[/yellow] Skipping page outside docs_dir: "
-                            f"{item.path}"
-                        )
-                        progress.update(task, advance=1)
-                        continue
-                    if not md_file.exists():
-                        console.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}")
-                        progress.update(task, advance=1)
-                        continue
-                    md_content = md_file.read_text(encoding="utf-8")
-                    html, render_warnings = renderer.render(md_content, md_file)
-                    if sanitize_pages:
-                        html = sanitize(html)
-                    for w in render_warnings:
-                        if "failed" in w:
-                            console.print(f"  [yellow]⚠ {w}[/yellow]")
-                        else:
-                            console.print(f"  [green]✓ {w}[/green]")
-                    all_unresolved.extend(renderer.unresolved_assets)
-                    html_pages.append((dataclasses.replace(item, source_file=md_file), html))
-                    progress.update(task, advance=1)
 
-            # Warn about missing assets discovered during rendering
-            if all_unresolved:
-                console.print(f"  [yellow]⚠[/yellow] {len(all_unresolved)} missing asset(s) found:")
-                for page, ref in all_unresolved:
-                    page_name = Path(page).name
-                    console.print(f"    [yellow]•[/yellow] {page_name}: {ref}")
+def _write_outputs(
+    html_pages: list[tuple[NavItem, str]],
+    format: str,
+    output_dir: Path,
+    base_name: str,
+    *,
+    branding: BrandingConfig | None,
+    git_info: GitVersion | None,
+    mkdocs_cfg: MkDocsConfig,
+    asset_policy: AssetPolicy,
+    cover_page: bool,
+    include_toc: bool,
+    local_time: bool,
+    con: Console,
+) -> list[Path]:
+    """Run every output renderer selected by ``format``; return the files written.
 
-        # Generate outputs
-        output_dir.mkdir(parents=True, exist_ok=True)
-        # mkdocs_cfg is always set by now (synthesized in monorepo mode)
-        safe_name = _safe_filename(mkdocs_cfg.site_name)
-
-        if format in ("pdf", "both", "all"):
+    Unexpected renderer exceptions become a :class:`RenderError` with a
+    format-specific explanation; leafpress's own errors pass through.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    generated: list[Path] = []
+    for spec in _OUTPUT_FORMATS:
+        if format not in spec.selected_by:
+            continue
+        renderer_cls = spec.load_renderer()
+        out_path = output_dir / f"{base_name}.{spec.extension}"
+        extra = {"asset_policy": asset_policy} if spec.takes_asset_policy else {}
+        with con.status(f"[bold blue]Generating {spec.label}..."):
             try:
-                from leafpress.pdf.renderer import PdfRenderer
-            except ImportError as e:
-                raise LeafpressError(
-                    "PDF output requires WeasyPrint. Install it with:\n"
-                    "  uv tool install 'leafpress[pdf]'  (or pip install 'leafpress[pdf]')\n"
-                    "  Run 'leafpress doctor' to diagnose your environment."
-                ) from e
-            except OSError as e:
-                raise LeafpressError(
-                    "WeasyPrint is installed but its system libraries could not be loaded.\n"
-                    "  This usually means cairo/pango/gdk-pixbuf are missing or not on the path.\n"
-                    "  macOS:  brew install cairo pango gdk-pixbuf libffi\n"
-                    "          (NOTE: 'brew install weasyprint' is a different package)\n"
-                    "  Apple Silicon: "
-                    "export DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH\n"
-                    "  Linux:  sudo apt install libcairo2-dev libpango1.0-dev "
-                    "libgdk-pixbuf2.0-dev libffi-dev\n"
-                    "  Run 'leafpress doctor' for a full diagnosis.\n"
-                    f"  Original error: {e}"
-                ) from e
-
-            pdf_path = output_dir / f"{safe_name}.pdf"
-            with console.status("[bold blue]Generating PDF..."):
-                pdf_renderer = PdfRenderer(
-                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
-                )
-                pdf_renderer.render(
+                renderer_cls(branding, git_info, mkdocs_cfg, **extra).render(
                     html_pages,
-                    pdf_path,
+                    out_path,
                     cover_page=cover_page,
                     include_toc=include_toc,
                     local_time=local_time,
                 )
-            generated_files.append(pdf_path)
-            console.print(f"  [bold green]PDF:[/bold green] {pdf_path}")
-
-        if format in ("docx", "both", "all"):
-            from leafpress.docx.renderer import DocxRenderer
-
-            docx_path = output_dir / f"{safe_name}.docx"
-            with console.status("[bold blue]Generating DOCX..."):
-                docx_renderer = DocxRenderer(
-                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
-                )
-                try:
-                    docx_renderer.render(
-                        html_pages,
-                        docx_path,
-                        cover_page=cover_page,
-                        include_toc=include_toc,
-                        local_time=local_time,
-                    )
-                except LeafpressError:
-                    raise
-                except Exception as exc:
-                    raise RenderError(_format_docx_error(exc)) from exc
-            generated_files.append(docx_path)
-            console.print(f"  [bold green]DOCX:[/bold green] {docx_path}")
-
-        if format in ("html", "all"):
-            from leafpress.html.renderer import HtmlRenderer
-
-            html_path = output_dir / f"{safe_name}.html"
-            with console.status("[bold blue]Generating HTML..."):
-                html_renderer = HtmlRenderer(
-                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
-                )
-                try:
-                    html_renderer.render(
-                        html_pages,
-                        html_path,
-                        cover_page=cover_page,
-                        include_toc=include_toc,
-                        local_time=local_time,
-                    )
-                except LeafpressError:
-                    raise
-                except Exception as exc:
-                    raise RenderError(_format_html_error(exc)) from exc
-            generated_files.append(html_path)
-            console.print(f"  [bold green]HTML:[/bold green] {html_path}")
-
-        if format in ("odt", "all"):
-            from leafpress.odt.renderer import OdtRenderer
-
-            odt_path = output_dir / f"{safe_name}.odt"
-            with console.status("[bold blue]Generating ODT..."):
-                odt_renderer = OdtRenderer(
-                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
-                )
-                try:
-                    odt_renderer.render(
-                        html_pages,
-                        odt_path,
-                        cover_page=cover_page,
-                        include_toc=include_toc,
-                        local_time=local_time,
-                    )
-                except LeafpressError:
-                    raise
-                except Exception as exc:
-                    raise RenderError(_format_odt_error(exc)) from exc
-            generated_files.append(odt_path)
-            console.print(f"  [bold green]ODT:[/bold green] {odt_path}")
-
-        if format in ("epub", "all"):
-            from leafpress.epub.renderer import EpubRenderer
-
-            epub_path = output_dir / f"{safe_name}.epub"
-            with console.status("[bold blue]Generating EPUB..."):
-                epub_renderer = EpubRenderer(
-                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
-                )
-                try:
-                    epub_renderer.render(
-                        html_pages,
-                        epub_path,
-                        cover_page=cover_page,
-                        include_toc=include_toc,
-                        local_time=local_time,
-                    )
-                except LeafpressError:
-                    raise
-                except Exception as exc:
-                    raise RenderError(_format_epub_error(exc)) from exc
-            generated_files.append(epub_path)
-            console.print(f"  [bold green]EPUB:[/bold green] {epub_path}")
-
-        if format in ("markdown", "all"):
-            from leafpress.markdown_export.renderer import MarkdownExportRenderer
-
-            md_export_path = output_dir / f"{safe_name}.md"
-            with console.status("[bold blue]Generating Markdown..."):
-                md_export = MarkdownExportRenderer(branding, git_info, mkdocs_cfg)
-                md_export.render(
-                    html_pages,
-                    md_export_path,
-                    cover_page=cover_page,
-                    include_toc=include_toc,
-                    local_time=local_time,
-                )
-            generated_files.append(md_export_path)
-            console.print(f"  [bold green]Markdown:[/bold green] {md_export_path}")
-
-    return generated_files
+            except LeafpressError:
+                raise
+            except Exception as exc:
+                raise RenderError(format_render_error(spec.label, exc)) from exc
+        generated.append(out_path)
+        con.print(f"  [bold green]{spec.label}:[/bold green] {out_path}")
+    return generated
 
 
 def _find_mkdocs_config(project_dir: Path, con: Console | None = None) -> Path:
@@ -652,7 +637,7 @@ def _find_mkdocs_config(project_dir: Path, con: Console | None = None) -> Path:
     config_path = find_site_config(project_dir)
     if config_path is None:
         raise LeafpressError(f"No mkdocs.yml, mkdocs.yaml, or zensical.toml found in {project_dir}")
-    out = con or console
+    out = con or _default_console
     if is_zensical_config(config_path):
         out.print(f"  [dim]Using {config_path.name} (experimental Zensical support)[/dim]")
     elif (project_dir / "zensical.toml").is_file():
@@ -838,73 +823,24 @@ def _collect_monorepo_pages(
             chapter = NavItem(title=mkdocs_cfg.site_name, path=None, level=0)
             all_pages.append((chapter, chapter_html))
 
-            # Render pages with project-specific docs_dir
-            renderer = MarkdownRenderer(
-                extensions=mkdocs_cfg.markdown_extensions,
-                docs_dir=mkdocs_cfg.docs_dir,
-                mermaid_output_dir=mermaid_output_dir if mermaid_cfg.enabled else None,
-                mermaid_server=mermaid_cfg.server,
+            renderer = _make_md_renderer(
+                mkdocs_cfg,
+                mermaid_output_dir,
+                mermaid_cfg,
                 mermaid_public_only=mermaid_public_only,
-                project_root=mkdocs_cfg.config_path.parent,
                 asset_roots=[source_root] if source_root and not entry.url else [],
+                con=con,
             )
-            for ext, ok, err_msg in renderer.extension_load_results:
-                if ok:
-                    con.print(f"  [green]✓[/green] Extension: {ext}")
-                else:
-                    hint = ""
-                    if "No module named" in err_msg:
-                        pkg = _pip_package_for(ext)
-                        hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
-                    con.print(
-                        f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
-                        f"\n    Error: {err_msg}{hint}"
-                    )
-            for warning in renderer.config_warnings:
-                con.print(f"  [yellow]⚠[/yellow] {warning}")
-            flat_nav = flatten_nav(mkdocs_cfg.nav_items)
-            bumped = bump_nav_levels(flat_nav)
-
-            all_unresolved: list[tuple[str, str]] = []
-            for item in bumped:
-                if item.path is None:
-                    all_pages.append((item, ""))
-                    continue
-                md_file = resolve_page_path(mkdocs_cfg.docs_dir, item.path)
-                if md_file is None:
-                    con.print(
-                        f"  [yellow]Warning:[/yellow] Skipping page outside docs_dir:"
-                        f" {item.path} (in {mkdocs_cfg.site_name})"
-                    )
-                    continue
-                if not md_file.exists():
-                    con.print(
-                        f"  [yellow]Warning:[/yellow] File not found:"
-                        f" {item.path} (in {mkdocs_cfg.site_name})"
-                    )
-                    continue
-                md_content = md_file.read_text(encoding="utf-8")
-                html, render_warnings = renderer.render(md_content, md_file)
-                if sanitize_project:
-                    html = sanitize(html)
-                for w in render_warnings:
-                    if "failed" in w:
-                        con.print(f"  [yellow]⚠ {w}[/yellow]")
-                    else:
-                        con.print(f"  [green]✓ {w}[/green]")
-                all_unresolved.extend(renderer.unresolved_assets)
-                all_pages.append((dataclasses.replace(item, source_file=md_file), html))
-                total_pages += 1
-
-            # Warn about missing assets in this project
-            if all_unresolved:
-                con.print(
-                    f"  [yellow]⚠[/yellow] {len(all_unresolved)}"
-                    f" missing asset(s) in {mkdocs_cfg.site_name}:"
-                )
-                for page, ref in all_unresolved:
-                    page_name = Path(page).name
-                    con.print(f"    [yellow]•[/yellow] {page_name}: {ref}")
+            pages, rendered = _render_nav_pages(
+                bump_nav_levels(flatten_nav(mkdocs_cfg.nav_items)),
+                renderer,
+                mkdocs_cfg.docs_dir,
+                sanitize_pages=sanitize_project,
+                con=con,
+                site_label=mkdocs_cfg.site_name,
+            )
+            all_pages.extend(pages)
+            total_pages += rendered
 
     return all_pages, total_pages
 

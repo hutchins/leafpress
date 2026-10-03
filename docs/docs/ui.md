@@ -74,7 +74,7 @@ The conversion window covers the common `convert` options:
 | **Open after conversion** | Open the generated file(s) with their default applications when done. |
 | **Use local timezone for dates** | Show cover and footer dates in local time instead of UTC. |
 
-Click **Convert** (or press **⌘↩** / **Ctrl+Enter**) to start. A progress bar and the log show what's happening, and a dialog reports success or the error.
+Click **Convert** (or press **⌘↩** / **Ctrl+Enter**) to start. A progress bar and the log show what's happening, and a dialog reports success or the error. The log shows the same details as the CLI: the detected config and version, Markdown extensions, skipped pages, missing images, and each file written.
 
 Branding (company, logo, colors, footer) comes from `leafpress.yml` or `LEAFPRESS_*` environment variables; see [Configuration](configuration.md). A few options are CLI-only: an explicit site config (`--mkdocs-config`), `--fetch-diagrams`, `--footer-date`, and `--verbose`. For those, use the [CLI](cli.md#convert).
 
