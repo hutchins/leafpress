@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import logging
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 from jinja2 import Environment, PackageLoader
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import (
     BarColumn,
     Progress,
@@ -61,8 +63,44 @@ class _ConsoleWarningHandler(logging.Handler):
         self._console = con
 
     def emit(self, record: logging.LogRecord) -> None:
-        msg = self.format(record)
-        self._console.print(f"  [yellow]⚠ {msg}[/yellow]")
+        msg = escape(self.format(record))
+        if record.levelno >= logging.ERROR:
+            self._console.print(f"  [red]✗ {msg}[/red]")
+        elif record.levelno >= logging.WARNING:
+            self._console.print(f"  [yellow]⚠ {msg}[/yellow]")
+        elif record.levelno >= logging.INFO:
+            self._console.print(f"  {msg}")
+        else:
+            self._console.print(f"  [dim]{msg}[/dim]")
+
+
+_LOG_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
+
+
+def _resolve_log_level(verbose: bool, con: Console) -> int:
+    """Pick the console log level: ``--verbose``, then ``LEAFPRESS_LOG_LEVEL``, then WARNING.
+
+    ``LEAFPRESS_LOG_LEVEL`` accepts DEBUG, INFO, WARNING, ERROR, or CRITICAL
+    (case-insensitive) and is handy in CI where adding ``--verbose`` isn't.
+    """
+    if verbose:
+        return logging.DEBUG
+    raw = os.environ.get("LEAFPRESS_LOG_LEVEL", "").strip().upper()
+    if not raw:
+        return logging.WARNING
+    if raw not in _LOG_LEVELS:
+        con.print(
+            f"  [yellow]⚠ Ignoring invalid LEAFPRESS_LOG_LEVEL={escape(raw)!s}; "
+            f"expected one of {', '.join(sorted(_LOG_LEVELS))}[/yellow]"
+        )
+        return logging.WARNING
+    return _LOG_LEVELS[raw]
 
 
 def _format_docx_error(exc: Exception) -> str:
@@ -208,13 +246,13 @@ def convert(
     # Attach a handler that routes leafpress logger warnings to the console.
     # This surfaces logger.warning() calls from renderers (SVG logo skip,
     # extension failures, etc.) that would otherwise be invisible.
+    log_level = _resolve_log_level(verbose, console)
     _log_handler = _ConsoleWarningHandler(console)
-    if verbose:
-        _log_handler.setLevel(logging.DEBUG)
+    _log_handler.setLevel(log_level)
     _pkg_logger = logging.getLogger("leafpress")
     _prev_log_level = _pkg_logger.level
     _pkg_logger.addHandler(_log_handler)
-    _pkg_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
+    _pkg_logger.setLevel(log_level)
 
     resolved_source = resolve_source(source, branch)
     # A cloned repo is someone else's content: don't trust its .env or let its
@@ -608,8 +646,6 @@ def _load_project_env(env_file: Path) -> None:
     ``GIT_SSH_COMMAND`` that change how git or other tools behave. Values
     already set in the shell take priority.
     """
-    import os
-
     if not env_file.is_file():
         return
     for key, value in dotenv_values(env_file).items():

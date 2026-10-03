@@ -115,6 +115,7 @@ Set `LEAFPRESS_*` variables to configure branding without a YAML file. If both `
 | `LEAFPRESS_FOOTER_INCLUDE_COMMIT` | `footer.include_commit` | |
 | `LEAFPRESS_FOOTER_INCLUDE_BRANCH` | `footer.include_branch` | |
 | `LEAFPRESS_LOCAL_TIME` | _(CLI flag)_ | `true` or `false` — use local timezone for dates |
+| `LEAFPRESS_LOG_LEVEL` | _(CLI flag)_ | `DEBUG`, `INFO`, `WARNING` (default), `ERROR`, or `CRITICAL`. Use `DEBUG` for `--verbose`-level detail without changing the command |
 | `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` | API token for Lucidchart diagram exports |
 
 **Priority:** shell env > `.env` file > `leafpress.yml` > built-in defaults

@@ -53,7 +53,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--toc` / `--no-toc` | `--toc` | Include a table of contents |
 | `--open` | `false` | Open the generated file(s) after conversion |
 | `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
-| `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) |
+| `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) in PDF, DOCX, HTML, ODT, and EPUB. Markdown export has no watermark |
 | `--footer-date` / `--no-footer-date` | _(config)_ | Include document generation date in footer |
 | `--sanitize-html` / `--no-sanitize-html` | _(auto)_ | Strip scripts, event handlers, and other active content from page HTML. The default is on for git URL sources and otherwise follows `sanitize_html` in `leafpress.yml` |
 | `--mermaid` / `--no-mermaid` | _(config)_ | Render mermaid diagrams via the configured server. `--no-mermaid` keeps them as code blocks and sends nothing |

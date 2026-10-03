@@ -30,6 +30,7 @@
 
 ### Improvements
 
+- `LEAFPRESS_LOG_LEVEL` env var (`DEBUG`/`INFO`/`WARNING`/`ERROR`/`CRITICAL`) sets console log verbosity without `--verbose`, which is useful in CI. Console log lines are now styled by level
 - **HTML sanitizing.** Uses [nh3](https://github.com/messense/nh3) to strip scripts, event handlers, `javascript:` / `data:` links, iframes, forms, and resource-loading CSS from page HTML, while keeping normal MkDocs/Material markup.
     - Automatic for git URL sources and monorepo `url:` projects, and a cloned repo's `leafpress.yml` can't disable it.
     - Opt in for any source with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML`, or `sanitize_html: true`.
@@ -38,6 +39,7 @@
 
 ### Fixes
 
+- DOCX watermark font was written as `&amp;quot;Calibri&amp;quot;` (double-escaped), so Word didn't get the intended font
 - **Batch `import`:**
     - A failed file no longer aborts the batch, and errors now name the file that failed.
     - A per-file summary table is shown after multi-file imports.
@@ -57,6 +59,7 @@
 
 ### Tooling
 
+- Cross-format watermark tests check that the text appears (and is escaped) in PDF, DOCX, HTML, ODT, and EPUB
 - `src/leafpress/cli.py` (~700 lines) is split into a `leafpress.cli` package with one module per subcommand. The `leafpress.cli:cli` entry point and `--help` output are unchanged, and new tests cover the CLI error paths
 - Added `SECURITY.md` (private vulnerability reporting) and expanded `CONTRIBUTING.md` with the test layout, fixtures, security-test expectations, and how to add renderers and importers
 - CIButler integration tests read their location from `LEAFPRESS_CIBUTLER_DOCS` instead of a hardcoded path, and the skip reason says how to enable them
