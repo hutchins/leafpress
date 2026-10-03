@@ -40,31 +40,34 @@ class BaseRenderer(Protocol):
 # ---------------------------------------------------------------------------
 
 
+# A task-list checkbox, optionally wrapped in Material's custom_checkbox markup.
+# Matches any attribute order/serialization (``checked``, ``checked=""``,
+# ``checked/>``) so it still works after HTML sanitizing re-serializes tags.
+_CHECKBOX_PATTERN = re.compile(
+    r'(?:<label class="task-list-control">\s*)?'
+    r"<input\b(?P<attrs>[^>]*\btype=[\"']?checkbox\b[^>]*?)/?>"
+    r'(?:\s*<span class="task-list-indicator"></span>\s*</label>)?\s*',
+    re.IGNORECASE,
+)
+_CHECKED_ATTR_PATTERN = re.compile(r"\bchecked\b", re.IGNORECASE)
+
+
 def replace_checkboxes(html: str) -> str:
-    """Replace <input type="checkbox"> elements with unicode symbols.
+    """Replace task-list ``<input type="checkbox">`` elements with unicode symbols.
 
     WeasyPrint and static HTML don't render HTML form inputs, so we swap
-    them for print-friendly unicode check/uncheck symbols.
+    them for print-friendly ☑ / ☐ symbols. Handles both plain
+    ``pymdownx.tasklist`` output and ``custom_checkbox: true`` output.
     """
-    # Checked: ☑
-    html = re.sub(
-        r'<label class="task-list-control">'
-        r'<input type="checkbox" disabled checked/>'
-        r'<span class="task-list-indicator"></span>'
-        r"</label>\s*",
-        '<span class="task-checkbox checked">&#x2611;</span> ',
-        html,
-    )
-    # Unchecked: ☐
-    html = re.sub(
-        r'<label class="task-list-control">'
-        r'<input type="checkbox" disabled/>'
-        r'<span class="task-list-indicator"></span>'
-        r"</label>\s*",
-        '<span class="task-checkbox">&#x2610;</span> ',
-        html,
-    )
-    return html
+
+    def _symbol(match: re.Match[str]) -> str:
+        # Strip the type="checkbox" value before looking for "checked"
+        attrs = re.sub(r"\btype=[\"']?checkbox[\"']?", "", match.group("attrs"))
+        if _CHECKED_ATTR_PATTERN.search(attrs):
+            return '<span class="task-checkbox checked">&#x2611;</span> '
+        return '<span class="task-checkbox">&#x2610;</span> '
+
+    return _CHECKBOX_PATTERN.sub(_symbol, html)
 
 
 def make_anchor_id(title: str) -> str:

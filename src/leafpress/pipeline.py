@@ -41,6 +41,8 @@ from leafpress.mkdocs_parser import (
     parse_mkdocs_config,
     resolve_page_path,
 )
+from leafpress.sanitize import sanitize_html as sanitize
+from leafpress.sanitize import should_sanitize
 from leafpress.source import redact_url, resolve_source
 
 console = Console()
@@ -178,6 +180,7 @@ def convert(
     watermark: str | None = None,
     footer_render_date: bool | None = None,
     mermaid: bool | None = None,
+    sanitize_html: bool | None = None,
     verbose: bool = False,
 ) -> list[Path]:
     """Main conversion pipeline.
@@ -193,6 +196,8 @@ def convert(
         include_toc: Include a table of contents.
         footer_render_date: Override include_render_date in footer config.
         mermaid: Override whether mermaid diagrams are rendered (None = use config).
+        sanitize_html: Override HTML sanitizing (None = on for git URL sources,
+            else ``LEAFPRESS_SANITIZE_HTML`` / leafpress.yml ``sanitize_html``).
         verbose: Enable verbose output (surfaces DEBUG-level log messages).
 
     Returns:
@@ -314,6 +319,14 @@ def convert(
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
         cleanup.callback(shutil.rmtree, mermaid_dir, ignore_errors=True)
         mermaid_cfg = resolve_mermaid_config(branding, enabled_override=mermaid)
+        config_sanitize = bool(branding and branding.sanitize_html)
+        sanitize_pages = should_sanitize(
+            cli_override=sanitize_html,
+            untrusted_source=untrusted_source,
+            config_value=config_sanitize,
+        )
+        if sanitize_pages:
+            console.print("  [dim]Sanitizing page HTML (scripts and event handlers removed)[/dim]")
         if not mermaid_cfg.enabled:
             console.print("  [dim]Mermaid rendering disabled; diagrams kept as code[/dim]")
         # Local files that document content may embed (monorepo projects are
@@ -332,6 +345,8 @@ def convert(
                 branding,
                 console,
                 mermaid_cfg=mermaid_cfg,
+                sanitize_override=sanitize_html,
+                config_sanitize=config_sanitize,
                 asset_policy=asset_policy,
                 untrusted_source=untrusted_source,
             )
@@ -395,6 +410,8 @@ def convert(
                         continue
                     md_content = md_file.read_text(encoding="utf-8")
                     html, render_warnings = renderer.render(md_content, md_file)
+                    if sanitize_pages:
+                        html = sanitize(html)
                     for w in render_warnings:
                         if "failed" in w:
                             console.print(f"  [yellow]⚠ {w}[/yellow]")
@@ -609,6 +626,8 @@ def _collect_monorepo_pages(
     mermaid_cfg: MermaidConfig | None = None,
     asset_policy: AssetPolicy | None = None,
     untrusted_source: bool = False,
+    sanitize_override: bool | None = None,
+    config_sanitize: bool = False,
 ) -> tuple[list[tuple[NavItem, str]], int]:
     """Parse and render pages from multiple MkDocs projects.
 
@@ -641,6 +660,13 @@ def _collect_monorepo_pages(
 
             mkdocs_file = _find_mkdocs_config(project_dir)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
+            # Projects cloned from a URL are untrusted even if the top-level
+            # source is local
+            sanitize_project = should_sanitize(
+                cli_override=sanitize_override,
+                untrusted_source=untrusted_source or bool(entry.url),
+                config_value=config_sanitize,
+            )
             if asset_policy is not None:
                 asset_policy.add_root(project_dir)
 
@@ -707,6 +733,8 @@ def _collect_monorepo_pages(
                     continue
                 md_content = md_file.read_text(encoding="utf-8")
                 html, render_warnings = renderer.render(md_content, md_file)
+                if sanitize_project:
+                    html = sanitize(html)
                 for w in render_warnings:
                     if "failed" in w:
                         con.print(f"  [yellow]⚠ {w}[/yellow]")

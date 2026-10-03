@@ -30,6 +30,10 @@
 
 ### Improvements
 
+- **HTML sanitizing.** Uses [nh3](https://github.com/messense/nh3) to strip scripts, event handlers, `javascript:` / `data:` links, iframes, forms, and resource-loading CSS from page HTML, while keeping normal MkDocs/Material markup.
+    - Automatic for git URL sources and monorepo `url:` projects, and a cloned repo's `leafpress.yml` can't disable it.
+    - Opt in for any source with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML`, or `sanitize_html: true`.
+- Task-list checkboxes are now converted to ☑/☐ for plain `pymdownx.tasklist` output too (previously only with `custom_checkbox: true`), and conversion no longer depends on exact attribute formatting
 - **Mermaid privacy controls.** New `mermaid:` config (`enabled`, `server`), `LEAFPRESS_MERMAID_ENABLED` / `LEAFPRESS_MERMAID_SERVER`, and `--mermaid/--no-mermaid`. These let you point at a self-hosted mermaid.ink or keep diagrams as code so nothing is sent to a third party
 
 ### Fixes
@@ -43,6 +47,9 @@
 
 ### Tooling
 
+- Added `SECURITY.md` (private vulnerability reporting) and expanded `CONTRIBUTING.md` with the test layout, fixtures, security-test expectations, and how to add renderers and importers
+- CIButler integration tests read their location from `LEAFPRESS_CIBUTLER_DOCS` instead of a hardcoded path, and the skip reason says how to enable them
+- `.gitignore` and ruff excludes for `pytest-of-*` / `leafpress-mermaid-*` are anchored to the repo root
 - `uv_build` range widened to `<0.13` (uv 0.12.x); ruff now targets Python 3.13 (matching `requires-python`); removed the unused mypy config/dependency in favor of `ty`, which now reports zero diagnostics
 
 ### Upgrade notes

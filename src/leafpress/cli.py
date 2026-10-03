@@ -127,6 +127,14 @@ def convert(
         "--footer-date/--no-footer-date",
         help="Include the generation date in the footer.",
     ),
+    sanitize_html: bool | None = typer.Option(
+        None,
+        "--sanitize-html/--no-sanitize-html",
+        help=(
+            "Strip scripts, event handlers, and other active content from page HTML "
+            "(default: on for git URL sources, else leafpress.yml sanitize_html)."
+        ),
+    ),
     mermaid: bool | None = typer.Option(
         None,
         "--mermaid/--no-mermaid",
@@ -203,6 +211,7 @@ def convert(
             watermark=watermark,
             footer_render_date=footer_render_date,
             mermaid=mermaid,
+            sanitize_html=sanitize_html,
             verbose=verbose,
         )
 

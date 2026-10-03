@@ -171,6 +171,12 @@ class BrandingConfig(BaseModel):
     watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
     diagrams: DiagramsConfig = Field(default_factory=DiagramsConfig)
     mermaid: MermaidConfig = Field(default_factory=MermaidConfig)
+    sanitize_html: bool = Field(
+        default=False,
+        description=(
+            "Strip scripts/event handlers from page HTML. Always on for repos cloned from a git URL"
+        ),
+    )
     projects: list[ProjectEntry] = Field(
         default_factory=list,
         description="Monorepo: list of sub-project directories containing mkdocs.yml",

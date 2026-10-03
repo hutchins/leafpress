@@ -61,6 +61,9 @@ watermark:
   opacity: 0.15                 # 0.0 to 1.0
   angle: -45                    # -90 to 90
 
+# Strip scripts/event handlers from page HTML (always on for git URL sources)
+sanitize_html: false
+
 # Mermaid diagram rendering
 mermaid:
   enabled: true                 # false keeps diagrams as code blocks (nothing sent)
@@ -101,6 +104,7 @@ diagrams:
 | `copyright_text` | string | `null` | Copyright line on cover page |
 | `primary_color` | hex string | `#1a73e8` | Primary brand color (6-digit hex) |
 | `accent_color` | hex string | `#ffffff` | Accent/background color (6-digit hex) |
+| `sanitize_html` | bool | `false` | Strip scripts, event handlers, and other active content from page HTML. Always on for repositories cloned from a git URL, regardless of this setting (see [Remote Sources](remote-sources.md#converting-untrusted-repositories)) |
 
 ### `footer` fields
 
@@ -333,6 +337,7 @@ All config fields can be set or overridden via `LEAFPRESS_*` environment variabl
 | `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` (e.g. `0.2`) |
 | `LEAFPRESS_WATERMARK_ANGLE` | `watermark.angle` (e.g. `-30`) |
 | `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` |
+| `LEAFPRESS_SANITIZE_HTML` | `sanitize_html` (`true`/`false`). Overrides the automatic setting for git URL sources |
 | `LEAFPRESS_MERMAID_ENABLED` | `mermaid.enabled` (`true`/`false`). Applies even without a `leafpress.yml` |
 | `LEAFPRESS_MERMAID_SERVER` | `mermaid.server`. Applies even without a `leafpress.yml` |
 
