@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
@@ -50,7 +50,7 @@ class PdfRenderer:
     ) -> None:
         """Compose all pages into a single HTML document and render to PDF."""
         sections_html: list[str] = []
-        now = datetime.now() if local_time else datetime.now(timezone.utc)
+        now = datetime.now() if local_time else datetime.now(UTC)
 
         if cover_page:
             cover_tmpl = self._jinja.get_template("cover.html.j2")

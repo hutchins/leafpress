@@ -34,7 +34,7 @@ The HTML output includes:
 | Tables | Yes |
 | Admonitions | Yes |
 | Task lists (checkboxes) | Yes |
-| Images | Yes |
+| Images | Yes. Local images and rendered mermaid diagrams are embedded as `data:` URIs, so the file works on any machine |
 | Code blocks | Yes |
 | Emoji shortcodes | Yes |
 | Mermaid diagrams | Yes |

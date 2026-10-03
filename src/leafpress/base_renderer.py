@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import mimetypes
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Protocol
 
-from leafpress.asset_policy import AssetPolicy
+from leafpress.asset_policy import AssetPolicy, file_uri_to_path
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -101,3 +103,49 @@ def build_asset_policy(
         files.append(Path(branding.logo_path))
     roots = [mkdocs_cfg.config_path.parent, mkdocs_cfg.docs_dir, *extra_roots]
     return AssetPolicy(roots, files)
+
+
+_LOCAL_IMG_SRC_PATTERN = re.compile(r"""(<img\b[^>]*?\bsrc=)(["'])(file:[^"']*)\2""", re.IGNORECASE)
+
+
+def rewrite_local_images(
+    html: str, policy: AssetPolicy, replace: Callable[[Path], str | None]
+) -> str:
+    """Rewrite ``<img src="file://...">`` references for portable output formats.
+
+    Local ``file://`` links only work on the machine that built the document
+    (and mermaid images live in a temp dir that is deleted afterwards), so
+    HTML and EPUB output must embed them. Paths outside ``policy`` are blanked.
+
+    Args:
+        html: Rendered HTML.
+        policy: Which local files may be embedded.
+        replace: Called with each allowed, existing image path; returns the new
+            ``src`` value, or None to leave the reference unchanged.
+
+    Example:
+        >>> rewrite_local_images(html, policy, image_data_uri)
+    """
+
+    def _sub(match: re.Match[str]) -> str:
+        prefix, quote, uri = match.groups()
+        path = file_uri_to_path(uri)
+        if path is None or not policy.allows(path):
+            return f"{prefix}{quote}{quote}"
+        if not path.is_file():
+            return match.group(0)
+        new_src = replace(path)
+        return match.group(0) if new_src is None else f"{prefix}{quote}{new_src}{quote}"
+
+    return _LOCAL_IMG_SRC_PATTERN.sub(_sub, html)
+
+
+def image_mime_type(path: Path) -> str:
+    """Guess an image MIME type from a file extension (default ``image/png``)."""
+    return mimetypes.guess_type(path.name)[0] or "image/png"
+
+
+def image_data_uri(path: Path) -> str:
+    """Encode a local image as a ``data:`` URI for self-contained HTML."""
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{image_mime_type(path)};base64,{encoded}"

@@ -65,6 +65,32 @@ class WatermarkConfig(BaseModel):
         return _normalize_hex_color(v)
 
 
+class MermaidConfig(BaseModel):
+    """Mermaid diagram rendering configuration.
+
+    Diagrams are rendered by sending their source to a mermaid.ink-compatible
+    server. For confidential documents, point ``server`` at a self-hosted
+    instance or set ``enabled: false`` to keep diagrams as code blocks.
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Render mermaid code blocks to images (false leaves them as code)",
+    )
+    server: str = Field(
+        default="https://mermaid.ink",
+        description="Base URL of a mermaid.ink-compatible rendering server",
+    )
+
+    @field_validator("server")
+    @classmethod
+    def validate_server_url(cls, v: str) -> str:
+        v = v.strip().rstrip("/")
+        if not v.startswith(("http://", "https://")):
+            raise ValueError(f"Mermaid server must be an http(s) URL, got: {v!r}")
+        return v
+
+
 class DiagramSource(BaseModel):
     """A single diagram source entry."""
 
@@ -144,6 +170,7 @@ class BrandingConfig(BaseModel):
     docx: DocxOptions = Field(default_factory=DocxOptions)
     watermark: WatermarkConfig = Field(default_factory=WatermarkConfig)
     diagrams: DiagramsConfig = Field(default_factory=DiagramsConfig)
+    mermaid: MermaidConfig = Field(default_factory=MermaidConfig)
     projects: list[ProjectEntry] = Field(
         default_factory=list,
         description="Monorepo: list of sub-project directories containing mkdocs.yml",
@@ -253,6 +280,34 @@ def _apply_env_overrides(config: BrandingConfig) -> BrandingConfig:
         data["diagrams"]["lucidchart_token"] = lc_token
 
     return BrandingConfig.model_validate(data)
+
+
+def resolve_mermaid_config(
+    branding: BrandingConfig | None, enabled_override: bool | None = None
+) -> MermaidConfig:
+    """Resolve mermaid settings: leafpress.yml, then env vars, then CLI flag.
+
+    Env vars apply even when there is no leafpress.yml:
+    ``LEAFPRESS_MERMAID_ENABLED`` (true/false) and ``LEAFPRESS_MERMAID_SERVER``.
+
+    Args:
+        branding: Loaded config, or None.
+        enabled_override: ``--mermaid/--no-mermaid`` CLI value, if given.
+
+    Example:
+        >>> resolve_mermaid_config(None, enabled_override=False).enabled
+        False
+    """
+    data = (branding.mermaid if branding else MermaidConfig()).model_dump()
+    raw_enabled = os.environ.get("LEAFPRESS_MERMAID_ENABLED", "").lower()
+    if raw_enabled in _BOOL_MAP:
+        data["enabled"] = _BOOL_MAP[raw_enabled]
+    server = os.environ.get("LEAFPRESS_MERMAID_SERVER")
+    if server:
+        data["server"] = server
+    if enabled_override is not None:
+        data["enabled"] = enabled_override
+    return MermaidConfig.model_validate(data)
 
 
 def config_from_env() -> BrandingConfig | None:

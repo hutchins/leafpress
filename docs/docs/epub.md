@@ -33,7 +33,7 @@ The EPUB output includes:
 | Tables | Yes |
 | Admonitions | Yes |
 | Task lists (checkboxes) | Yes |
-| Images | Yes |
+| Images | Yes. Local images and rendered mermaid diagrams are packaged inside the EPUB |
 | Code blocks | Yes |
 | Watermark text | Yes |
 | Mermaid diagrams | Yes |

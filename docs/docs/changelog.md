@@ -27,9 +27,28 @@
 - Credentials in git URLs (`https://user:TOKEN@…`) are redacted from clone messages, errors, and monorepo chapter cover pages
 - TeX import: `\includegraphics` paths outside the `.tex` file's directory are skipped
 - Windows "open file" no longer runs through `cmd.exe` (`shell=True`). It now uses `os.startfile`
-- Relative `pymdownx.snippets` `base_path` entries now resolve from the project directory, as MkDocs does, instead of the current working directory
+
+### Improvements
+
+- **Mermaid privacy controls.** New `mermaid:` config (`enabled`, `server`), `LEAFPRESS_MERMAID_ENABLED` / `LEAFPRESS_MERMAID_SERVER`, and `--mermaid/--no-mermaid`. These let you point at a self-hosted mermaid.ink or keep diagrams as code so nothing is sent to a third party
+
+### Fixes
+
+- **HTML output is now actually self-contained.** Local images and mermaid diagrams are embedded as `data:` URIs. Previously they were `file://` links that only worked on the machine that built the file
+- **EPUB images now display.** They are packaged inside the EPUB instead of linked with `file://`, which e-readers can't open. Chapter titles are now escaped
+- **ODT now embeds images.** Images inside paragraphs (all normal Markdown images) were silently dropped. Images now also keep their aspect ratio instead of being forced to 4×2 inches
+- The mermaid temp directory (`leafpress-mermaid-*`) is now deleted after each conversion, including when a conversion fails. The console log handler is also detached on failure
 - Image `file://` URIs containing percent-encoded characters (e.g. spaces) now embed correctly in DOCX
-- Note: pymdown-extensions 12 rewrote BetterEm/Tilde/Caret/Mark emphasis parsing to be CommonMark compliant — mid-word `~~`, `^^`, and `==` are now allowed by default, and edge cases of nested emphasis may render slightly differently
+- Relative `pymdownx.snippets` `base_path` entries now resolve from the project directory, as MkDocs does, instead of the current working directory
+
+### Tooling
+
+- `uv_build` range widened to `<0.13` (uv 0.12.x); ruff now targets Python 3.13 (matching `requires-python`); removed the unused mypy config/dependency in favor of `ty`, which now reports zero diagnostics
+
+### Upgrade notes
+
+- pymdown-extensions 12 rewrote BetterEm/Tilde/Caret/Mark emphasis parsing to be CommonMark compliant — mid-word `~~`, `^^`, and `==` are now allowed by default, and edge cases of nested emphasis may render slightly differently
+- `docs_dir` outside the directory containing `mkdocs.yml` is now an error, and image references outside the project are dropped with a warning (see Security above)
 
 ---
 

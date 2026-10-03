@@ -60,7 +60,18 @@ graph TD
 ```
 ````
 
-Mermaid rendering requires internet access during conversion. If the service is unreachable, the original code block is preserved with a warning.
+Mermaid rendering requires network access to the rendering server during conversion. If the server is unreachable, the original code block is preserved with a warning.
+
+!!! warning "Diagram source is sent to a third party"
+    By default, each diagram's source is sent to the public [mermaid.ink](https://mermaid.ink) service to be rendered. For confidential documents, choose one of these:
+
+    - **Self-host** [mermaid.ink](https://github.com/jihchi/mermaid.ink), e.g. `docker run -p 3000:3000 ghcr.io/jihchi/mermaid.ink`, and point leafpress at it:
+      ```yaml
+      mermaid:
+        server: http://localhost:3000
+      ```
+      or `LEAFPRESS_MERMAID_SERVER=http://localhost:3000`
+    - **Disable rendering.** Diagrams stay as code blocks and nothing is sent. Use `--no-mermaid`, `LEAFPRESS_MERMAID_ENABLED=false`, or `mermaid: {enabled: false}` in `leafpress.yml`
 
 Diagram images are cached by content hash, so identical diagrams across pages are only rendered once.
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import logging
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -21,7 +22,14 @@ from rich.progress import (
 
 from leafpress.asset_policy import AssetPolicy, is_within
 from leafpress.base_renderer import build_asset_policy
-from leafpress.config import BrandingConfig, ProjectEntry, config_from_env, load_config
+from leafpress.config import (
+    BrandingConfig,
+    MermaidConfig,
+    ProjectEntry,
+    config_from_env,
+    load_config,
+    resolve_mermaid_config,
+)
 from leafpress.exceptions import LeafpressError, RenderError, SourceError
 from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
@@ -169,6 +177,7 @@ def convert(
     local_time: bool = False,
     watermark: str | None = None,
     footer_render_date: bool | None = None,
+    mermaid: bool | None = None,
     verbose: bool = False,
 ) -> list[Path]:
     """Main conversion pipeline.
@@ -183,6 +192,7 @@ def convert(
         cover_page: Include a cover page.
         include_toc: Include a table of contents.
         footer_render_date: Override include_render_date in footer config.
+        mermaid: Override whether mermaid diagrams are rendered (None = use config).
         verbose: Enable verbose output (surfaces DEBUG-level log messages).
 
     Returns:
@@ -205,7 +215,12 @@ def convert(
     # A cloned repo is someone else's content: don't trust its .env or let its
     # leafpress.yml point monorepo projects at local directories outside it.
     untrusted_source = resolved_source.is_temporary
-    with resolved_source as project_dir:
+    # Cleanup (cloned repo, mermaid temp dir, log handler) runs on success
+    # and on error, in reverse order of registration.
+    with contextlib.ExitStack() as cleanup:
+        cleanup.callback(_pkg_logger.setLevel, _prev_log_level)
+        cleanup.callback(_pkg_logger.removeHandler, _log_handler)
+        project_dir = cleanup.enter_context(resolved_source)
         if not untrusted_source:
             _load_project_env(project_dir / ".env")
 
@@ -297,6 +312,10 @@ def convert(
 
         # Initialize temp dir for mermaid images
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
+        cleanup.callback(shutil.rmtree, mermaid_dir, ignore_errors=True)
+        mermaid_cfg = resolve_mermaid_config(branding, enabled_override=mermaid)
+        if not mermaid_cfg.enabled:
+            console.print("  [dim]Mermaid rendering disabled; diagrams kept as code[/dim]")
         # Local files that document content may embed (monorepo projects are
         # added as they are resolved)
         asset_policy = build_asset_policy(
@@ -312,6 +331,7 @@ def convert(
                 mermaid_dir,
                 branding,
                 console,
+                mermaid_cfg=mermaid_cfg,
                 asset_policy=asset_policy,
                 untrusted_source=untrusted_source,
             )
@@ -323,7 +343,8 @@ def convert(
             renderer = MarkdownRenderer(
                 extensions=mkdocs_cfg.markdown_extensions,
                 docs_dir=mkdocs_cfg.docs_dir,
-                mermaid_output_dir=mermaid_dir,
+                mermaid_output_dir=mermaid_dir if mermaid_cfg.enabled else None,
+                mermaid_server=mermaid_cfg.server,
                 project_root=mkdocs_cfg.config_path.parent,
             )
             for ext, ok, err_msg in renderer.extension_load_results:
@@ -466,7 +487,9 @@ def convert(
 
             html_path = output_dir / f"{safe_name}.html"
             with console.status("[bold blue]Generating HTML..."):
-                html_renderer = HtmlRenderer(branding, git_info, mkdocs_cfg)
+                html_renderer = HtmlRenderer(
+                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
+                )
                 try:
                     html_renderer.render(
                         html_pages,
@@ -510,7 +533,9 @@ def convert(
 
             epub_path = output_dir / f"{safe_name}.epub"
             with console.status("[bold blue]Generating EPUB..."):
-                epub_renderer = EpubRenderer(branding, git_info, mkdocs_cfg)
+                epub_renderer = EpubRenderer(
+                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
+                )
                 try:
                     epub_renderer.render(
                         html_pages,
@@ -541,10 +566,6 @@ def convert(
                 )
             generated_files.append(md_export_path)
             console.print(f"  [bold green]Markdown:[/bold green] {md_export_path}")
-
-    # Detach the console warning handler
-    _pkg_logger.removeHandler(_log_handler)
-    _pkg_logger.setLevel(_prev_log_level)
 
     return generated_files
 
@@ -585,6 +606,7 @@ def _collect_monorepo_pages(
     mermaid_output_dir: Path,
     branding: BrandingConfig,
     con: Console,
+    mermaid_cfg: MermaidConfig | None = None,
     asset_policy: AssetPolicy | None = None,
     untrusted_source: bool = False,
 ) -> tuple[list[tuple[NavItem, str]], int]:
@@ -597,6 +619,7 @@ def _collect_monorepo_pages(
     """
     all_pages: list[tuple[NavItem, str]] = []
     total_pages = 0
+    mermaid_cfg = mermaid_cfg or MermaidConfig()
 
     with contextlib.ExitStack() as stack:
         for entry in projects:
@@ -643,7 +666,8 @@ def _collect_monorepo_pages(
             renderer = MarkdownRenderer(
                 extensions=mkdocs_cfg.markdown_extensions,
                 docs_dir=mkdocs_cfg.docs_dir,
-                mermaid_output_dir=mermaid_output_dir,
+                mermaid_output_dir=mermaid_output_dir if mermaid_cfg.enabled else None,
+                mermaid_server=mermaid_cfg.server,
                 project_root=mkdocs_cfg.config_path.parent,
             )
             for ext, ok, err_msg in renderer.extension_load_results:

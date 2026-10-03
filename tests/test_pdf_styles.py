@@ -1,6 +1,6 @@
 """Tests for PDF CSS generation."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
@@ -25,7 +25,7 @@ def _make_git_info(
         branch="main",
         commit_hash="abc1234",
         commit_hash_full="abc1234567890abcdef1234567890abcdef123456",
-        commit_date=datetime(2025, 1, 15, tzinfo=timezone.utc),
+        commit_date=datetime(2025, 1, 15, tzinfo=UTC),
         is_dirty=False,
         tag=tag,
         tag_distance=tag_distance,

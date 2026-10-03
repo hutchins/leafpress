@@ -113,8 +113,10 @@ class MarkdownRenderer:
         docs_dir: Path,
         mermaid_output_dir: Path | None = None,
         project_root: Path | None = None,
+        mermaid_server: str | None = None,
     ) -> None:
         self._docs_dir = docs_dir
+        self._mermaid_server = mermaid_server
         # Directory that content may reference files from (the mkdocs.yml
         # directory). Anything outside it is treated as untrusted access.
         self._project_root = (project_root or docs_dir.parent).resolve()
@@ -341,4 +343,6 @@ class MarkdownRenderer:
 
         from leafpress.mermaid import render_mermaid_blocks
 
-        return render_mermaid_blocks(html, self._mermaid_output_dir, source_path)
+        return render_mermaid_blocks(
+            html, self._mermaid_output_dir, source_path, server=self._mermaid_server
+        )

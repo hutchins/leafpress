@@ -33,6 +33,9 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: Type check
+        run: uvx ty@0.0.84 check
+
       - name: Audit dependencies for known vulnerabilities
         run: |
           uv export --all-extras --all-groups --no-hashes --no-emit-project \

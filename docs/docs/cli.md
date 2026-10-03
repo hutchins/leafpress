@@ -55,6 +55,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
 | `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) |
 | `--footer-date` / `--no-footer-date` | _(config)_ | Include document generation date in footer |
+| `--mermaid` / `--no-mermaid` | _(config)_ | Render mermaid diagrams via the configured server. `--no-mermaid` keeps them as code blocks and sends nothing |
 | `--fetch-diagrams` | `false` | Fetch diagrams from external sources before converting |
 | `--verbose` | `false` | Show warnings, debug details, and full traceback on error |
 
