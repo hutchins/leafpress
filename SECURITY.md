@@ -21,4 +21,4 @@ leafpress often converts repositories the operator doesn't control: git URL sour
 - run code, or change how git and other tools run;
 - inject active content (scripts, event handlers) into generated documents, when HTML sanitizing is enabled.
 
-See [Remote Sources → Converting untrusted repositories](https://leafpress.dev/remote-sources/#converting-untrusted-repositories) for the protections in place. Bypasses of any of these are in scope.
+See [Remote Sources → Converting untrusted repositories](https://leafpress.dev/remote-sources/#converting-untrusted-repositories) for the protections in place. Bypasses of any of these are in scope, except the documented DNS-rebinding limitation of the internal-host check.

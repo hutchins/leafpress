@@ -182,9 +182,11 @@ leafpress often renders content from repositories the operator doesn't control. 
 
 | Module | Guards |
 |--------|--------|
-| `asset_policy.py` | `AssetPolicy` allowlist of local roots and files (symlinks resolved), `file_uri_to_path()`, `is_within()`, and `is_public_host()` / `is_public_http_url()` (blocks loopback, private, link-local, and reserved addresses) |
-| `pdf/url_fetcher.py` | `RestrictedURLFetcher` for WeasyPrint: `data:` URIs, policy-allowed `file://` paths, and public http(s) only. Each redirect hop is re-checked, and responses are capped at 50 MB |
-| `downloads.py` | `download()` for every other HTTP fetch (diagrams, Lucidchart, mermaid, DOCX logo, `import` from URL): http(s) only, streamed with a size cap, redirects re-validated, and an optional public-host requirement |
+| `asset_policy.py` | `AssetPolicy` allowlist of local roots and files (symlinks resolved), `file_uri_to_path()`, `is_within()`, and `is_public_host()` / `is_public_http_url()`. The host check blocks loopback, private, link-local, and reserved addresses, including IPv4 wrapped in IPv6 (NAT64, 6to4, Teredo, IPv4-mapped). DNS rebinding is a documented limitation |
+| `base_renderer.is_image_file()` | Content check (Pillow, or an `<svg` sniff). Only real images are embedded or fetched from disk, and only an image can be allowlisted as the logo |
+| `pdf/url_fetcher.py` | `RestrictedURLFetcher` for WeasyPrint: `data:` URIs, policy-allowed local images, and public http(s) via `downloads.fetch()` |
+| `downloads.py` | `fetch()` / `download()` for every HTTP request (PDF resources, diagrams, Lucidchart, mermaid, DOCX logo, `import` from URL): http(s) only, streamed with a size cap, redirects re-validated hop by hop, credentials dropped on cross-origin redirects, and an optional public-host requirement |
+| `pipeline.py` (config trust) | A leafpress.yml auto-detected inside a cloned repo is untrusted: `_confine_untrusted_logo()` drops a local `logo_path` outside the repo, and `mermaid.server` must be public. Operator `-c` configs and env vars stay trusted |
 | `sanitize.py` | `sanitize_html()` (nh3 allowlist tuned to MkDocs/Material output) and `should_sanitize()` precedence: CLI flag, then env var, then always on for cloned sources, then config |
 | `source.py` | `redact_url()` removes `user:token@` from anything printed or rendered |
 

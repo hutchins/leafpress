@@ -60,7 +60,7 @@ class TestConvertCommand:
         files = [tmp_path / "a.pdf", tmp_path / "a.docx"]
         with (
             patch("leafpress.pipeline.convert", return_value=files),
-            patch("leafpress.cli.convert._open_file") as opener,
+            patch("leafpress.cli.convert.open_file") as opener,
         ):
             result = runner.invoke(cli, ["convert", str(tmp_path), "--open"])
         assert result.exit_code == 0
@@ -213,13 +213,13 @@ def test_open_file_per_platform(
 ) -> None:
     import sys
 
-    from leafpress.cli import _files
+    from leafpress import opener
 
     monkeypatch.setattr(sys, "platform", "darwin" if system == "Darwin" else "linux")
     run = MagicMock()
     with (
-        patch.object(_files.platform, "system", return_value=system),
-        patch.object(_files.subprocess, "run", run),
+        patch.object(opener.platform, "system", return_value=system),
+        patch.object(opener.subprocess, "run", run),
     ):
-        _files._open_file(tmp_path / "a.pdf")
+        opener.open_file(tmp_path / "a.pdf")
     assert run.call_args.args[0] == [command, str(tmp_path / "a.pdf")]

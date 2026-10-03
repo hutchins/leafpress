@@ -13,9 +13,9 @@ enabled for any source (see :func:`should_sanitize`).
 
 from __future__ import annotations
 
-import os
-
 import nh3
+
+from leafpress.config import env_bool
 
 _ALLOWED_TAGS = {
     # Structure and text
@@ -101,9 +101,6 @@ def sanitize_html(html: str) -> str:
     )
 
 
-_BOOL_ENV = {"true": True, "1": True, "yes": True, "false": False, "0": False, "no": False}
-
-
 def should_sanitize(
     *,
     cli_override: bool | None,
@@ -124,7 +121,7 @@ def should_sanitize(
     """
     if cli_override is not None:
         return cli_override
-    env = _BOOL_ENV.get(os.environ.get("LEAFPRESS_SANITIZE_HTML", "").strip().lower())
+    env = env_bool("LEAFPRESS_SANITIZE_HTML")
     if env is not None:
         return env
     return untrusted_source or config_value

@@ -1,4 +1,8 @@
-"""Helpers for opening generated files with the system default application."""
+"""Open a file with the system's default application.
+
+Shared by the CLI (``convert --open``, ``import``) and the desktop UI so the
+Windows hardening (no ``cmd.exe``) lives in one place.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,7 @@ import sys
 from pathlib import Path
 
 
-def _open_file(path: Path) -> None:
+def open_file(path: Path) -> None:
     """Open a file with the system default application."""
     if sys.platform == "win32":
         # Opens via the shell association without spawning cmd.exe, so file

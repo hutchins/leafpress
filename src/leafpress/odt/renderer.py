@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -266,24 +267,12 @@ class OdtRenderer:
         master.addElement(footer_content)
         doc.masterstyles.addElement(master)
 
-    @staticmethod
-    def _is_svg(path: str) -> bool:
-        """Check if a path or URL points to an SVG file."""
-        clean = path.split("?")[0].split("#")[0]
-        return clean.lower().endswith(".svg")
-
     def _add_cover_page(self, doc: OpenDocumentText) -> None:
         """Add a branded cover page."""
         # Logo
         if self._branding and self._branding.logo_path:
             logo_path = self._branding.logo_path
-            if self._is_svg(logo_path):
-                logger.warning(
-                    "SVG logos are not supported in ODT output (odfpy only "
-                    "supports raster images like PNG/JPEG). Skipping logo: %s",
-                    logo_path,
-                )
-            elif not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
+            if not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
                 frame = self._image_frame(doc, Path(logo_path).resolve().as_uri())
                 if frame is not None:
                     p = P(stylename="Normal")
@@ -519,8 +508,9 @@ class OdtRenderer:
         """Build an inline picture frame for a ``file://`` image, or None to skip.
 
         ``addPicture`` embeds raw bytes without checking the file is an image,
-        so the path must be inside the project and must open as an image.
-        The frame keeps the image's aspect ratio (max 5.5in wide at 96 dpi).
+        so the path must be inside the project and must be a real image
+        (raster via Pillow, or SVG). The frame keeps the image's aspect ratio
+        (max 5.5in wide at 96 dpi).
         """
         image_path = file_uri_to_path(src)
         if image_path is None or not image_path.is_file():
@@ -528,12 +518,11 @@ class OdtRenderer:
         if not self._asset_policy.allows(image_path):
             logger.warning("Skipping image outside the project: %r", src)
             return None
-        try:
-            with PILImage.open(image_path) as im:
-                px_width, px_height = im.size
-        except Exception:
+        size = _image_pixel_size(image_path)
+        if size is None:
             logger.warning("Skipping unreadable or unsupported image in ODT: %r", src)
             return None
+        px_width, px_height = size
 
         width_in = min(5.5, px_width / 96)
         height_in = width_in * px_height / px_width if px_width else width_in
@@ -588,3 +577,60 @@ class OdtRenderer:
             doc.text.insertBefore(wm_para, doc.text.childNodes[0])
         else:
             doc.text.addElement(wm_para)
+
+
+_SVG_DEFAULT_SIZE = (528.0, 396.0)  # 5.5in x 4.125in at 96 dpi
+
+
+def _image_pixel_size(path: Path) -> tuple[float, float] | None:
+    """Pixel size of a raster image or SVG, or None if it isn't a usable image.
+
+    SVGs can't be measured by Pillow, so their size comes from the root
+    element's ``viewBox`` (or numeric ``width``/``height``), with a 4:3
+    default when neither is usable.
+    """
+    from leafpress.base_renderer import is_image_file
+
+    if not is_image_file(path):
+        return None
+    if path.suffix.lower() in (".svg", ".svgz"):
+        return _svg_size(path)
+    try:
+        with PILImage.open(path) as im:
+            return float(im.size[0]), float(im.size[1])
+    except Exception:
+        return None
+
+
+_SVG_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def _svg_size(path: Path) -> tuple[float, float]:
+    import gzip
+
+    try:
+        opener = gzip.open if path.suffix.lower() == ".svgz" else open
+        with opener(path, "rb") as f:
+            text = f.read(1024 * 1024).decode("utf-8", errors="replace")
+    except (OSError, EOFError):
+        return _SVG_DEFAULT_SIZE
+    root = re.search(r"<svg\b[^>]*>", text, re.IGNORECASE)
+    attrs = root.group(0) if root else ""
+    # (?<![\w-]) so stroke-width / data-width don't match width
+    view_box = re.search(r'(?<![\w-])viewBox\s*=\s*["\']([^"\']+)["\']', attrs)
+    if view_box:
+        numbers = [float(n) for n in _SVG_NUMBER.findall(view_box.group(1))]
+        if len(numbers) == 4 and numbers[2] > 0 and numbers[3] > 0:
+            return numbers[2], numbers[3]
+
+    def dimension(name: str) -> float | None:
+        match = re.search(rf'(?<![\w-]){name}\s*=\s*["\']\s*([\d.]+)\s*(?:px)?\s*["\']', attrs)
+        try:
+            return float(match.group(1)) if match else None
+        except ValueError:
+            return None
+
+    width, height = dimension("width"), dimension("height")
+    if width and height:
+        return width, height
+    return _SVG_DEFAULT_SIZE

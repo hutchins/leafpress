@@ -144,9 +144,6 @@ def _import_summary_table(outcomes: list[_ImportOutcome]) -> Table:
     return table
 
 
-_SUPPORTED_IMPORT_EXTENSIONS = SUPPORTED_IMPORT_EXTENSIONS
-
-
 _DOC_CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
@@ -195,11 +192,11 @@ def _download_import_file(url: str, dest_dir: Path) -> Path:
         raise LeafpressError(str(e)) from e
 
     # Fall back to Content-Type if URL has no recognized extension
-    if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
+    if ext not in SUPPORTED_IMPORT_EXTENSIONS:
         content_type = headers.get("content-type", "").split(";")[0].strip()
         ext = _DOC_CONTENT_TYPE_TO_EXT.get(content_type, ext)
 
-    if ext not in _SUPPORTED_IMPORT_EXTENSIONS:
+    if ext not in SUPPORTED_IMPORT_EXTENSIONS:
         raise LeafpressError(
             f"Cannot determine file type for {url}. "
             f"URL has no recognized extension and Content-Type "

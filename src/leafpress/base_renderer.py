@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import base64
+import functools
+import gzip
 import mimetypes
 import re
+import stat
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Protocol
@@ -86,6 +89,58 @@ def resolve_logo_uri(branding: BrandingConfig | None) -> str:
     return ""
 
 
+_SVG_SUFFIXES = {".svg", ".svgz"}
+# SVGs can start with a long XML prolog, DOCTYPE, or license comment
+_SVG_SNIFF_BYTES = 1024 * 1024
+
+
+def is_image_file(path: Path) -> bool:
+    """True if ``path`` is an existing image file, judged by content rather than name.
+
+    Raster images are anything Pillow can open and verify (PNG, JPEG, GIF,
+    WebP, TIFF, ICO, ... with or without an extension); SVGs are ``.svg`` /
+    ``.svgz`` files containing an ``<svg`` element. Results are cached per
+    (path, modification time, size), since every renderer asks about the
+    same files.
+    """
+    try:
+        resolved = path.resolve()
+        info = resolved.stat()
+    except (OSError, RuntimeError):
+        return False
+    if not stat.S_ISREG(info.st_mode):
+        return False
+    return _is_image_cached(str(resolved), info.st_mtime_ns, info.st_size)
+
+
+@functools.lru_cache(maxsize=2048)
+def _is_image_cached(path_str: str, mtime_ns: int, size: int) -> bool:
+    path = Path(path_str)
+    suffix = path.suffix.lower()
+    if suffix in _SVG_SUFFIXES:
+        try:
+            if suffix == ".svgz":
+                with gzip.open(path, "rb") as f:
+                    head = f.read(_SVG_SNIFF_BYTES)
+            else:
+                with path.open("rb") as f:
+                    head = f.read(_SVG_SNIFF_BYTES)
+        except (OSError, EOFError):
+            return False
+        return b"<svg" in head.lower()
+
+    from PIL import Image
+
+    try:
+        with Image.open(path) as img:
+            img.verify()
+    except Exception:
+        # Not an image, corrupt, or a decompression bomb (DecompressionBombError
+        # subclasses Exception directly): never treat it as embeddable.
+        return False
+    return True
+
+
 def build_asset_policy(
     mkdocs_cfg: MkDocsConfig,
     branding: BrandingConfig | None,
@@ -102,7 +157,10 @@ def build_asset_policy(
         branding
         and branding.logo_path
         and not branding.logo_path.startswith(("http://", "https://"))
+        and is_image_file(Path(branding.logo_path))
     ):
+        # Only a real image is allowlisted, so logo_path can't smuggle an
+        # arbitrary file (a key, /proc/self/environ) into the output.
         files.append(Path(branding.logo_path))
     roots = [mkdocs_cfg.config_path.parent, mkdocs_cfg.docs_dir, *extra_roots]
     return AssetPolicy(roots, files)
@@ -137,6 +195,10 @@ def rewrite_local_images(
             return f"{prefix}{quote}{quote}"
         if not path.is_file():
             return match.group(0)
+        if not is_image_file(path):
+            # Only real images are embedded: an <img> pointing at .env or a
+            # key inside the project must not be base64'd into the output.
+            return f"{prefix}{quote}{quote}"
         new_src = replace(path)
         return match.group(0) if new_src is None else f"{prefix}{quote}{new_src}{quote}"
 

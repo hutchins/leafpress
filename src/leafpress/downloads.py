@@ -9,6 +9,7 @@ and redirects are re-validated hop by hop.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -25,7 +26,25 @@ class DownloadError(Exception):
     """A download was refused or failed."""
 
 
-def download(
+@dataclass(frozen=True)
+class DownloadResult:
+    """A completed download: body, response headers, and final URL after redirects."""
+
+    body: bytes
+    headers: CaseInsensitiveDict[str]
+    url: str
+
+
+# Credentials that must not follow a redirect to a different origin
+_CREDENTIAL_HEADERS = {"authorization", "cookie", "proxy-authorization"}
+
+
+def _origin(url: str) -> tuple[str, str, int | None]:
+    parts = urlsplit(url)
+    return parts.scheme, (parts.hostname or "").lower(), parts.port
+
+
+def fetch(
     url: str,
     *,
     max_bytes: int,
@@ -33,15 +52,16 @@ def download(
     headers: Mapping[str, str] | None = None,
     params: Mapping[str, Any] | None = None,
     require_public_host: bool = False,
-) -> tuple[bytes, CaseInsensitiveDict[str]]:
-    """Download ``url`` into memory and return ``(body, response_headers)``.
+) -> DownloadResult:
+    """Download ``url`` into memory, following redirects safely.
 
     Args:
         url: http(s) URL to fetch.
         max_bytes: Refuse responses larger than this.
         timeout: Per-request timeout in seconds.
-        headers: Extra request headers.
-        params: Query parameters.
+        headers: Extra request headers. Credentials (``Authorization``,
+            ``Cookie``) are dropped if a redirect leads to another origin.
+        params: Query parameters (first request only).
         require_public_host: Refuse hosts that resolve to loopback, private,
             or link-local addresses (e.g. cloud metadata). Use this for URLs
             that come from content or config you may not control.
@@ -51,8 +71,9 @@ def download(
             many redirects, or a response over ``max_bytes``.
 
     Example:
-        >>> body, hdrs = download("https://example.com/logo.png", max_bytes=10_000_000)
+        >>> fetch("https://example.com/logo.png", max_bytes=10_000_000).body  # doctest: +SKIP
     """
+    request_headers = dict(headers or {})
     for _ in range(MAX_REDIRECTS + 1):
         parts = urlsplit(url)
         if parts.scheme not in ("http", "https"):
@@ -64,7 +85,7 @@ def download(
                 url,
                 stream=True,
                 timeout=timeout,
-                headers=dict(headers or {}),
+                headers=request_headers,
                 params=params,
                 allow_redirects=False,
             )
@@ -73,17 +94,50 @@ def download(
 
         with resp:
             if resp.is_redirect:
-                # requests drops Authorization on cross-host redirects itself;
-                # query params are already baked into the Location URL.
-                url = urljoin(url, resp.headers["Location"])
-                params = None
+                next_url = urljoin(url, resp.headers["Location"])
+                # Redirects are followed here, not by requests, so its own
+                # credential stripping doesn't apply: drop them ourselves when
+                # the origin changes (including an https -> http downgrade).
+                if _origin(next_url) != _origin(url):
+                    request_headers = {
+                        k: v
+                        for k, v in request_headers.items()
+                        if k.lower() not in _CREDENTIAL_HEADERS
+                    }
+                url = next_url
+                params = None  # already baked into the Location URL
                 continue
             try:
                 resp.raise_for_status()
             except requests.HTTPError as e:
                 raise DownloadError(f"Failed to download {url}: {e}") from e
-            return _read_capped(resp, url, max_bytes), resp.headers
+            return DownloadResult(_read_capped(resp, url, max_bytes), resp.headers, url)
     raise DownloadError(f"Too many redirects: {url}")
+
+
+def download(
+    url: str,
+    *,
+    max_bytes: int,
+    timeout: int = 30,
+    headers: Mapping[str, str] | None = None,
+    params: Mapping[str, Any] | None = None,
+    require_public_host: bool = False,
+) -> tuple[bytes, CaseInsensitiveDict[str]]:
+    """Like :func:`fetch`, returning just ``(body, response_headers)``.
+
+    Example:
+        >>> body, hdrs = download("https://example.com/logo.png", max_bytes=10_000_000)
+    """
+    result = fetch(
+        url,
+        max_bytes=max_bytes,
+        timeout=timeout,
+        headers=headers,
+        params=params,
+        require_public_host=require_public_host,
+    )
+    return result.body, result.headers
 
 
 def _read_capped(resp: requests.Response, url: str, max_bytes: int) -> bytes:

@@ -4,6 +4,16 @@
 
 ### Security
 
+- **Fixes from the pre-release code review:**
+    - A cloned repo's `leafpress.yml` could name any readable file as `logo_path` and have it embedded in HTML/PDF output. Local logos from an untrusted repo config must now be inside the repo, and only real images are ever allowlisted.
+    - Only real image files are embedded from disk (HTML/EPUB) or fetched by the PDF renderer, so page content can't pull in e.g. a CI workspace's `.env` via `<img>` or `rel="attachment"`.
+    - Downloads forwarded `Authorization`/`Cookie` headers across redirects to other hosts (e.g. the Lucidchart token following a redirect to a storage bucket); they are now dropped when the origin changes.
+    - A cloned repo's `mermaid.server` must be a public host; an operator-set `LEAFPRESS_MERMAID_SERVER` is still trusted.
+    - The internal-host check now unwraps IPv4 addresses tunnelled in IPv6 (NAT64, 6to4, Teredo, IPv4-mapped). DNS rebinding is documented as a known limitation.
+    - The PDF fetcher now uses the shared `requests`-based download helper instead of reimplementing redirects and size caps with urllib.
+    - **Monorepo `projects[].url` must be a git URL.** A local path there skipped the containment check that `path:` gets. For cloned repos, the URL's host must also be public, and `root:` is confined.
+    - A local project's `.env` settings are removed again after each conversion, so in the long-running desktop UI they no longer carry over into later runs. Previously they could switch off the untrusted-repo guards for a later git URL conversion.
+    - The internal-host check also unwraps IPv4-compatible (`::a.b.c.d`) and SIIT (`::ffff:0:a.b.c.d`) addresses.
 - Upgraded all locked dependencies to clear known advisories (`pip-audit` now reports none), including GitPython 3.1.62 (option-smuggling / config-injection RCEs during clone), pymdown-extensions 12.1 (`snippets` path traversal, ReDoS), WeasyPrint 70.0 (`url_fetcher` bypass), lxml 6.1 (XXE via default entity resolution), Pillow 12.3 (image parser memory corruption), urllib3 2.8 / requests 2.34, soupsieve, idna, and pygments
 - Raised minimum dependency versions in `pyproject.toml` so fresh installs can't resolve to vulnerable releases: `gitpython>=3.1.60`, `pymdown-extensions>=11.0.1`, `lxml>=6.1`, `requests>=2.33`, `pygments>=2.20`, `weasyprint>=70.0`
 - **Untrusted repository hardening.** Converting a repository you don't control (a git URL, monorepo `projects[].url`, or a CI checkout) can no longer read local files or reach internal hosts. See [Remote Sources](remote-sources.md#converting-untrusted-repositories)
@@ -57,6 +67,15 @@
 
 ### Fixes
 
+- Images from monorepo `url:` projects were lost because the clones were deleted before rendering; clones now live until output is written
+- Images elsewhere in a local source (e.g. a monorepo page using `../../shared/logo.png`) were blanked by the new confinement; the folder being converted is now an allowed root
+- SVG images are embedded in ODT again, sized from their `viewBox`, and so are SVG logos on the ODT cover. Units in `viewBox` no longer crash, and `stroke-width` is no longer mistaken for `width`
+- **Image detection hardened:**
+    - Images are detected by content: anything Pillow can open (TIFF, ICO, extensionless files, …) or an SVG, with up to 1 MB of prolog.
+    - Decompression bombs are rejected instead of crashing the conversion.
+    - Results are cached, so `-f all` checks each file once.
+- The desktop UI's import window no longer hangs if opening the result fails (e.g. no `xdg-open`)
+- A failed clone or missing source path left a duplicate console log handler attached (repeated warnings in the desktop UI)
 - **Desktop UI import:**
     - A failing file no longer aborts the rest of the batch.
     - Same-named files can no longer overwrite each other's output.

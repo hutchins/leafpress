@@ -77,7 +77,13 @@ def is_public_host(host: str) -> bool:
 
     Blocks loopback, private (RFC 1918 / ULA), link-local (including the
     169.254.169.254 cloud metadata endpoint), multicast, reserved, and
-    unspecified addresses. Unresolvable hosts are treated as not public.
+    unspecified addresses, including when reached through NAT64 or other
+    IPv4-in-IPv6 forms. Unresolvable hosts are treated as not public.
+
+    Known limitation: the name is resolved again when the connection is made,
+    so a DNS-rebinding host (public on the first lookup, internal on the
+    second) can still get through. Treat this as a strong guard for honest
+    misconfiguration and common SSRF payloads, not as a network firewall.
     """
     if not host:
         return False
@@ -88,10 +94,40 @@ def is_public_host(host: str) -> bool:
     if not infos:
         return False
     for info in infos:
-        addr = ipaddress.ip_address(str(info[4][0]).split("%", 1)[0])
+        addr = _embedded_ipv4(ipaddress.ip_address(str(info[4][0]).split("%", 1)[0]))
         if not addr.is_global or addr.is_multicast:
             return False
     return True
+
+
+_NAT64_PREFIX = ipaddress.IPv6Network("64:ff9b::/96")
+# SIIT IPv4-translated addresses (RFC 2765) and deprecated IPv4-compatible ones
+_SIIT_PREFIX = ipaddress.IPv6Network("::ffff:0:0:0/96")
+_IPV4_COMPATIBLE_PREFIX = ipaddress.IPv6Network("::/96")
+
+
+def _embedded_ipv4(
+    addr: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    """Return the IPv4 address an IPv6 address tunnels to, if any.
+
+    ``64:ff9b::7f00:1`` (NAT64) reaches 127.0.0.1 but Python reports it as
+    global, so IPv4-mapped, IPv4-compatible, SIIT, NAT64, 6to4, and Teredo
+    addresses are checked by the IPv4 address they carry.
+    """
+    if isinstance(addr, ipaddress.IPv4Address):
+        return addr
+    if addr.ipv4_mapped is not None:
+        return addr.ipv4_mapped
+    if addr in _NAT64_PREFIX or addr in _SIIT_PREFIX:
+        return ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+    if addr in _IPV4_COMPATIBLE_PREFIX and int(addr) > 1:  # not :: or ::1
+        return ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+    if addr.sixtofour is not None:
+        return addr.sixtofour
+    if addr.teredo is not None:
+        return addr.teredo[1]
+    return addr
 
 
 def is_public_http_url(url: str) -> bool:
