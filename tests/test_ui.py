@@ -128,3 +128,157 @@ def test_convert_worker_passes_options(tmp_path: Path) -> None:
     assert kwargs["branch"] == "main" and kwargs["watermark"] == "DRAFT"
     assert kwargs["mermaid"] is False and kwargs["sanitize_html"] is None
     assert finished == [(True, "Generated 0 file(s).")]
+
+
+# ---------------------------------------------------------------------------
+# Window interactions (dialogs patched out)
+# ---------------------------------------------------------------------------
+
+
+class TestConvertWindow:
+    def test_empty_source_warns_and_does_not_start(self) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.LeafpressWindow()
+        with (
+            patch.object(ui.QMessageBox, "warning") as warn,
+            patch.object(ui, "ConvertWorker") as worker,
+        ):
+            window._run_convert()
+        warn.assert_called_once()
+        worker.assert_not_called()
+
+    def test_run_starts_worker_with_form_values(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.LeafpressWindow()
+        window._source.setText(str(tmp_path))
+        window._output.setText(str(tmp_path / "out"))
+        window._config.setText(str(tmp_path / "leafpress.yml"))
+        window._format.setCurrentText("html")
+        window._toc.setChecked(False)
+        with patch.object(ui, "ConvertWorker") as worker:
+            window._run_convert()
+        kwargs = worker.call_args.kwargs
+        assert kwargs["source"] == str(tmp_path)
+        assert kwargs["fmt"] == "html" and kwargs["include_toc"] is False
+        assert kwargs["config_path"] == tmp_path / "leafpress.yml"
+        worker.return_value.start.assert_called_once()
+        assert not window._convert_btn.isEnabled()
+
+    def test_finished_shows_result_and_reenables(self) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.LeafpressWindow()
+        window._convert_btn.setEnabled(False)
+        with (
+            patch.object(ui.QMessageBox, "information") as info,
+            patch.object(ui.QMessageBox, "critical") as crit,
+        ):
+            window._on_finished(True, "Generated 1 file(s).")
+            window._on_finished(False, "boom")
+        info.assert_called_once()
+        crit.assert_called_once()
+        assert window._convert_btn.isEnabled()
+
+    def test_browse_fills_fields(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.LeafpressWindow()
+        with (
+            patch.object(ui.QFileDialog, "getExistingDirectory", return_value=str(tmp_path)),
+            patch.object(
+                ui.QFileDialog, "getOpenFileName", return_value=(str(tmp_path / "l.yml"), "")
+            ),
+        ):
+            window._browse_source()
+            window._browse_output()
+            window._browse_config()
+        assert window._source.text() == str(tmp_path)
+        assert window._output.text() == str(tmp_path)
+        assert window._config.text() == str(tmp_path / "l.yml")
+
+    def test_worker_reports_errors(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui.app import ConvertWorker
+
+        worker = ConvertWorker(
+            source=str(tmp_path),
+            output_dir=tmp_path,
+            fmt="pdf",
+            config_path=None,
+            cover_page=True,
+            include_toc=True,
+        )
+        finished: list[tuple[bool, str]] = []
+        worker.finished.connect(lambda ok, msg: finished.append((ok, msg)))
+        with patch("leafpress.pipeline.convert", side_effect=RuntimeError("nope")):
+            worker.run()
+        assert finished == [(False, "nope")]
+
+
+class TestImportWindow:
+    def test_no_files_warns(self) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.ImportWindow()
+        with (
+            patch.object(ui.QMessageBox, "warning") as warn,
+            patch.object(ui, "ImportWorker") as worker,
+        ):
+            window._run_import()
+        warn.assert_called_once()
+        worker.assert_not_called()
+
+    def test_browse_and_run(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        window = ui.ImportWindow()
+        files = [str(tmp_path / "a.docx"), str(tmp_path / "b.tex")]
+        with (
+            patch.object(ui.QFileDialog, "getOpenFileNames", return_value=(files, "")),
+            patch.object(ui.QFileDialog, "getExistingDirectory", return_value=str(tmp_path)),
+            patch.object(ui, "ImportWorker") as worker,
+        ):
+            window._browse_files()
+            window._browse_output()
+            window._run_import()
+        assert window._files.text() == "a.docx, b.tex"
+        kwargs = worker.call_args.kwargs
+        assert kwargs["files"] == [Path(f) for f in files]
+        assert kwargs["output_dir"] == tmp_path
+        worker.return_value.start.assert_called_once()
+
+
+class TestTray:
+    def test_menu_and_actions(self) -> None:
+        from unittest.mock import patch
+
+        from leafpress.ui import app as ui
+
+        tray = ui.LeafpressTray(QtWidgets.QApplication.instance())
+        labels = [a.text() for a in tray.contextMenu().actions() if a.text()]
+        assert labels == ["Open leafpress", "Import files...", "About leafpress", "Quit leafpress"]
+        tray._show_window()
+        assert tray._window.isVisible()
+        tray._show_import()
+        assert tray._import_window.isVisible()
+        tray._on_activated(ui.QSystemTrayIcon.ActivationReason.Trigger)
+        with patch.object(ui.QMessageBox, "about") as about:
+            tray._show_about()
+        assert "leafpress" in about.call_args.args[2]
+        tray._window.close()
+        tray._import_window.close()

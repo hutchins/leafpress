@@ -148,3 +148,56 @@ def test_docker_convert_env_vars(docker_image, tmp_path):
     assert result.returncode == 0, f"Convert failed:\n{result.stderr}"
     pdf_files = list(output.glob("*.pdf"))
     assert len(pdf_files) >= 1
+
+
+def test_docker_non_root_user_with_git_version(docker_image, tmp_path):
+    """Running as the host user works, output is owned by it, and git info is read.
+
+    The mounted repo is owned by a different UID than the container user, so
+    this depends on the image marking mounts as a git safe.directory.
+    """
+    import os
+    import shutil
+
+    project = tmp_path / "project"
+    shutil.copytree(REPO_ROOT / "tests" / "fixtures" / "sample_mkdocs_project", project)
+    git = ["git", "-C", str(project), "-c", "user.email=t@example.com", "-c", "user.name=t"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-qm", "init"], check=True)
+    subprocess.run([*git, "tag", "v9.8.7"], check=True)
+    output = project / "out"
+
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-v",
+            f"{project}:/work",
+            docker_image,
+            "convert",
+            "/work",
+            "-f",
+            "markdown",
+            "-o",
+            "/work/out",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, f"Convert failed:\n{result.stdout}\n{result.stderr}"
+    assert "v9.8.7" in result.stdout  # git version detected despite UID mismatch
+    generated = list(output.glob("*.md"))
+    assert generated
+    assert generated[0].stat().st_uid == os.getuid()
+
+
+def test_docker_image_has_unprivileged_user(docker_image):
+    result = _docker_run("--user", "leafpress", "--entrypoint", "id", entrypoint_args=[])
+    # entrypoint_args is appended after the image name; "id" prints the user
+    assert result.returncode == 0, result.stderr
+    assert "uid=10001(leafpress)" in result.stdout
