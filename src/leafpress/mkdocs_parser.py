@@ -94,7 +94,8 @@ def parse_mkdocs_config(config_path: Path) -> MkDocsConfig:
     else:
         try:
             with open(config_path) as f:
-                raw = yaml.load(f, Loader=_MkDocsLoader)
+                # _MkDocsLoader subclasses SafeLoader (python/* tags -> strings)
+                raw = yaml.load(f, Loader=_MkDocsLoader)  # noqa: S506
         except yaml.YAMLError as e:
             raise ConfigError(f"Invalid YAML in {config_path}: {e}") from e
 

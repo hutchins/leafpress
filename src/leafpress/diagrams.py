@@ -157,7 +157,8 @@ def fetch_diagrams(
         if source.url:
             fetch_url(source.url, dest)
         else:
-            assert source.lucidchart is not None and token is not None
+            if source.lucidchart is None or token is None:  # guaranteed by the loop above
+                raise DiagramError(f"Lucidchart source missing document ID or token: {source.dest}")
             fetch_lucidchart(source.lucidchart, dest, token, source.page)
         return dest
 

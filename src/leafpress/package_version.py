@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _VCS_MARKERS = frozenset({".git", ".svn"})
 
@@ -112,9 +115,10 @@ def _from_pom_xml(project_dir: Path) -> str | None:
     if not path.exists():
         return None
     try:
-        import xml.etree.ElementTree as ET
+        # defusedxml: manifests may come from an untrusted cloned repository
+        from defusedxml import ElementTree as SafeET
 
-        tree = ET.parse(path)
+        tree = SafeET.parse(path)
         root = tree.getroot()
         # pom.xml uses a default namespace
         ns = root.tag.split("}")[0].lstrip("{") if "}" in root.tag else ""
@@ -122,8 +126,8 @@ def _from_pom_xml(project_dir: Path) -> str | None:
         ver_el = root.find(f"{prefix}version")
         if ver_el is not None and ver_el.text:
             return ver_el.text.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Could not read version from %s: %s", project_dir, exc)
     return None
 
 
@@ -150,8 +154,8 @@ def _from_pubspec_yaml(project_dir: Path) -> str | None:
         if isinstance(data, dict):
             ver = data.get("version")
             return str(ver) if ver else None
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Could not read version from %s: %s", project_dir, exc)
     return None
 
 
@@ -160,14 +164,15 @@ def _from_csproj(project_dir: Path) -> str | None:
     if not csproj_files:
         return None
     try:
-        import xml.etree.ElementTree as ET
+        # defusedxml: manifests may come from an untrusted cloned repository
+        from defusedxml import ElementTree as SafeET
 
-        tree = ET.parse(csproj_files[0])
+        tree = SafeET.parse(csproj_files[0])
         root = tree.getroot()
         for tag in ("Version", "VersionPrefix"):
             el = root.find(f"./PropertyGroup/{tag}")
             if el is not None and el.text:
                 return el.text.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Could not read version from %s: %s", project_dir, exc)
     return None

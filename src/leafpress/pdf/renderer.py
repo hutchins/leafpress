@@ -83,7 +83,8 @@ class PdfRenderer:
                 page_tmpl.render(
                     title=item.title,
                     level=item.level,
-                    content=Markup(html_content),
+                    # Rendered page HTML (sanitized for untrusted sources)
+                    content=Markup(html_content),  # noqa: S704
                     is_section_header=(item.path is None),
                 )
             )

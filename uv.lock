@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -545,6 +545,7 @@ version = "0.8.3"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
+    { name = "defusedxml" },
     { name = "ebooklib" },
     { name = "gitpython" },
     { name = "jinja2" },
@@ -595,6 +596,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12" },
+    { name = "defusedxml", specifier = ">=0.7" },
     { name = "ebooklib", specifier = ">=0.18" },
     { name = "gitpython", specifier = ">=3.1.60" },
     { name = "jinja2", specifier = ">=3.1" },

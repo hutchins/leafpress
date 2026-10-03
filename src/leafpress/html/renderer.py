@@ -88,7 +88,8 @@ class HtmlRenderer:
                 page_tmpl.render(
                     title=item.title,
                     level=item.level,
-                    content=Markup(html_content),
+                    # Rendered page HTML (sanitized for untrusted sources)
+                    content=Markup(html_content),  # noqa: S704
                     is_section_header=(item.path is None),
                     page_id=make_anchor_id(item.title),
                 )
@@ -103,7 +104,9 @@ class HtmlRenderer:
         if self._branding is None or self._branding.footer.include_render_date:
             footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
         footer_parts.append("Made with LeafPress")
-        footer_text = " &middot; ".join(footer_parts)
+        # Markup.join escapes each part: custom_text comes from leafpress.yml
+        # (possibly an untrusted repo's) and the branch name from git
+        footer_text = Markup(" &middot; ").join(footer_parts)
 
         # Build watermark HTML
         watermark_html = ""
@@ -117,15 +120,17 @@ class HtmlRenderer:
         # Render full document
         doc_tmpl = self._jinja.get_template("document.html.j2")
         site_name = self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
+        # Each piece below is already-escaped output of an autoescaping Jinja
+        # template, generated CSS, or explicitly escaped/Markup-joined text.
         full_html = doc_tmpl.render(
             site_name=site_name,
-            css=Markup(css),
-            cover=Markup(cover_html),
-            toc=Markup(toc_html),
-            sections=Markup("\n".join(sections)),
-            footer_text=Markup(footer_text),
+            css=Markup(css),  # noqa: S704
+            cover=Markup(cover_html),  # noqa: S704
+            toc=Markup(toc_html),  # noqa: S704
+            sections=Markup("\n".join(sections)),  # noqa: S704
+            footer_text=footer_text,
             nav_items=html_pages,
-            watermark=Markup(watermark_html),
+            watermark=Markup(watermark_html),  # noqa: S704
         )
 
         # Post-process checkboxes

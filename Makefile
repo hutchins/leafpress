@@ -1,17 +1,20 @@
-.PHONY: tests lint format typecheck setup-hooks
+.PHONY: tests lint format typecheck secrets setup-hooks
 
 tests: lint typecheck
 	uv run pytest tests/ -v
 
 lint:
-	uv run ruff check src/ tests/
+	uv run ruff check .
 
 format:
-	uv run ruff check --fix src/ tests/
-	uv run ruff format src/ tests/
+	uv run ruff check --fix .
+	uv run ruff format .
 
 typecheck:
-	uv run ty check
+	uvx ty@0.0.84 check
+
+secrets:
+	gitleaks git . --redact --no-banner
 
 setup-hooks:
 	git config core.hooksPath .githooks

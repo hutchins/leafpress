@@ -4,6 +4,8 @@
 
 ### Security
 
+- **HTML/EPUB footer injection:** `footer.custom_text` and the git branch name were joined into the HTML and EPUB footers without escaping, so a cloned repo's `leafpress.yml` could inject `<script>` even with `--sanitize-html`. Each part is now escaped. (Found by ruff's bandit-style `S704` rule.)
+- `pom.xml` / `.csproj` version detection parses with `defusedxml`, since these manifests can come from an untrusted cloned repository
 - **Fixes from the pre-release code review:**
     - A cloned repo's `leafpress.yml` could name any readable file as `logo_path` and have it embedded in HTML/PDF output. Local logos from an untrusted repo config must now be inside the repo, and only real images are ever allowlisted.
     - Only real image files are embedded from disk (HTML/EPUB) or fetched by the PDF renderer, so page content can't pull in e.g. a CI workspace's `.env` via `<img>` or `rel="attachment"`.
@@ -124,6 +126,9 @@
 
 ### Tooling
 
+- **Pre-commit hook** (`make setup-hooks`): gitleaks on staged changes, `ruff check` (now including the bandit-style `S` security rules), `ruff format --check`, and `ty` at the CI-pinned version
+- **CI:** new `secrets` job runs a checksum-verified gitleaks over the full git history
+- `make lint`/`format` cover the whole repo, `make typecheck` uses the pinned `ty`, and a new `make secrets` target runs a full-history gitleaks scan
 - **Test coverage raised to 94.9% of lines and 88.1% of branches** (1,020 tests):
     - New end-to-end integration suite: a malicious repository converted to every format leaks nothing; images and mermaid are embedded in every format; CLI flags reach the output; a multi-file LaTeX import runs through the CLI.
     - Docker tests cover running as the host user with git version detection.
