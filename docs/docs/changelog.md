@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- Upgraded all locked dependencies to clear known advisories (`pip-audit` now reports none), including GitPython 3.1.62 (option-smuggling / config-injection RCEs during clone), pymdown-extensions 12.1 (`snippets` path traversal, ReDoS), WeasyPrint 70.0 (`url_fetcher` bypass), lxml 6.1 (XXE via default entity resolution), Pillow 12.3 (image parser memory corruption), urllib3 2.8 / requests 2.34, soupsieve, idna, and pygments
+- Raised minimum dependency versions in `pyproject.toml` so fresh installs can't resolve to vulnerable releases: `gitpython>=3.1.60`, `pymdown-extensions>=11.0.1`, `lxml>=6.1`, `requests>=2.33`, `pygments>=2.20`, `weasyprint>=70.0`
+- Note: pymdown-extensions 12 rewrote BetterEm/Tilde/Caret/Mark emphasis parsing to be CommonMark compliant — mid-word `~~`, `^^`, and `==` are now allowed by default, and edge cases of nested emphasis may render slightly differently
+
+---
+
 ## 0.8.2 — 2026-04-25
 
 ### Tests
