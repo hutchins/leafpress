@@ -16,7 +16,7 @@ leafpress convert /path/to/project -f all -o dist/
 
 The EPUB output includes:
 
-- **Cover page** — branded title, version, author, and date as the first chapter
+- **Cover page** — branded title, logo, version, author, and date as the first chapter
 - **Table of contents** — EPUB navigation with sections and chapters
 - **All content** — rendered from your Markdown with syntax highlighting, tables, admonitions, and task lists
 - **Embedded CSS** — styled with your branding colors and readable typography
@@ -26,7 +26,7 @@ The EPUB output includes:
 
 | Feature | Supported |
 |---|---|
-| Branding (colors, company) | Yes |
+| Branding (logo, colors, company) | Yes |
 | Cover page | Yes |
 | Table of contents | Yes |
 | Syntax highlighting (Pygments) | Yes |
@@ -58,7 +58,8 @@ The EPUB output uses your branding config for:
 - **Primary color** — headings, links, TOC accents
 - **Company/project name** — cover page title
 - **Author** — EPUB metadata and cover page
-- **Footer** — git info, custom text
+- **Logo** — packaged inside the EPUB and shown on the cover page
+- **Footer** — the same fields as every other format ([Branding → Footer](branding.md#footer))
 
 The CSS is optimized for e-reader displays with serif typography and comfortable line spacing.
 

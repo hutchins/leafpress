@@ -80,16 +80,6 @@ def make_anchor_id(title: str) -> str:
     return re.sub(r"[\s]+", "-", slug).strip("-")
 
 
-def resolve_logo_uri(branding: BrandingConfig | None) -> str:
-    """Get a URI for the logo (http(s):// or file://), or empty string."""
-    if branding and branding.logo_path:
-        logo = branding.logo_path
-        if logo.startswith(("http://", "https://")):
-            return logo
-        return Path(logo).resolve().as_uri()
-    return ""
-
-
 _SVG_SUFFIXES = {".svg", ".svgz"}
 # SVGs can start with a long XML prolog, DOCTYPE, or license comment
 _SVG_SNIFF_BYTES = 1024 * 1024

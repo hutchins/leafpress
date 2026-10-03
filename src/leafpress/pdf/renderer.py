@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
@@ -11,10 +10,12 @@ from markupsafe import Markup
 from weasyprint import CSS, HTML
 
 from leafpress.asset_policy import AssetPolicy
-from leafpress.base_renderer import build_asset_policy, replace_checkboxes, resolve_logo_uri
+from leafpress.base_renderer import build_asset_policy, replace_checkboxes
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import CoverFields, render_time
 from leafpress.exceptions import RenderError
 from leafpress.git_info import GitVersion
+from leafpress.logo import load_logo
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 from leafpress.pdf.styles import generate_pdf_css
 from leafpress.render_errors import format_render_error
@@ -51,26 +52,17 @@ class PdfRenderer:
     ) -> None:
         """Compose all pages into a single HTML document and render to PDF."""
         sections_html: list[str] = []
-        now = datetime.now() if local_time else datetime.now(UTC)
+        now = render_time(local_time)
 
         if cover_page:
+            cover = CoverFields.build(self._branding, self._mkdocs_cfg.site_name, now)
+            logo = load_logo(self._branding)
             cover_tmpl = self._jinja.get_template("cover.html.j2")
             sections_html.append(
                 cover_tmpl.render(
-                    company_name=(self._branding.company_name if self._branding else ""),
-                    project_name=(
-                        self._branding.project_name
-                        if self._branding
-                        else self._mkdocs_cfg.site_name
-                    ),
-                    subtitle=self._branding.subtitle if self._branding else "",
-                    logo_path=resolve_logo_uri(self._branding),
+                    **cover.template_context(),
+                    logo_path=logo.data_uri() if logo else "",
                     git_info=self._git_info,
-                    author=self._branding.author if self._branding else "",
-                    author_email=self._branding.author_email if self._branding else "",
-                    document_owner=self._branding.document_owner if self._branding else "",
-                    review_cycle=self._branding.review_cycle if self._branding else "",
-                    date=now.strftime("%B %d, %Y"),
                 )
             )
 

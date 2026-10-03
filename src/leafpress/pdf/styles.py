@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from importlib.resources import files
 
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import FOOTER_SEPARATOR, render_time
+from leafpress.document_meta import footer_parts as document_footer_parts
 from leafpress.git_info import GitVersion
 
 
@@ -73,34 +74,9 @@ def _build_page_rules(
         top_left = branding.company_name
         top_right = branding.project_name
 
-    # Footer content
-    footer_parts: list[str] = []
-    if branding and branding.footer.custom_text:
-        footer_parts.append(branding.footer.custom_text)
-    if branding and branding.footer.repo_url:
-        footer_parts.append(branding.footer.repo_url)
-    if git_info:
-        version_parts: list[str] = []
-        if (branding is None or branding.footer.include_tag) and git_info.tag:
-            if git_info.tag_distance and git_info.tag_distance > 0:
-                version_parts.append(f"{git_info.tag}+{git_info.tag_distance}")
-            else:
-                version_parts.append(git_info.tag)
-        if branding is None or branding.footer.include_commit:
-            version_parts.append(git_info.commit_hash)
-        if branding is None or branding.footer.include_date:
-            version_parts.append(git_info.commit_date.strftime("%Y-%m-%d"))
-        if branding and branding.footer.include_branch:
-            version_parts.append(git_info.branch)
-        if version_parts:
-            footer_parts.append(" | ".join(version_parts))
-
-    if branding is None or branding.footer.include_render_date:
-        now = datetime.now() if local_time else datetime.now(UTC)
-        footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
-
-    footer_parts.append("Made with LeafPress · leafpress.dev")
-    footer_center = " - ".join(footer_parts)
+    # Footer content (shared with every other format)
+    footer_parts = document_footer_parts(branding, git_info, render_time(local_time))
+    footer_center = FOOTER_SEPARATOR.join(footer_parts)
 
     # Escape for CSS content strings (values may come from an untrusted leafpress.yml)
     top_left = _css_string_escape(top_left)
