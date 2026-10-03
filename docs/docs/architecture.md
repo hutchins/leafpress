@@ -71,7 +71,7 @@ See [Security Layer](#security-layer).
 
 **Module:** `src/leafpress/config.py`
 
-`BrandingConfig` is a Pydantic model that defines all branding fields (company name, logo, colors, footer options, watermark, etc.). Configuration is loaded from `leafpress.yml` via `load_config()`, with every field overridable via `LEAFPRESS_*` environment variables through `_apply_env_overrides()`.
+`BrandingConfig` is a Pydantic model that defines all branding fields (company name, logo, colors, footer options, watermark, etc.). Configuration is loaded from `leafpress.yml` via `load_config()`, with the top-level, footer, and watermark fields (plus the Lucidchart token) overridable via `LEAFPRESS_*` environment variables through `_apply_env_overrides()`. The `pdf`, `docx`, `diagrams` sources, and `projects` sections are YAML-only.
 
 `config_from_env()` can build a complete config purely from environment variables when no YAML file is available. `resolve_mermaid_config()` combines the `mermaid:` settings from YAML, env vars, and the `--mermaid` flag, and applies even without a `leafpress.yml`.
 
@@ -186,7 +186,7 @@ leafpress often renders content from repositories the operator doesn't control. 
 | `base_renderer.is_image_file()` | Content check (Pillow, or an `<svg` sniff). Only real images are embedded or fetched from disk, and only an image can be allowlisted as the logo |
 | `pdf/url_fetcher.py` | `RestrictedURLFetcher` for WeasyPrint: `data:` URIs, policy-allowed local images, and public http(s) via `downloads.fetch()` |
 | `downloads.py` | `fetch()` / `download()` for every HTTP request (PDF resources, diagrams, Lucidchart, mermaid, DOCX logo, `import` from URL): http(s) only, streamed with a size cap, redirects re-validated hop by hop, credentials dropped on cross-origin redirects, and an optional public-host requirement |
-| `pipeline.py` (config trust) | A leafpress.yml auto-detected inside a cloned repo is untrusted: `_confine_untrusted_logo()` drops a local `logo_path` outside the repo, and `mermaid.server` must be public. Operator `-c` configs and env vars stay trusted |
+| `pipeline.py` (config trust) | A leafpress.yml auto-detected inside a cloned repo is untrusted: `_confine_untrusted_paths()` drops a local `logo_path` or `docx.template_path` outside the repo, and `mermaid.server` must be public. Operator `-c` configs and env vars stay trusted |
 | `sanitize.py` | `sanitize_html()` (nh3 allowlist tuned to MkDocs/Material output) and `should_sanitize()` precedence: CLI flag, then env var, then always on for cloned sources, then config |
 | `source.py` | `redact_url()` removes `user:token@` from anything printed or rendered |
 
@@ -275,7 +275,7 @@ Shared by the DOCX, PPTX, and LaTeX importers. `ImageHandler` manages an output 
 
 | Layer | Files | Purpose |
 |-------|-------|---------|
-| **CLI** | `cli/` (`app.py`, `convert.py`, `import_cmd.py`, `fetch_diagrams.py`, `info.py`, `init.py`, `doctor.py`, `ui.py`, `_files.py`) | One module per command; `cli/__init__.py` registers them in `--help` order |
+| **CLI** | `cli/` (`app.py`, `convert.py`, `import_cmd.py`, `fetch_diagrams.py`, `info.py`, `init.py`, `doctor.py`, `ui.py`) | One module per command; `cli/__init__.py` registers them in `--help` order. `opener.py` (shared with the UI) opens generated files |
 | **Desktop UI** | `ui/app.py` | PyQt6 menu bar / tray app with convert and import windows |
 | **Orchestration** | `pipeline.py` | Coordinates all stages of conversion |
 | **Input** | `source.py`, `project.py` | Source resolution, project auto-detection |

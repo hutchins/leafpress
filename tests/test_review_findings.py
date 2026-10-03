@@ -679,3 +679,62 @@ def test_all_renderers_match_base_renderer_contract() -> None:
         params = inspect.signature(cls.__init__).parameters
         assert {"branding", "git_info", "mkdocs_cfg", "asset_policy"} <= set(params), cls
         assert "render" in vars(cls), cls
+
+
+# ===========================================================================
+# Docs review: code issues
+# ===========================================================================
+
+
+def _make_docx(path: Path, text: str) -> None:
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph(text)
+    doc.save(str(path))
+
+
+def test_untrusted_docx_template_outside_clone_ignored(repo: Path, tmp_path: Path) -> None:
+    from leafpress import pipeline
+
+    _make_docx(tmp_path / "private.docx", SECRET)
+    (repo / "leafpress.yml").write_text(
+        f"company_name: A\nproject_name: B\ndocx:\n  template_path: {tmp_path / 'private.docx'}\n"
+    )
+    with patch.object(pipeline, "resolve_source", return_value=_Clone(repo)):
+        convert("https://example.com/r.git", tmp_path / "o", format="docx", mermaid=False)
+    with zipfile.ZipFile(next((tmp_path / "o").glob("*.docx"))) as z:
+        assert SECRET not in z.read("word/document.xml").decode()
+
+
+def test_docx_template_path_relative_to_config(tmp_path: Path, monkeypatch) -> None:
+    from leafpress.config import load_config
+
+    (tmp_path / "cfg").mkdir()
+    _make_docx(tmp_path / "cfg" / "template.docx", "x")
+    (tmp_path / "cfg" / "leafpress.yml").write_text(
+        "company_name: A\nproject_name: B\ndocx:\n  template_path: template.docx\n"
+    )
+    monkeypatch.chdir(tmp_path)  # not the config's directory
+    cfg = load_config(tmp_path / "cfg" / "leafpress.yml")
+    assert Path(cfg.docx.template_path) == (tmp_path / "cfg" / "template.docx").resolve()
+
+
+def test_local_time_env_var(repo: Path, tmp_path: Path, monkeypatch) -> None:
+
+    seen: dict[str, bool] = {}
+    from leafpress.markdown_export import renderer as md_export
+
+    original = md_export.MarkdownExportRenderer.render
+
+    def spy(self, *args, **kwargs):
+        seen["local_time"] = kwargs.get("local_time")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(md_export.MarkdownExportRenderer, "render", spy)
+    monkeypatch.setenv("LEAFPRESS_LOCAL_TIME", "true")
+    convert(str(repo), tmp_path / "o", format="markdown", mermaid=False)
+    assert seen["local_time"] is True
+    monkeypatch.setenv("LEAFPRESS_LOCAL_TIME", "false")
+    convert(str(repo), tmp_path / "o2", format="markdown", mermaid=False)
+    assert seen["local_time"] is False

@@ -8,7 +8,7 @@ LeafPress branding is configured via a `leafpress.yml` file in your project root
 leafpress init
 ```
 
-This creates a `leafpress.yml` in the current directory with all available fields commented.
+This creates a `leafpress.yml` in the current directory with the common fields filled in and the optional sections (watermark, mermaid, sanitizing, diagrams, monorepo projects) commented out.
 
 ## Full configuration reference
 
@@ -35,7 +35,7 @@ accent_color: "#ffffff"          # default: #ffffff
 # Footer options
 footer:
   include_tag: true             # show git tag in footer (default: true)
-  include_date: true            # show build date (default: true)
+  include_date: true            # show the HEAD commit date (default: true)
   include_commit: true          # show commit hash (default: true)
   include_branch: false         # show branch name (default: false)
   include_render_date: false    # append generation date to footer
@@ -44,7 +44,7 @@ footer:
 
 # PDF-specific options
 pdf:
-  page_size: "A4"               # A4 or Letter (default: A4)
+  page_size: "A4"               # any CSS page size, e.g. A4, Letter (default: A4)
   margin_top: "25mm"
   margin_bottom: "25mm"
   margin_left: "20mm"
@@ -95,13 +95,13 @@ diagrams:
 |-------|------|---------|-------------|
 | `company_name` | string | — | Company or organization name (required) |
 | `project_name` | string | — | Project or document title (required) |
-| `logo_path` | string | `null` | Path to logo image or `https://` URL (PNG/JPEG recommended; SVG works in PDF/HTML but not DOCX/ODT) |
+| `logo_path` | string | `null` | Path to logo image or `https://` URL (PNG/JPEG recommended; SVG works in PDF/HTML/ODT but not DOCX) |
 | `subtitle` | string | `null` | Subtitle shown on cover page |
 | `author` | string | `null` | Author name |
 | `author_email` | string | `null` | Author email |
 | `document_owner` | string | `null` | Document owner shown on cover page |
 | `review_cycle` | string | `null` | Review cycle shown on cover page (e.g. "Quarterly") |
-| `copyright_text` | string | `null` | Copyright line on cover page |
+| `copyright_text` | string | `null` | Copyright notice stored in EPUB metadata (`dc:rights`). Not shown on cover pages |
 | `primary_color` | hex string | `#1a73e8` | Primary brand color (6-digit hex) |
 | `accent_color` | hex string | `#ffffff` | Accent/background color (6-digit hex) |
 | `sanitize_html` | bool | `false` | Strip scripts, event handlers, and other active content from page HTML. Always on for repositories cloned from a git URL, regardless of this setting (see [Remote Sources](remote-sources.md#converting-untrusted-repositories)) |
@@ -111,7 +111,7 @@ diagrams:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `include_tag` | bool | `true` | Include git tag in footer |
-| `include_date` | bool | `true` | Include build date |
+| `include_date` | bool | `true` | Include the HEAD commit date |
 | `include_commit` | bool | `true` | Include short commit hash |
 | `include_branch` | bool | `false` | Include branch name |
 | `include_render_date` | bool | `false` | Append document generation date to footer |
@@ -122,7 +122,7 @@ diagrams:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `page_size` | string | `A4` | Page size (`A4` or `Letter`) |
+| `page_size` | string | `A4` | Any CSS page size, e.g. `A4`, `Letter`, `A5`, or `"210mm 297mm"` |
 | `margin_top` | string | `25mm` | Top margin |
 | `margin_bottom` | string | `25mm` | Bottom margin |
 | `margin_left` | string | `20mm` | Left margin |
@@ -308,9 +308,9 @@ Section headings from the sub-project's `nav` in `mkdocs.yml` are also bumped. A
 
 ## Environment variables
 
-All config fields can be set or overridden via `LEAFPRESS_*` environment variables. This is the recommended approach for CI/CD pipelines.
+The fields in the table below can be set or overridden via `LEAFPRESS_*` environment variables, which is the recommended approach for CI/CD pipelines. The `pdf`, `docx`, `diagrams.sources`, `diagrams.cache_max_age`, and `projects` sections can only be set in `leafpress.yml`.
 
-**Priority order:** shell env > `.env` file > `leafpress.yml` > built-in defaults
+**Priority order:** CLI flags > shell env > `.env` file > `leafpress.yml` > built-in defaults
 
 | Environment variable | Config field |
 |----------------------|-------------|

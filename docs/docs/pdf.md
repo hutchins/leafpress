@@ -8,7 +8,7 @@ Configure PDF output in `leafpress.yml` under the `pdf:` key:
 
 ```yaml
 pdf:
-  page_size: "A4"       # A4 or Letter
+  page_size: "A4"       # any CSS page size: A4, Letter, A5, "210mm 297mm", ...
   margin_top: "25mm"
   margin_bottom: "25mm"
   margin_left: "20mm"
@@ -17,7 +17,7 @@ pdf:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `page_size` | `A4` | Page dimensions (`A4` or `Letter`) |
+| `page_size` | `A4` | Any CSS `@page` size: a name (`A4`, `Letter`, `A5`, `legal`) or explicit dimensions (`"210mm 297mm"`) |
 | `margin_top` | `25mm` | Top page margin |
 | `margin_bottom` | `25mm` | Bottom page margin |
 | `margin_left` | `20mm` | Left page margin |
@@ -40,7 +40,8 @@ The cover page displays:
 - `subtitle` (if set)
 - `company_name`
 - `author` and `author_email` (if set)
-- `copyright_text` (if set)
+- `document_owner` and `review_cycle` (if set)
+- The generation date (UTC, or local time with `--local-time`)
 - Git version string (if the project is a git repository)
 
 ## Table of contents

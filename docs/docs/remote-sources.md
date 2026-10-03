@@ -31,13 +31,13 @@ leafpress convert git@github.com:org/repo.git
 
 ## How it works
 
-1. leafpress performs a **shallow clone** (`--depth 1`) of the repository to a temporary directory
+1. leafpress performs a **shallow clone** (`--depth 50`, enough history for tag-based version detection) of the repository to a temporary directory
 2. The conversion runs against the cloned project
 3. The temporary directory is cleaned up automatically when done
 
 ## Branch selection
 
-Use `--branch` / `-b` to specify a branch, tag, or commit ref:
+Use `--branch` / `-b` to specify a branch or tag (commit SHAs aren't supported by `git clone --branch`):
 
 ```bash
 leafpress convert https://github.com/org/repo -b develop
@@ -75,20 +75,34 @@ LEAFPRESS_COMPANY_NAME="Acme" LEAFPRESS_PROJECT_NAME="Docs" \
 
 ## Converting untrusted repositories
 
-A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdown, so leafpress treats that content as untrusted and confines what it can reach. This applies to every source, not only remote ones. For example, a local CI checkout of a contributor's branch gets the same protections.
+A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdown, so leafpress treats that content as untrusted and confines what it can reach.
+
+Most protections apply to **every source**, including a local CI checkout of a contributor's branch. A few apply only to repositories **cloned from a git URL**, because leafpress can't tell whose `leafpress.yml` a local folder holds. For local sources you don't trust, pass `--sanitize-html` and an explicit `-c` config. Each item below says which kind it covers.
+
+### All sources
+
+These apply to local folders (including CI checkouts) and cloned repositories alike:
 
 - **Pages** must live inside `docs_dir`. `docs_dir` must be inside the project directory. `nav` entries that are absolute or use `..` are dropped. Pages that are symlinks pointing outside `docs_dir` are skipped with a warning.
 - **Images and other embedded files** must resolve inside the project directory (or the folder you ran `convert` on), after following symlinks, and must be real image files. Anything else, such as `<img src="../.env">`, is never embedded. This applies to Markdown images, raw HTML `<img>`, and `file://` URIs. References outside the project are blanked and listed in the "missing assets" warning. This applies to PDF, DOCX, and ODT output.
 - **PDF resources** are fetched through a restricted fetcher (see [PDF Output](pdf.md#external-resources)). It blocks local files outside the project and requests to private or internal network addresses.
 - **`pymdownx.snippets` and `pymdownx.b64`** are confined to the project directory. Remote snippet downloads (`url_download`) are disabled. See [Markdown Extensions](extensions.md#how-extensions-are-loaded).
-- **A cloned repository's own `leafpress.yml` is untrusted.** Its `logo_path` must point inside the repository and be a real image. Its `mermaid.server` must be a public host. An explicit `-c` config and your `LEAFPRESS_*` environment variables are trusted, so a self-hosted internal mermaid server (`LEAFPRESS_MERMAID_SERVER`) keeps working.
 - **Downloads never forward credentials to another origin.** When a redirect changes host, scheme, or port, `Authorization`, `Cookie`, and `Proxy-Authorization` headers are dropped. This covers, for example, the Lucidchart token following a redirect to a storage bucket.
-- **`.env`** is not loaded from cloned repositories. For local projects, only `LEAFPRESS_*` keys are read from it.
-- **Raw HTML is sanitized.** Scripts, event handlers (`onerror=`), `javascript:` links, iframes, forms, and resource-loading inline CSS are removed from page HTML. The normal MkDocs/Material markup is kept: admonitions, tabs, details, tables, task lists, footnotes, and highlighted code. This matters most for HTML and EPUB output, which would otherwise carry active content wherever they're published.
-    - Sanitizing is automatic for git URL sources and monorepo `url:` projects, and a cloned repository's own `leafpress.yml` can't turn it off.
-    - For local sources you don't fully trust, such as a CI checkout of a pull request, enable it with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML=true`, or `sanitize_html: true`.
-- **Monorepo `projects[].url`** must be a git URL. A local directory belongs in `path:`, which gets the containment check. In a cloned repository's `leafpress.yml`, the URL's host must also be public, so it can't make leafpress clone from internal servers.
-- **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` (and `root:`) must stay inside that repository.
+- **Monorepo `projects[].url`** must be a git URL. A local directory belongs in `path:`, which gets the containment check.
+- **Raw HTML can be sanitized** with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML=true`, or `sanitize_html: true`. This removes scripts, event handlers (`onerror=`), `javascript:` links, iframes, forms, and resource-loading inline CSS from page HTML, and keeps the normal MkDocs/Material markup (admonitions, tabs, details, tables, task lists, footnotes, highlighted code). It matters most for HTML and EPUB output, which would otherwise carry active content wherever they're published. Use it for local sources you don't fully trust, such as a CI checkout of a pull request.
+
+### Repositories cloned from a git URL
+
+For a git URL source (and monorepo `url:` projects), leafpress also:
+
+- **Sanitizes HTML automatically.** The cloned repository's own `leafpress.yml` can't turn this off; only your CLI flag or environment variable can.
+- **Treats the repository's own `leafpress.yml` as untrusted:**
+    - its `logo_path` and `docx.template_path` must point inside the repository, and a logo must be a real image;
+    - its `mermaid.server` must be a public host;
+    - its monorepo `projects[].url` hosts must be public, and `projects[].path` and `root:` must stay inside the repository.
+
+  An explicit `-c` config and your `LEAFPRESS_*` environment variables are trusted, so a self-hosted internal mermaid server (`LEAFPRESS_MERMAID_SERVER`) keeps working.
+- **Ignores the repository's `.env`.** For local projects, only `LEAFPRESS_*` keys are read from `.env`, and they're unset again after the conversion.
 
 Diagram fetching (`fetch-diagrams`) and the Mermaid renderer still make network requests. Only enable them for repositories you trust.
 

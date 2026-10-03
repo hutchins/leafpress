@@ -4,6 +4,7 @@
 
 ### Security
 
+- `docx.template_path` from a cloned repo's `leafpress.yml` is now confined to the repository (a template's body is kept, so it could pull one of your local Word documents into the output). Relative template paths now resolve from `leafpress.yml`, as documented, instead of the current directory
 - **HTML/EPUB footer injection:** `footer.custom_text` and the git branch name were joined into the HTML and EPUB footers without escaping, so a cloned repo's `leafpress.yml` could inject `<script>` even with `--sanitize-html`. Each part is now escaped. (Found by ruff's bandit-style `S704` rule.)
 - `pom.xml` / `.csproj` version detection parses with `defusedxml`, since these manifests can come from an untrusted cloned repository
 - **Fixes from the pre-release code review:**
@@ -69,6 +70,11 @@
 
 ### Fixes
 
+- Monorepo Markdown export (`-f markdown`) silently dropped every page; it now includes each project's pages
+- `LEAFPRESS_LOCAL_TIME` was documented but never read; it now works like `--local-time`
+- The "missing extension" hint suggested the wrong package (`pip install pymdownx`); it now names the PyPI package (`pymdown-extensions`, `mkdocs-material`, …)
+- DOCX skips a logo that isn't a real image instead of failing; the PDF error message linked to the wrong issue tracker
+- `leafpress init` now includes the `mermaid:` and `sanitize_html` sections; `markdown` added to format lists in `--help` and the GitHub Action
 - Images from monorepo `url:` projects were lost because the clones were deleted before rendering; clones now live until output is written
 - Images elsewhere in a local source (e.g. a monorepo page using `../../shared/logo.png`) were blanked by the new confinement; the folder being converted is now an allowed root
 - SVG images are embedded in ODT again, sized from their `viewBox`, and so are SVG logos on the ODT cover. Units in `viewBox` no longer crash, and `stroke-width` is no longer mistaken for `width`
@@ -113,6 +119,11 @@
 
 ### Documentation
 
+- **Corrections from a full docs review:**
+    - CI and quick-start examples install `leafpress[pdf]` before generating PDFs.
+    - Footer format, version-string format, `copyright_text` (EPUB metadata only), ODT SVG support, clone depth, `--branch` (no commit SHAs) and `page_size` (any CSS size) are now described accurately.
+    - Which env vars exist and the full precedence order (CLI flags first) are spelled out.
+    - The untrusted-repository page now separates protections for all sources from those for cloned repos only.
 - **README:**
     - adds Zensical, LaTeX and URL import, the untrusted-repo protections, the GitHub Action (pinned) and Docker;
     - corrects the mermaid description (images via mermaid.ink or a self-hosted server, not inline SVG) and the desktop UI's option coverage;
@@ -129,7 +140,7 @@
 - **Pre-commit hook** (`make setup-hooks`): gitleaks on staged changes, `ruff check` (now including the bandit-style `S` security rules), `ruff format --check`, and `ty` at the CI-pinned version
 - **CI:** new `secrets` job runs a checksum-verified gitleaks over the full git history
 - `make lint`/`format` cover the whole repo, `make typecheck` uses the pinned `ty`, and a new `make secrets` target runs a full-history gitleaks scan
-- **Test coverage raised to 94.9% of lines and 88.1% of branches** (1,020 tests):
+- **Test coverage raised to ~95% of lines and ~88% of branches** (1,060+ tests):
     - New end-to-end integration suite: a malicious repository converted to every format leaks nothing; images and mermaid are embedded in every format; CLI flags reach the output; a multi-file LaTeX import runs through the CLI.
     - Docker tests cover running as the host user with git version detection.
     - Security helpers' edge cases (redirect loops, size caps, unresolvable and multicast hosts, include depth) are now at 97–100%.

@@ -174,3 +174,9 @@ On Windows, WeasyPrint can be installed via pip. GTK+ libraries may be needed â€
 leafpress --version
 leafpress --help
 ```
+
+Then check optional dependencies (WeasyPrint system libraries, PyQt6) with:
+
+```bash
+leafpress doctor
+```

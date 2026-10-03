@@ -103,7 +103,7 @@ Tests live in `tests/`, one file per module (`test_<module>.py`), plus a few cro
     - Check every path with `asset_policy.allows(path)` before reading it.
     - Page content may come from an untrusted repository.
     - `rewrite_local_images()` in `base_renderer.py` handles the common "embed `<img src="file://...">`" case.
-3. **Wire it into the pipeline.** In `pipeline.py`, pass `asset_policy=asset_policy`, and add the format to `OutputFormat` in `cli.py`.
+3. **Wire it into the pipeline.** In `pipeline.py`, pass `asset_policy=asset_policy`, and add the format to `OutputFormat` in `cli/app.py`.
 4. **Add tests and docs.** Add `tests/test_<format>_renderer.py` and a `docs/docs/<format>.md` page.
 
 ## Adding an import format (importer)
@@ -112,7 +112,7 @@ Tests live in `tests/`, one file per module (`test_<module>.py`), plus a few cro
     - Reuse `resolve_output_path`, `postprocess_markdown`, and `rows_to_pipe_table`.
     - Save images through `ImageHandler`.
 2. **Confine file reads.** Only read files inside the input document's directory; check with `asset_policy.is_within()`. See `_resolve_image_path` in `converter_tex.py`.
-3. **Register the extension.** Add it to `_SUPPORTED_IMPORT_EXTENSIONS` and the dispatch in `cli.py`.
+3. **Register the extension.** Add it to `SUPPORTED_IMPORT_EXTENSIONS` and the dispatch in `importer/dispatch.py` (shared by the CLI and the desktop UI).
 4. **Add tests and docs.** Add `tests/test_import_<ext>.py` and a section in `docs/docs/import.md`.
 
 ## Documentation and changelog

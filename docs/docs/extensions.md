@@ -137,9 +137,9 @@ leafpress prints a warning when it overrides one of these settings from `mkdocs.
 When an extension fails to load, LeafPress prints the error message and a hint:
 
 ```
-⚠ Skipping unavailable extension: pymdownx.superfences
-  Error: No module named 'pymdownx'
-  Tip: pip install pymdownx  (or uv pip install pymdownx)
+⚠ Skipping unavailable extension: mdx_truly_sane_lists
+  Error: No module named 'mdx_truly_sane_lists'
+  Tip: pip install mdx-truly-sane-lists  (or uv pip install mdx-truly-sane-lists)
 ```
 
 Common fixes:

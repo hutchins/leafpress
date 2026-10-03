@@ -84,7 +84,7 @@ hide:
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-graph-outline:</span>
 <p class="feature-card__title">Mermaid Diagrams</p>
-<p class="feature-card__desc">Mermaid code blocks become images in every format, rendered by mermaid.ink or your own self-hosted server, or kept as code when privacy matters.</p>
+<p class="feature-card__desc">Mermaid code blocks become images in PDF, Word, HTML, ODT, and EPUB, rendered by mermaid.ink or your own self-hosted server, or kept as code when privacy matters.</p>
 </div>
 
 <div class="feature-card" markdown>
@@ -112,7 +112,7 @@ hide:
 ## Quick Start
 
 ```termynal
-$ pip install leafpress
+$ pip install 'leafpress[pdf]'
 ---> 100%
 Successfully installed leafpress
 
