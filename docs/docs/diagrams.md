@@ -219,7 +219,7 @@ In a CI pipeline, fetch diagrams before converting:
 ```yaml
 # GitHub Actions example
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
 
   - name: Fetch diagrams and convert
     env:

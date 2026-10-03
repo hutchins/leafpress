@@ -90,8 +90,22 @@
 - Image `file://` URIs containing percent-encoded characters (e.g. spaces) now embed correctly in DOCX
 - Relative `pymdownx.snippets` `base_path` entries now resolve from the project directory, as MkDocs does, instead of the current working directory
 
+### Documentation
+
+- **README:**
+    - adds Zensical, LaTeX and URL import, the untrusted-repo protections, the GitHub Action (pinned) and Docker;
+    - corrects the mermaid description (images via mermaid.ink or a self-hosted server, not inline SVG) and the desktop UI's option coverage;
+    - updates development commands and links CONTRIBUTING and SECURITY.
+- **Architecture page:** new Security Layer section; covers Zensical parsing, the CLI package, shared import dispatch, image embedding, and the LaTeX pipeline; the module map and dependency tables are complete, now including pylatexenc, nh3, tomli and Pillow.
+- **Other pages:**
+    - landing page cards for untrusted-repo safety, mermaid and Zensical;
+    - CLI reference covers batch import behavior, parallel diagram fetching and `zensical.toml` auto-detection;
+    - the CI env-var table is complete;
+    - workflow examples use current action versions.
+
 ### Tooling
 
+- `pillow` is now a declared dependency (ODT image sizing imports it directly; it was previously only installed transitively via python-pptx)
 - Cross-format watermark tests check that the text appears (and is escaped) in PDF, DOCX, HTML, ODT, and EPUB
 - `src/leafpress/cli.py` (~700 lines) is split into a `leafpress.cli` package with one module per subcommand. The `leafpress.cli:cli` entry point and `--help` output are unchanged, and new tests cover the CLI error paths
 - Added `SECURITY.md` (private vulnerability reporting) and expanded `CONTRIBUTING.md` with the test layout, fixtures, security-test expectations, and how to add renderers and importers

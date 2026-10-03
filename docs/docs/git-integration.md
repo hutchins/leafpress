@@ -43,7 +43,7 @@ When converting from a remote git URL, LeafPress clones the repository first, th
 For accurate tag detection in CI, ensure you check out the full git history:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0    # required for git tags
 ```

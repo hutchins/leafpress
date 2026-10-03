@@ -18,7 +18,7 @@ hide:
 <div class="feature-card" markdown>
 <span class="feature-card__icon">:material-file-pdf-box:</span>
 <p class="feature-card__title">Multiple Output Formats</p>
-<p class="feature-card__desc">Generate PDF, DOCX, HTML, ODT, EPUB, and Markdown files from any MkDocs project with a single command.</p>
+<p class="feature-card__desc">Generate PDF, DOCX, HTML, ODT, EPUB, and Markdown files from any MkDocs project with a single command. HTML output is one self-contained file.</p>
 </div>
 
 <div class="feature-card" markdown>
@@ -73,6 +73,24 @@ hide:
 <span class="feature-card__icon">:material-file-word-box:</span>
 <p class="feature-card__title">Document Import</p>
 <p class="feature-card__desc">Import Word, PowerPoint, Excel, and LaTeX files to Markdown with image extraction, code block detection, tables, and math support.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-shield-check-outline:</span>
+<p class="feature-card__title">Safe with Untrusted Repos</p>
+<p class="feature-card__desc">Converting someone else's repository can't read your local files, reach internal hosts, or inject scripts. HTML is sanitized automatically for git URL sources.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-graph-outline:</span>
+<p class="feature-card__title">Mermaid Diagrams</p>
+<p class="feature-card__desc">Mermaid code blocks become images in every format, rendered by mermaid.ink or your own self-hosted server, or kept as code when privacy matters.</p>
+</div>
+
+<div class="feature-card" markdown>
+<span class="feature-card__icon">:material-flask-outline:</span>
+<p class="feature-card__title">Zensical Ready</p>
+<p class="feature-card__desc">Experimental support for projects configured with zensical.toml, the successor to Material for MkDocs.</p>
 </div>
 
 <div class="feature-card" markdown>

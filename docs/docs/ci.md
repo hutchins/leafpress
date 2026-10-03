@@ -11,7 +11,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -23,7 +23,7 @@ jobs:
           LEAFPRESS_COMPANY_NAME: ${{ vars.COMPANY_NAME }}
           LEAFPRESS_PROJECT_NAME: My Docs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: dist/
@@ -64,7 +64,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install WeasyPrint system dependencies
         run: |
@@ -72,7 +72,7 @@ jobs:
           sudo apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -87,7 +87,7 @@ jobs:
         run: leafpress convert . -f pdf -o dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: dist/*.pdf
@@ -117,6 +117,16 @@ Set `LEAFPRESS_*` variables to configure branding without a YAML file. If both `
 | `LEAFPRESS_LOCAL_TIME` | _(CLI flag)_ | `true` or `false` — use local timezone for dates |
 | `LEAFPRESS_LOG_LEVEL` | _(CLI flag)_ | `DEBUG`, `INFO`, `WARNING` (default), `ERROR`, or `CRITICAL`. Use `DEBUG` for `--verbose`-level detail without changing the command |
 | `LEAFPRESS_LUCIDCHART_TOKEN` | `diagrams.lucidchart_token` | API token for Lucidchart diagram exports |
+| `LEAFPRESS_DOCUMENT_OWNER` | `document_owner` | Document owner shown on the cover page |
+| `LEAFPRESS_REVIEW_CYCLE` | `review_cycle` | Review cycle shown on the cover page (e.g. "Quarterly") |
+| `LEAFPRESS_FOOTER_INCLUDE_RENDER_DATE` | `footer.include_render_date` | `true` or `false`: add the generation date to the footer |
+| `LEAFPRESS_WATERMARK_TEXT` | `watermark.text` | Watermark text (e.g. `DRAFT`) |
+| `LEAFPRESS_WATERMARK_COLOR` | `watermark.color` | Watermark color (6-digit hex) |
+| `LEAFPRESS_WATERMARK_OPACITY` | `watermark.opacity` | `0.0`–`1.0` |
+| `LEAFPRESS_WATERMARK_ANGLE` | `watermark.angle` | `-90`–`90` degrees |
+| `LEAFPRESS_MERMAID_ENABLED` | `mermaid.enabled` | `false` keeps diagrams as code (nothing sent to the rendering server) |
+| `LEAFPRESS_MERMAID_SERVER` | `mermaid.server` | Base URL of a self-hosted mermaid.ink-compatible server |
+| `LEAFPRESS_SANITIZE_HTML` | `sanitize_html` | `true` or `false`: strip scripts and event handlers from page HTML. Useful for CI builds of pull requests from contributors |
 
 **Priority:** shell env > `.env` file > `leafpress.yml` > built-in defaults
 
@@ -182,7 +192,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # full history for git version info
 
@@ -195,7 +205,7 @@ jobs:
             libpangoft2-1.0-0 \
             libfontconfig1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -211,7 +221,7 @@ jobs:
         run: leafpress convert . -f all -o dist/
 
       - name: Upload documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: documentation
           path: dist/

@@ -76,7 +76,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build leafpress image
         run: docker build -t leafpress .
@@ -95,7 +95,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/work" \
             leafpress convert /work -f pdf -o /work/output
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: docs-pdf
           path: output/

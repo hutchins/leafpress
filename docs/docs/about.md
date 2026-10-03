@@ -2,7 +2,7 @@
 
 ## What is LeafPress?
 
-LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, ODT, EPUB, and consolidated Markdown files — complete with cover pages, tables of contents, version info, and your organization's branding.
+LeafPress converts [MkDocs](https://www.mkdocs.org/) documentation sites (and, experimentally, [Zensical](zensical.md) projects) into professional, branded documents. It takes your existing Markdown content and produces PDF, Word (DOCX), HTML, ODT, EPUB, and consolidated Markdown files — complete with cover pages, tables of contents, version info, and your organization's branding.
 
 ## Why LeafPress?
 
@@ -17,6 +17,7 @@ The consolidated Markdown export (`-f markdown`) goes the other direction — co
 - **Zero lock-in** — Your source stays as standard Markdown in MkDocs. LeafPress is a build tool, not a new authoring format.
 - **Automation first** — Designed for CI/CD pipelines, GitHub Actions, and Docker. Generate documents on every push or release.
 - **Batteries included** — Cover pages, TOC, git metadata, watermarks, and branding all work out of the box with minimal configuration.
+- **Safe by default** — Content from repositories you don't control is confined. It can't read files outside the project, reach internal hosts, or inject scripts into generated documents. See [Converting untrusted repositories](remote-sources.md#converting-untrusted-repositories).
 
 ## Author
 
@@ -34,3 +35,5 @@ Contributions are welcome. If you'd like to report a bug, request a feature, or 
 
 - [Open an issue](https://github.com/hutchins/leafpress/issues)
 - [View the source](https://github.com/hutchins/leafpress)
+- [Contributing guide](https://github.com/hutchins/leafpress/blob/main/CONTRIBUTING.md) — test layout, and how to add renderers and importers
+- [Security policy](https://github.com/hutchins/leafpress/blob/main/SECURITY.md) — please report vulnerabilities privately
