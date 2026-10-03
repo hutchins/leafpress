@@ -592,3 +592,37 @@ def test_untrusted_monorepo_url_must_be_public(
             untrusted_source=True,
         )
     resolve.assert_not_called()  # nothing is cloned
+
+
+# ===========================================================================
+# Found by ruff's bandit rules (S704)
+# ===========================================================================
+
+
+@pytest.mark.parametrize("fmt", ["html", "epub"])
+def test_footer_text_is_escaped(repo: Path, tmp_path: Path, fmt: str) -> None:
+    (repo / "leafpress.yml").write_text(
+        'company_name: A\nproject_name: B\nfooter:\n  custom_text: "<script>alert(1)</script>"\n'
+    )
+    out = tmp_path / "o"
+    convert(str(repo), out, format=fmt, mermaid=False)
+    produced = next(out.glob(f"*.{fmt}"))
+    if fmt == "epub":
+        with zipfile.ZipFile(produced) as z:
+            text = "".join(z.read(n).decode() for n in z.namelist() if n.endswith(".xhtml"))
+    else:
+        text = produced.read_text()
+    assert "<script>alert(1)</script>" not in text
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in text
+
+
+def test_pom_xml_entity_expansion_rejected(tmp_path: Path) -> None:
+    from leafpress.package_version import detect_package_version
+
+    (tmp_path / "pom.xml").write_text(
+        '<?xml version="1.0"?>\n<!DOCTYPE p [<!ENTITY a "x"><!ENTITY b "&a;&a;&a;">]>\n'
+        "<project><version>&b;</version></project>"
+    )
+    assert detect_package_version(tmp_path, walk_up=False) is None  # refused, not expanded
+    (tmp_path / "pom.xml").write_text("<project><version>1.2.3</version></project>")
+    assert detect_package_version(tmp_path, walk_up=False) == "1.2.3"
