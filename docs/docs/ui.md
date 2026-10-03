@@ -57,19 +57,25 @@ On Linux and Windows, leafpress appears in the **system tray**. Click or double-
 
 ![LeafPress conversion window](assets/ui-convert-screenshot.png)
 
-The conversion window mirrors all CLI `convert` options:
+The conversion window covers the common `convert` options:
 
 | Field | Description |
 |-------|-------------|
-| **Source** | Local path to an MkDocs project, or a git URL. Use "Browse..." to pick a folder. |
+| **Source** | Local path to an MkDocs (or [Zensical](zensical.md)) project, or a git URL. Use **Browse…** (or **⌘O** / **Ctrl+O**) to pick a folder. |
 | **Output dir** | Directory for generated files (default: `output/`). |
 | **Format** | `pdf`, `docx`, `html`, `odt`, `epub`, `markdown`, `both` (PDF + DOCX), or `all`. |
-| **Branding config** | Optional path to a `leafpress.yml` file. Leave blank to use auto-detection or environment variables. |
+| **Branding config** | Optional path to a `leafpress.yml` file. Leave blank to auto-detect one in the project or use `LEAFPRESS_*` environment variables. |
 | **Cover page** | Include a cover page (default: checked). |
 | **Table of contents** | Include a TOC page (default: checked). |
-| **Open after conversion** | Automatically open the generated file(s) when done. |
+| **Open after conversion** | Open the generated file(s) with their default applications when done. |
+| **Use local timezone for dates** | Show cover and footer dates in local time instead of UTC. |
 
-Click **Convert** to start. A progress indicator appears while conversion runs. A dialog confirms success or shows the error message on failure.
+Click **Convert** (or press **⌘↩** / **Ctrl+Enter**) to start. A progress bar and the log show what's happening, and a dialog reports success or the error.
+
+Everything else is configured the same way as for the CLI:
+
+- **Branding, watermark, mermaid, HTML sanitizing:** set them in `leafpress.yml` (e.g. `watermark:`, `mermaid:`, `sanitize_html:`) or via `LEAFPRESS_*` environment variables. See [Configuration](configuration.md).
+- **CLI-only options:** a git branch (`--branch`), an explicit site config (`--mkdocs-config`), `--fetch-diagrams`, and `--verbose` have no UI equivalent yet; use the [CLI](cli.md#convert) for these.
 
 ## Using the import window
 
@@ -79,13 +85,18 @@ Import Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`), and LaTeX (`.tex`)
 
 | Field | Description |
 |-------|-------------|
-| **Files** | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files to convert. Use "Browse..." to select files. |
-| **Output dir** | Directory for generated Markdown files (default: current directory). |
-| **Extract images** | Save embedded images alongside the Markdown output (default: checked). |
-| **Include speaker notes** | Extract speaker notes from PowerPoint slides (default: checked). |
-| **Open after import** | Automatically open the generated Markdown file(s) when done. |
+| **Files** | One or more `.docx`, `.pptx`, `.xlsx`, or `.tex` files. Use **Browse…** (or **⌘O** / **Ctrl+O**) to select them. |
+| **Output dir** | Directory for the generated Markdown. Leave blank to save each `.md` next to its source file. |
+| **Extract images** | Save embedded images to an `assets/` folder next to the output (default: checked). |
+| **Include speaker notes (PPTX)** | Add PowerPoint speaker notes as blockquotes under each slide (default: checked). |
+| **Open after import** | Open the generated Markdown file(s) when done. |
 
-Click **Import** to start. Each file is converted independently and results appear in the log area.
+Click **Import** (or press **⌘↩** / **Ctrl+Enter**) to start. The import window uses the same converters as [`leafpress import`](import.md):
+
+- Each file is converted independently. A file that fails doesn't stop the rest; the log shows its error, and the final dialog lists every failure ("Imported 2 of 3 file(s)").
+- Warnings, such as unsupported LaTeX macros, appear in the log under each file.
+- **Name collisions are refused.** If two selected files would produce the same output file (e.g. `a/report.docx` and `b/report.docx` into one output folder), the second is refused rather than overwriting the first.
+- Word code-style detection (`--code-styles`) is CLI-only.
 
 ## Tray menu
 

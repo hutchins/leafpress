@@ -333,61 +333,52 @@ class ImportWorker(QThread):
         self._open_after = open_after
 
     def run(self) -> None:
-        try:
-            results: list[Path] = []
-            for file in self._files:
-                suffix = file.suffix.lower()
-                self.log.emit(f"Importing {file.name}...")
-                if suffix == ".docx":
-                    from leafpress.importer.converter import import_docx
+        from leafpress.exceptions import LeafpressError
+        from leafpress.importer.base import resolve_output_path
+        from leafpress.importer.dispatch import SUPPORTED_IMPORT_EXTENSIONS, import_document
 
-                    r = import_docx(
-                        docx_path=file,
-                        output_path=self._output_dir,
-                        extract_images=self._extract_images,
+        results: list[Path] = []
+        failures: list[str] = []
+        # Output .md -> source, so same-named inputs can't overwrite each other
+        written: dict[Path, str] = {}
+        for file in self._files:
+            self.log.emit(f"Importing {file.name}...")
+            if file.suffix.lower() not in SUPPORTED_IMPORT_EXTENSIONS:
+                self.log.emit(f"  Skipped (unsupported: {file.suffix})")
+                continue
+            try:
+                target = resolve_output_path(file, self._output_dir).resolve()
+                if target in written:
+                    raise LeafpressError(
+                        f"{target.name} would overwrite the import of {written[target]}"
                     )
-                elif suffix == ".pptx":
-                    from leafpress.importer.converter_pptx import import_pptx
+                r = import_document(
+                    file,
+                    output=self._output_dir,
+                    extract_images=self._extract_images,
+                    include_notes=self._include_notes,
+                )
+            except Exception as exc:
+                # One bad file shouldn't stop the rest of the batch
+                failures.append(f"{file.name}: {exc}")
+                self.log.emit(f"  Error: {exc}")
+                continue
+            written[target] = file.name
+            results.append(r.markdown_path)
+            self.log.emit(f"  -> {r.markdown_path}")
+            for w in r.warnings:
+                self.log.emit(f"  Warning: {w}")
 
-                    r = import_pptx(
-                        pptx_path=file,
-                        output_path=self._output_dir,
-                        extract_images=self._extract_images,
-                        include_notes=self._include_notes,
-                    )
-                elif suffix == ".xlsx":
-                    from leafpress.importer.converter_xlsx import import_xlsx
-
-                    r = import_xlsx(
-                        xlsx_path=file,
-                        output_path=self._output_dir,
-                    )
-                elif suffix == ".tex":
-                    from leafpress.importer.converter_tex import import_tex
-
-                    r = import_tex(
-                        tex_path=file,
-                        output_path=self._output_dir,
-                        extract_images=self._extract_images,
-                    )
-                else:
-                    self.log.emit(f"  Skipped (unsupported: {suffix})")
-                    continue
-                results.append(r.markdown_path)
-                self.log.emit(f"  -> {r.markdown_path}")
-                if r.warnings:
-                    for w in r.warnings:
-                        self.log.emit(f"  Warning: {w}")
-
-            names = "\n".join(str(p) for p in results)
-            self.log.emit(f"Done!\n{names}")
-            if self._open_after:
-                for p in results:
-                    _open_file(p)
-            self.finished.emit(True, f"Imported {len(results)} file(s).")
-        except Exception as exc:
-            self.log.emit(f"Error: {exc}")
-            self.finished.emit(False, str(exc))
+        if results:
+            self.log.emit("Done!\n" + "\n".join(str(p) for p in results))
+        if self._open_after:
+            for p in results:
+                _open_file(p)
+        summary = f"Imported {len(results)} of {len(self._files)} file(s)."
+        if failures:
+            self.finished.emit(False, summary + "\n\nFailed:\n" + "\n".join(failures))
+        else:
+            self.finished.emit(True, summary)
 
 
 class ImportWindow(QMainWindow):
