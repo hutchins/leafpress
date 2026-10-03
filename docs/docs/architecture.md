@@ -38,9 +38,13 @@ flowchart TD
 
 ### 1. CLI Entry Point
 
-**Module:** `src/leafpress/cli.py`
+**Package:** `src/leafpress/cli/`
 
-The Typer-based CLI parses arguments and invokes the pipeline. The `convert` command accepts a source path (or auto-detects it), output format, branding config path, and rendering options like cover page, TOC, watermark, and local timezone.
+The Typer-based CLI parses arguments and invokes the pipeline.
+
+- **`cli/app.py`** defines the shared app, console, and `--version`.
+- **Command modules:** each subcommand lives in its own module (`convert.py`, `import_cmd.py`, `fetch_diagrams.py`, `info.py`, `init.py`, `doctor.py`, `ui.py`).
+- **`cli/__init__.py`** registers the commands in a fixed order and exposes `leafpress.cli:cli`, the console-script entry point. The `convert` command accepts a source path (or auto-detects it), output format, branding config path, and rendering options like cover page, TOC, watermark, and local timezone.
 
 The `info` command uses the same source resolution to display project metadata without rendering.
 

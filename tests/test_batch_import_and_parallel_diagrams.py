@@ -62,7 +62,7 @@ class TestBatchImport:
         assert list(out.glob("*.md")) == [out / "report.md"]
 
     def test_unexpected_exception_does_not_abort_batch(self, inputs: Path) -> None:
-        from leafpress import cli as cli_mod
+        from leafpress.cli import import_cmd as cli_mod
 
         real = cli_mod._import_single_file
 
