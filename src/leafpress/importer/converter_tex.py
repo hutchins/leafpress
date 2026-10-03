@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import copy
-import functools
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from pylatexenc.latexwalker import (
@@ -17,7 +17,6 @@ from pylatexenc.latexwalker import (
     LatexSpecialsNode,
     LatexWalker,
 )
-from pylatexenc.macrospec import EnvironmentSpec, LatexContextDb, MacroSpec
 from rich.console import Console
 
 from leafpress.asset_policy import is_within
@@ -30,6 +29,37 @@ from leafpress.importer.base import (
 )
 from leafpress.importer.image_handler import ImageHandler, content_type_for_extension
 from leafpress.importer.tex_includes import expand_includes
+from leafpress.importer.tex_nodes import (
+    MULTICOLUMN_PATTERN,
+    arg_verbatim,
+    blockquote,
+    ensure_nodelist,
+    extract_env_body_raw,
+    extract_raw_text,
+    parse_column_alignments,
+    split_cells,
+    strip_math_labels,
+)
+from leafpress.importer.tex_spec import (
+    DEFAULT_THEOREMS,
+    DEFINITION_MACROS,
+    FORMAT_MACROS,
+    HEADING_MACROS,
+    IMAGE_EXTENSIONS,
+    LIST_OVERLAY_OPTION_PATTERN,
+    LSTLISTING_LANG_RE,
+    MATH_ENVS,
+    MINTED_LANG_RE,
+    MULTIROW_MATH_ENVS,
+    OVERLAY_SPEC_PATTERN,
+    REF_MACROS,
+    REF_PLACEHOLDER,
+    SINGLE_ROW_NUMBERED_ENVS,
+    SKIP_ENVS,
+    SKIP_MACROS,
+    UNSUPPORTED_IMAGE_EXTENSIONS,
+    get_latex_context,
+)
 from leafpress.importer.tex_symbols import (
     ACCENT_MARKS,
     SYMBOL_MACROS,
@@ -42,216 +72,6 @@ from leafpress.importer.tex_symbols import (
 )
 
 console = Console()
-
-# LaTeX macros missing (or missing arguments) in pylatexenc's default
-# database. Registered ahead of the defaults so these argument specs win.
-_EXTRA_MACROS = [
-    MacroSpec("href", "{{"),
-    MacroSpec("lstinputlisting", "[{"),
-    MacroSpec("mintinline", "{{"),
-    MacroSpec("captionof", "{{"),
-    # Structure and captions
-    MacroSpec("paragraph", "*[{"),
-    MacroSpec("subparagraph", "*[{"),
-    MacroSpec("caption", "[{"),
-    MacroSpec("subcaption", "[{"),
-    MacroSpec("subfloat", "[[{"),
-    MacroSpec("multicolumn", "{{{"),
-    MacroSpec("newtheorem", "*{[{["),
-    MacroSpec("texorpdfstring", "{{"),
-    MacroSpec("textsuperscript", "{"),
-    MacroSpec("textsubscript", "{"),
-    # Cross-references (cleveref / hyperref)
-    MacroSpec("cref", "*{"),
-    MacroSpec("Cref", "*{"),
-    MacroSpec("nameref", "{"),
-    MacroSpec("pageref", "{"),
-    # siunitx (v2 and v3 names)
-    MacroSpec("SI", "[{[{"),
-    MacroSpec("qty", "[{{"),
-    MacroSpec("si", "[{"),
-    MacroSpec("unit", "[{"),
-    MacroSpec("num", "[{"),
-    MacroSpec("ang", "[{"),
-    MacroSpec("SIrange", "[{{{"),
-    MacroSpec("qtyrange", "[{{{"),
-    MacroSpec("numrange", "[{{"),
-    # Beamer
-    MacroSpec("frametitle", "[{"),
-    MacroSpec("framesubtitle", "{"),
-    MacroSpec("only", "{"),
-    MacroSpec("visible", "{"),
-    MacroSpec("uncover", "{"),
-    MacroSpec("onslide", "{"),
-    MacroSpec("invisible", "{"),
-    MacroSpec("alert", "{"),
-    MacroSpec("note", "[{"),
-    # Accents without a default spec
-    *(MacroSpec(accent, "{") for accent in ("=", ".", "u", "v", "H", "r", "d", "b", "k")),
-]
-
-_EXTRA_ENVIRONMENTS = [
-    EnvironmentSpec("subfigure", "[{"),
-    EnvironmentSpec("block", "{"),
-    EnvironmentSpec("alertblock", "{"),
-    EnvironmentSpec("exampleblock", "{"),
-    EnvironmentSpec("column", "[{"),
-    EnvironmentSpec("columns", "["),
-]
-
-# Theorem-like environments recognized without a \newtheorem declaration
-_DEFAULT_THEOREMS: dict[str, str] = {
-    "theorem": "Theorem",
-    "lemma": "Lemma",
-    "proposition": "Proposition",
-    "corollary": "Corollary",
-    "definition": "Definition",
-    "remark": "Remark",
-    "example": "Example",
-    "conjecture": "Conjecture",
-    "claim": "Claim",
-    "exercise": "Exercise",
-    "assumption": "Assumption",
-    "axiom": "Axiom",
-    "observation": "Observation",
-    "note": "Note",
-    "problem": "Problem",
-    "solution": "Solution",
-}
-
-_REF_MACROS = {"ref", "eqref", "autoref", "cref", "Cref", "nameref", "pageref"}
-
-# Beamer overlay specs (<2->, <+->) after these commands, and [<+->] list options
-_OVERLAY_SPEC_PATTERN = re.compile(
-    r"(\\(?:item|only|visible|uncover|onslide|invisible|alert|pause|action|"
-    r"textbf|textit|emph|includegraphics|color|structure|"
-    r"begin\{(?:itemize|enumerate|description|block|alertblock|exampleblock|frame)\}))"
-    r"\s*<[^<>\n]*>"
-)
-_LIST_OVERLAY_OPTION_PATTERN = re.compile(
-    r"(\\begin\{(?:itemize|enumerate|description)\})\s*\[<[^\]]*>\]"
-)
-
-# Placeholder for cross-references, resolved after the whole document is seen
-_REF_PLACEHOLDER = re.compile("\x00REF:(\\w+):([^\x00]*)\x00")
-
-_MULTIROW_MATH_ENVS = {"align", "gather", "eqnarray", "flalign"}
-_SINGLE_ROW_NUMBERED_ENVS = {"equation", "multline"}
-
-_HEADING_MACROS: dict[str, int] = {
-    "chapter": 1,
-    "section": 2,
-    "subsection": 3,
-    "subsubsection": 4,
-    "paragraph": 5,
-    "subparagraph": 6,
-}
-
-_FORMAT_MACROS: dict[str, tuple[str, str]] = {
-    "textbf": ("**", "**"),
-    "textit": ("*", "*"),
-    "emph": ("*", "*"),
-    "texttt": ("`", "`"),
-    "underline": ("<u>", "</u>"),
-    "textsc": ("", ""),
-}
-
-_SKIP_MACROS: set[str] = {
-    "documentclass",
-    "usepackage",
-    "pagestyle",
-    "thispagestyle",
-    "setlength",
-    "setcounter",
-    "addtocounter",
-    "newpage",
-    "clearpage",
-    "cleardoublepage",
-    "vspace",
-    "hspace",
-    "vfill",
-    "hfill",
-    "noindent",
-    "bigskip",
-    "medskip",
-    "smallskip",
-    "centering",
-    "raggedright",
-    "raggedleft",
-    "bibliographystyle",
-    "tableofcontents",
-    "listoffigures",
-    "listoftables",
-    "appendix",
-    "protect",
-    "phantom",
-    "hphantom",
-    "vphantom",
-}
-
-_DEFINITION_MACROS: set[str] = {
-    "newcommand",
-    "renewcommand",
-    "providecommand",
-    "def",
-    "let",
-    "newenvironment",
-    "renewenvironment",
-}
-
-_MATH_ENVS: set[str] = {
-    "equation",
-    "equation*",
-    "align",
-    "align*",
-    "gather",
-    "gather*",
-    "multline",
-    "multline*",
-    "eqnarray",
-    "eqnarray*",
-    "flalign",
-    "flalign*",
-    "math",
-    "displaymath",
-}
-
-_SKIP_ENVS: set[str] = {
-    "tikzpicture",
-    "pgfpicture",
-    "frame",
-}
-
-_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg", ".gif", ".bmp", ".webp"]
-_UNSUPPORTED_IMAGE_EXTENSIONS = {".pdf", ".eps", ".ps"}
-
-# Pre-compiled patterns for code block language detection
-_LSTLISTING_LANG_RE = re.compile(r"\[.*?language\s*=\s*(\w+)")
-_MINTED_LANG_RE = re.compile(r"\\begin\{minted\}(?:\[.*?\])?\{(\w+)\}")
-
-# Module-level cached latex context (built once, never mutated after init)
-_LATEX_CONTEXT: LatexContextDb | None = None
-
-
-def _get_latex_context() -> LatexContextDb:
-    """Return a latex context with extra macro definitions.
-
-    Uses a deep copy of the default context to avoid mutating the shared
-    pylatexenc singleton. The result is cached for reuse.
-    """
-    global _LATEX_CONTEXT
-    if _LATEX_CONTEXT is None:
-        from pylatexenc.latexwalker import get_default_latex_context_db
-
-        ctx = copy.deepcopy(get_default_latex_context_db())
-        ctx.add_context_category(
-            "leafpress-extra",
-            macros=_EXTRA_MACROS,
-            environments=_EXTRA_ENVIRONMENTS,
-            prepend=True,
-        )
-        _LATEX_CONTEXT = ctx
-    return _LATEX_CONTEXT
 
 
 def import_tex(
@@ -356,7 +176,7 @@ class _TexToMarkdownConverter:
         self._in_figure = False
         self._in_subfigure = False
         self._in_table = False
-        self._theorem_names: dict[str, str] = dict(_DEFAULT_THEOREMS)
+        self._theorem_names: dict[str, str] = dict(DEFAULT_THEOREMS)
         self._theorem_counter_owner: dict[str, str] = {}
         self._theorem_counters: dict[str, int] = {}
         # label key -> (kind, number, title); kind is a display name like "Section"
@@ -365,17 +185,18 @@ class _TexToMarkdownConverter:
         self._label_target: tuple[str, str, str] | None = None
         self._seen_section = False
         self._warned_multicolumn = False
+        self._macro_handlers = self._build_macro_handlers()
 
     @property
     def warnings(self) -> list[str]:
         return [*self.include_warnings, *self._warnings]
 
     def convert(self, latex_content: str) -> str:
-        latex_content = _LIST_OVERLAY_OPTION_PATTERN.sub(r"\1", latex_content)
-        latex_content = _OVERLAY_SPEC_PATTERN.sub(r"\1", latex_content)
+        latex_content = LIST_OVERLAY_OPTION_PATTERN.sub(r"\1", latex_content)
+        latex_content = OVERLAY_SPEC_PATTERN.sub(r"\1", latex_content)
         self._has_chapters = "\\chapter" in latex_content
 
-        ctx = _get_latex_context()
+        ctx = get_latex_context()
         walker = LatexWalker(latex_content, latex_context=ctx, tolerant_parsing=True)
         nodes, _pos, _ln = walker.get_latex_nodes()
 
@@ -442,14 +263,14 @@ class _TexToMarkdownConverter:
 
     def _convert_fragment(self, latex: str) -> str:
         """Convert a standalone LaTeX snippet (e.g. a table cell) to Markdown."""
-        walker = LatexWalker(latex, latex_context=_get_latex_context(), tolerant_parsing=True)
+        walker = LatexWalker(latex, latex_context=get_latex_context(), tolerant_parsing=True)
         nodes, _pos, _ln = walker.get_latex_nodes()
         return self._convert_nodes(nodes)
 
     # -- Math --
 
     def _convert_math(self, node: LatexMathNode) -> str:
-        raw = _strip_math_labels(node.latex_verbatim())
+        raw = strip_math_labels(node.latex_verbatim())
         if node.displaytype == "inline":
             return raw
         return f"\n\n{raw}\n\n"
@@ -491,7 +312,7 @@ class _TexToMarkdownConverter:
             # \cref{a,b} lists several labels
             return ", ".join(resolve_one(macro, k.strip()) for k in keys.split(",") if k.strip())
 
-        result = _REF_PLACEHOLDER.sub(replace, text)
+        result = REF_PLACEHOLDER.sub(replace, text)
         if unresolved:
             self._warnings.append(
                 "Unresolved references (shown as [ref:key]): " + ", ".join(sorted(unresolved))
@@ -503,116 +324,23 @@ class _TexToMarkdownConverter:
     def _convert_macro(self, node: LatexMacroNode) -> str:
         name = node.macroname
 
-        if name in _HEADING_MACROS:
+        if name in HEADING_MACROS:
             return self._convert_heading(node)
-
-        if name in _FORMAT_MACROS:
+        if name in FORMAT_MACROS:
             return self._convert_formatting(node)
-
         if name in ACCENT_MARKS and node.nodeargd and node.nodeargd.argnlist:
             return apply_accent(name, self._get_macro_arg(node))
-
         if name in SYMBOL_MACROS:
             return SYMBOL_MACROS[name]
 
-        if name == "href":
-            return self._convert_href(node)
-        if name == "url":
-            return self._convert_url(node)
+        handler = self._macro_handlers.get(name)
+        if handler is not None:
+            return handler(node)
 
-        if name == "includegraphics":
-            return self._convert_includegraphics(node)
-
-        # Metadata — may appear in preamble, so use raw text extraction
-        if name == "title":
-            self._title = self._get_macro_arg_raw(node)
-            return ""
-        if name == "author":
-            self._author = self._get_macro_arg_raw(node)
-            return ""
-        if name == "date":
-            self._date = self._get_macro_arg_raw(node)
-            return ""
-        if name in ("maketitle", "titlepage"):
-            return self._emit_title_block()
-
-        if name == "label":
-            self._record_label(self._get_macro_arg_raw(node).strip())
-            return ""
-        if name in _REF_MACROS:
-            return self._ref_placeholder(name, node)
-        if name in ("cite", "citep", "citet", "citeyear"):
-            key = self._get_macro_arg_raw(node)
-            return f"[{key}]"
-
-        if name == "footnote":
-            return self._convert_footnote(node)
-
-        if name == "item":
-            return self._convert_item(node)
-
-        if name == "caption":
-            return self._convert_caption(node)
-        if name == "subcaption":
-            self._figure_caption = self._get_macro_arg(node)
+        if name in SKIP_MACROS:
             return ""
 
-        if name == "\\":
-            return "\n"
-
-        # siunitx
-        if name in ("SI", "qty"):
-            args = self._get_required_args_raw(node)
-            return format_si_quantity(args[0], args[-1]) if len(args) >= 2 else ""
-        if name in ("si", "unit"):
-            return format_si_unit(self._get_macro_arg_verbatim(node))
-        if name == "num":
-            return format_si_number(self._get_macro_arg_verbatim(node))
-        if name == "ang":
-            return format_si_number(self._get_macro_arg_verbatim(node)) + "°"
-        if name in ("SIrange", "qtyrange", "numrange"):
-            args = self._get_required_args_raw(node)
-            if len(args) >= 2:
-                return format_si_range(args[0], args[1], args[2] if len(args) > 2 else "")
-            return ""
-
-        if name == "multicolumn":
-            # Outside a tabular (handled there) just keep the content
-            return self._get_macro_arg(node)
-        if name == "subfloat":
-            return self._convert_subfloat(node)
-        if name == "texorpdfstring":
-            return self._get_macro_arg(node, 0)
-        if name == "textsuperscript":
-            return f"<sup>{self._get_macro_arg(node)}</sup>"
-        if name == "textsubscript":
-            return f"<sub>{self._get_macro_arg(node)}</sub>"
-        if name in ("qed", "qedsymbol"):
-            return " ∎"
-
-        # Beamer
-        if name in ("only", "visible", "uncover", "onslide"):
-            return self._get_macro_arg(node)
-        if name in ("invisible", "pause", "qedhere", "theoremstyle", "usetheme", "usecolortheme"):
-            return ""
-        if name == "alert":
-            return f"**{self._get_macro_arg(node)}**"
-        if name == "note":
-            text = self._get_macro_arg(node).strip()
-            return f"\n\n> **Note:** {text}\n\n" if text else ""
-        if name == "frametitle":
-            return self._frame_heading(self._get_macro_arg(node).strip())
-        if name == "framesubtitle":
-            return f"*{self._get_macro_arg(node).strip()}*\n\n"
-
-        if name == "newtheorem":
-            self._register_theorem(node)
-            return ""
-
-        if name in _SKIP_MACROS:
-            return ""
-
-        if name in _DEFINITION_MACROS:
+        if name in DEFINITION_MACROS:
             if name not in self._warned_macros:
                 self._warnings.append(
                     f"Custom macro definition '\\{name}' skipped — usages may appear as raw text"
@@ -625,8 +353,116 @@ class _TexToMarkdownConverter:
             self._warned_macros.add(name)
         return self._get_macro_arg(node)
 
+    def _build_macro_handlers(self) -> dict[str, Callable[[LatexMacroNode], str]]:
+        """Macro name -> handler for every macro with its own conversion.
+
+        Headings, formatting, accents, and symbols are table-driven and
+        checked first in ``_convert_macro``; names here never overlap them.
+        """
+        arg = self._get_macro_arg
+
+        def skip(_node: LatexMacroNode) -> str:
+            return ""
+
+        def keep_content(node: LatexMacroNode) -> str:
+            return arg(node)
+
+        handlers: dict[str, Callable[[LatexMacroNode], str]] = {
+            "href": self._convert_href,
+            "url": self._convert_url,
+            "includegraphics": self._convert_includegraphics,
+            # Metadata may appear in the preamble, so it uses raw text
+            "title": self._set_title,
+            "author": self._set_author,
+            "date": self._set_date,
+            "maketitle": lambda _node: self._emit_title_block(),
+            "titlepage": lambda _node: self._emit_title_block(),
+            # Cross-references and citations
+            "label": self._convert_label,
+            **dict.fromkeys(REF_MACROS, self._convert_ref),
+            **dict.fromkeys(("cite", "citep", "citet", "citeyear"), self._convert_cite),
+            "footnote": self._convert_footnote,
+            "item": self._convert_item,
+            "caption": self._convert_caption,
+            "subcaption": self._convert_subcaption,
+            "\\": lambda _node: "\n",
+            # Outside a tabular (handled there) just keep the content
+            "multicolumn": keep_content,
+            "subfloat": self._convert_subfloat,
+            "texorpdfstring": lambda node: arg(node, 0),
+            "textsuperscript": lambda node: f"<sup>{arg(node)}</sup>",
+            "textsubscript": lambda node: f"<sub>{arg(node)}</sub>",
+            "qed": lambda _node: " ∎",
+            "qedsymbol": lambda _node: " ∎",
+            "newtheorem": self._convert_newtheorem,
+            # Beamer: overlays show everything; theme commands do nothing
+            **dict.fromkeys(("only", "visible", "uncover", "onslide"), keep_content),
+            **dict.fromkeys(
+                ("invisible", "pause", "qedhere", "theoremstyle", "usetheme", "usecolortheme"),
+                skip,
+            ),
+            "alert": lambda node: f"**{arg(node)}**",
+            "note": self._convert_note,
+            "frametitle": lambda node: self._frame_heading(arg(node).strip()),
+            "framesubtitle": lambda node: f"*{arg(node).strip()}*\n\n",
+            # siunitx
+            **dict.fromkeys(("SI", "qty"), self._convert_si_quantity),
+            **dict.fromkeys(("si", "unit"), self._convert_si_unit),
+            "num": lambda node: format_si_number(self._get_macro_arg_verbatim(node)),
+            "ang": lambda node: format_si_number(self._get_macro_arg_verbatim(node)) + "°",
+            **dict.fromkeys(("SIrange", "qtyrange", "numrange"), self._convert_si_range),
+        }
+        return handlers
+
+    def _set_title(self, node: LatexMacroNode) -> str:
+        self._title = self._get_macro_arg_raw(node)
+        return ""
+
+    def _set_author(self, node: LatexMacroNode) -> str:
+        self._author = self._get_macro_arg_raw(node)
+        return ""
+
+    def _set_date(self, node: LatexMacroNode) -> str:
+        self._date = self._get_macro_arg_raw(node)
+        return ""
+
+    def _convert_label(self, node: LatexMacroNode) -> str:
+        self._record_label(self._get_macro_arg_raw(node).strip())
+        return ""
+
+    def _convert_ref(self, node: LatexMacroNode) -> str:
+        return self._ref_placeholder(node.macroname, node)
+
+    def _convert_cite(self, node: LatexMacroNode) -> str:
+        return f"[{self._get_macro_arg_raw(node)}]"
+
+    def _convert_subcaption(self, node: LatexMacroNode) -> str:
+        self._figure_caption = self._get_macro_arg(node)
+        return ""
+
+    def _convert_newtheorem(self, node: LatexMacroNode) -> str:
+        self._register_theorem(node)
+        return ""
+
+    def _convert_note(self, node: LatexMacroNode) -> str:
+        text = self._get_macro_arg(node).strip()
+        return f"\n\n> **Note:** {text}\n\n" if text else ""
+
+    def _convert_si_quantity(self, node: LatexMacroNode) -> str:
+        args = self._get_required_args_raw(node)
+        return format_si_quantity(args[0], args[-1]) if len(args) >= 2 else ""
+
+    def _convert_si_unit(self, node: LatexMacroNode) -> str:
+        return format_si_unit(self._get_macro_arg_verbatim(node))
+
+    def _convert_si_range(self, node: LatexMacroNode) -> str:
+        args = self._get_required_args_raw(node)
+        if len(args) >= 2:
+            return format_si_range(args[0], args[1], args[2] if len(args) > 2 else "")
+        return ""
+
     def _convert_heading(self, node: LatexMacroNode) -> str:
-        level = _HEADING_MACROS[node.macroname]
+        level = HEADING_MACROS[node.macroname]
         text = self._get_macro_arg(node).strip()
         if node.macroname in ("section", "chapter"):
             self._seen_section = True
@@ -643,7 +479,7 @@ class _TexToMarkdownConverter:
         return f"\n\n{prefix} {text}\n\n"
 
     def _convert_formatting(self, node: LatexMacroNode) -> str:
-        pre, suf = _FORMAT_MACROS[node.macroname]
+        pre, suf = FORMAT_MACROS[node.macroname]
         literal = node.macroname == "texttt"
         self._literal_text_depth += literal
         try:
@@ -675,7 +511,7 @@ class _TexToMarkdownConverter:
             self._warnings.append(f"Image not found: {image_path_str}")
             return f"![{image_path_str}]({image_path_str})"
 
-        if image_path.suffix.lower() in _UNSUPPORTED_IMAGE_EXTENSIONS:
+        if image_path.suffix.lower() in UNSUPPORTED_IMAGE_EXTENSIONS:
             self._warnings.append(
                 f"Unsupported image format '{image_path.suffix}': {image_path_str}"
             )
@@ -700,7 +536,7 @@ class _TexToMarkdownConverter:
         path = self._tex_dir / path_str
         candidates = [path]
         if not path.suffix:
-            candidates += [path.with_suffix(ext) for ext in _IMAGE_EXTENSIONS]
+            candidates += [path.with_suffix(ext) for ext in IMAGE_EXTENSIONS]
         for candidate in candidates:
             if candidate.exists():
                 if not is_within(candidate, self._tex_dir):
@@ -767,7 +603,7 @@ class _TexToMarkdownConverter:
             self._in_document = True
             return self._convert_nodes(node.nodelist)
 
-        if name in _MATH_ENVS:
+        if name in MATH_ENVS:
             return self._convert_math_env(node)
 
         if name in ("itemize", "enumerate"):
@@ -804,7 +640,7 @@ class _TexToMarkdownConverter:
         if name in ("block", "alertblock", "exampleblock"):
             return self._convert_block(node)
 
-        if name in _SKIP_ENVS:
+        if name in SKIP_ENVS:
             if name not in self._warned_envs:
                 self._warnings.append(f"Unsupported environment '{name}' skipped")
                 self._warned_envs.add(name)
@@ -824,32 +660,32 @@ class _TexToMarkdownConverter:
         name = node.environmentname
         base = name.rstrip("*")
         numbered = not name.endswith("*")
-        inner = _extract_env_body_raw(node.latex_verbatim(), name)
+        inner = extract_env_body_raw(node.latex_verbatim(), name)
 
-        if base in _MULTIROW_MATH_ENVS:
+        if base in MULTIROW_MATH_ENVS:
             rows = re.split(r"\\\\", inner)
             if numbered:
                 rows = [self._number_math_row(row) for row in rows]
                 body = "\\\\".join(rows).strip()
                 return f"\n\n$$\n\\begin{{{base}}}\n{body}\n\\end{{{base}}}\n$$\n\n"
             wrapper = "gathered" if base == "gather" else "aligned"
-            body = "\\\\".join(_strip_math_labels(r) for r in rows).strip()
+            body = "\\\\".join(strip_math_labels(r) for r in rows).strip()
             return f"\n\n$$\n\\begin{{{wrapper}}}\n{body}\n\\end{{{wrapper}}}\n$$\n\n"
 
-        if numbered and base in _SINGLE_ROW_NUMBERED_ENVS:
+        if numbered and base in SINGLE_ROW_NUMBERED_ENVS:
             body = self._number_math_row(inner).strip()
             return f"\n\n$${body}$$\n\n"
-        return f"\n\n$${_strip_math_labels(inner).strip()}$$\n\n"
+        return f"\n\n$${strip_math_labels(inner).strip()}$$\n\n"
 
     def _number_math_row(self, row: str) -> str:
         """Tag one numbered equation row and record any \\label on it."""
         if not row.strip() or re.search(r"\\(?:nonumber|notag)\b", row):
-            return _strip_math_labels(row)
+            return strip_math_labels(row)
         self._equation_counter += 1
         number = str(self._equation_counter)
         for key in re.findall(r"\\label\{([^}]*)\}", row):
             self._labels[key.strip()] = ("Equation", number, "")
-        return f"{_strip_math_labels(row).rstrip()} \\tag{{{number}}}"
+        return f"{strip_math_labels(row).rstrip()} \\tag{{{number}}}"
 
     def _convert_list(self, node: LatexEnvironmentNode, *, ordered: bool) -> str:
         self._list_depth += 1
@@ -866,15 +702,15 @@ class _TexToMarkdownConverter:
     def _convert_code_block(self, node: LatexEnvironmentNode) -> str:
         """Convert verbatim, lstlisting, or minted to a fenced code block."""
         raw = node.latex_verbatim()
-        inner = _extract_env_body_raw(raw, node.environmentname)
+        inner = extract_env_body_raw(raw, node.environmentname)
 
         lang = ""
         if node.environmentname == "lstlisting":
-            match = _LSTLISTING_LANG_RE.search(raw)
+            match = LSTLISTING_LANG_RE.search(raw)
             if match:
                 lang = match.group(1).lower()
         elif node.environmentname == "minted":
-            match = _MINTED_LANG_RE.match(raw)
+            match = MINTED_LANG_RE.match(raw)
             if match:
                 lang = match.group(1).lower()
 
@@ -882,7 +718,7 @@ class _TexToMarkdownConverter:
 
     def _convert_tabular(self, node: LatexEnvironmentNode) -> str:
         raw = node.latex_verbatim()
-        inner = _extract_env_body_raw(raw, node.environmentname)
+        inner = extract_env_body_raw(raw, node.environmentname)
 
         col_spec = ""
         begin_match = re.match(
@@ -894,7 +730,7 @@ class _TexToMarkdownConverter:
         if begin_match:
             col_spec = begin_match.group(1)
 
-        alignments = _parse_column_alignments(col_spec)
+        alignments = parse_column_alignments(col_spec)
 
         row_strs = re.split(r"\\\\", inner)
         rows: list[list[str]] = []
@@ -908,8 +744,8 @@ class _TexToMarkdownConverter:
             if not row_str:
                 continue
             cells: list[str] = []
-            for cell in _split_cells(row_str):
-                span = _MULTICOLUMN_PATTERN.fullmatch(cell.strip())
+            for cell in split_cells(row_str):
+                span = MULTICOLUMN_PATTERN.fullmatch(cell.strip())
                 if span:
                     count, content = int(span.group(1)), span.group(2)
                     cells.append(self._convert_fragment(content).strip())
@@ -969,7 +805,7 @@ class _TexToMarkdownConverter:
         caption_arg = options[-1] if options else None
         try:
             if caption_arg is not None:
-                self._figure_caption = self._convert_nodes(_ensure_nodelist(caption_arg)).strip()
+                self._figure_caption = self._convert_nodes(ensure_nodelist(caption_arg)).strip()
             body = self._get_macro_arg(node)
         finally:
             self._in_subfigure = False
@@ -1011,7 +847,7 @@ class _TexToMarkdownConverter:
 
     def _convert_blockquote(self, node: LatexEnvironmentNode) -> str:
         body = self._convert_nodes(node.nodelist).strip()
-        return _blockquote(body)
+        return blockquote(body)
 
     # -- Theorems, proofs, beamer --
 
@@ -1019,9 +855,9 @@ class _TexToMarkdownConverter:
         """Handle ``\\newtheorem{name}[shared]{Title}[within]`` and ``\\newtheorem*``."""
         args = node.nodeargd.argnlist if node.nodeargd else []
         # argspec "*{[{[": star, name, shared counter, title, within
-        name = _extract_raw_text(args[1]).strip() if len(args) > 1 and args[1] else ""
-        shared = _extract_raw_text(args[2]).strip() if len(args) > 2 and args[2] else ""
-        title = _extract_raw_text(args[3]).strip() if len(args) > 3 and args[3] else ""
+        name = extract_raw_text(args[1]).strip() if len(args) > 1 and args[1] else ""
+        shared = extract_raw_text(args[2]).strip() if len(args) > 2 and args[2] else ""
+        title = extract_raw_text(args[3]).strip() if len(args) > 3 and args[3] else ""
         if not name:
             return
         self._theorem_names[name] = title or name.capitalize()
@@ -1047,7 +883,7 @@ class _TexToMarkdownConverter:
         if note:
             heading += f" ({note})"
         body = self._convert_nodes(nodes).strip()
-        return _blockquote(f"**{heading}.** {body}")
+        return blockquote(f"**{heading}.** {body}")
 
     def _convert_proof(self, node: LatexEnvironmentNode) -> str:
         note, nodes = self._take_env_note(node)
@@ -1055,7 +891,7 @@ class _TexToMarkdownConverter:
         body = self._convert_nodes(nodes).strip()
         if not body.endswith("∎"):
             body += " ∎"
-        return _blockquote(f"*{label}.* {body}")
+        return blockquote(f"*{label}.* {body}")
 
     def _frame_heading(self, title: str) -> str:
         if not title:
@@ -1089,7 +925,7 @@ class _TexToMarkdownConverter:
         args = node.nodeargd.argnlist if node.nodeargd else []
         for arg in args:
             if arg is not None and getattr(arg, "delimiters", ("{",))[0] == "{":
-                return self._convert_nodes(_ensure_nodelist(arg)).strip()
+                return self._convert_nodes(ensure_nodelist(arg)).strip()
         return ""
 
     def _get_required_args_raw(self, node: LatexMacroNode) -> list[str]:
@@ -1097,7 +933,7 @@ class _TexToMarkdownConverter:
         if not node.nodeargd or not node.nodeargd.argnlist:
             return []
         return [
-            _arg_verbatim(arg)
+            arg_verbatim(arg)
             for arg in node.nodeargd.argnlist
             if arg is not None and getattr(arg, "delimiters", ("{",))[0] == "{"
         ]
@@ -1105,7 +941,7 @@ class _TexToMarkdownConverter:
     def _get_macro_arg_verbatim(self, node: LatexMacroNode) -> str:
         """Verbatim LaTeX of the main argument (keeps macros like ``\\metre``)."""
         arg = self._find_macro_arg(node)
-        return _arg_verbatim(arg) if arg is not None else ""
+        return arg_verbatim(arg) if arg is not None else ""
 
     def _take_env_note(self, node: LatexEnvironmentNode) -> tuple[str, list]:
         """Return an environment's ``[note]`` and its body nodes (note removed).
@@ -1116,7 +952,7 @@ class _TexToMarkdownConverter:
         nodes = list(node.nodelist or [])
         for arg in node.nodeargd.argnlist if node.nodeargd else []:
             if arg is not None and getattr(arg, "delimiters", ("",))[0] == "[":
-                return self._convert_nodes(_ensure_nodelist(arg)).strip(), nodes
+                return self._convert_nodes(ensure_nodelist(arg)).strip(), nodes
         if nodes and isinstance(nodes[0], LatexCharsNode):
             match = re.match(r"\s*\[([^\]]*)\]", nodes[0].chars)
             if match:
@@ -1129,7 +965,7 @@ class _TexToMarkdownConverter:
         """Beamer ``block``/``alertblock``/``exampleblock`` → titled blockquote."""
         title = self._get_env_arg(node)
         body = self._convert_nodes(node.nodelist).strip()
-        return _blockquote(f"**{title}**\n\n{body}" if title else body)
+        return blockquote(f"**{title}**\n\n{body}" if title else body)
 
     # -- Argument extraction helpers --
 
@@ -1157,21 +993,21 @@ class _TexToMarkdownConverter:
         arg = self._find_macro_arg(node, index)
         if arg is None:
             return ""
-        return self._convert_nodes(_ensure_nodelist(arg))
+        return self._convert_nodes(ensure_nodelist(arg))
 
     def _get_macro_arg_raw(self, node: LatexMacroNode, index: int = -1) -> str:
         """Get the raw text of a macro's argument (not recursively converted)."""
         arg = self._find_macro_arg(node, index)
         if arg is None:
             return ""
-        return _extract_raw_text(arg)
+        return extract_raw_text(arg)
 
     def _get_all_macro_args(self, node: LatexMacroNode) -> list[str]:
         """Get all non-None macro arguments as converted strings."""
         if not node.nodeargd or not node.nodeargd.argnlist:
             return []
         return [
-            self._convert_nodes(_ensure_nodelist(arg))
+            self._convert_nodes(ensure_nodelist(arg))
             for arg in node.nodeargd.argnlist
             if arg is not None
         ]
@@ -1184,109 +1020,8 @@ class _TexToMarkdownConverter:
             if arg is not None and hasattr(arg, "delimiters"):
                 delims = arg.delimiters
                 if delims and delims[0] == "[":
-                    return self._convert_nodes(_ensure_nodelist(arg))
+                    return self._convert_nodes(ensure_nodelist(arg))
         return ""
 
 
 # -- Module-level helpers --
-
-
-def _ensure_nodelist(node) -> list:
-    """Ensure we have a list of nodes from an argument node."""
-    if hasattr(node, "nodelist") and node.nodelist is not None:
-        return node.nodelist
-    if isinstance(node, LatexCharsNode):
-        return [node]
-    return [node] if node else []
-
-
-def _arg_verbatim(arg) -> str:
-    """Verbatim LaTeX of an argument node without its outer braces."""
-    text = arg.latex_verbatim() if hasattr(arg, "latex_verbatim") else _extract_raw_text(arg)
-    text = text.strip()
-    if text.startswith("{") and text.endswith("}"):
-        text = text[1:-1]
-    return text
-
-
-def _extract_raw_text(node) -> str:
-    """Extract plain text from a node without recursive markdown conversion."""
-    if isinstance(node, LatexCharsNode):
-        return node.chars
-    if hasattr(node, "nodelist") and node.nodelist:
-        return "".join(_extract_raw_text(n) for n in node.nodelist)
-    if hasattr(node, "chars"):
-        return node.chars
-    return ""
-
-
-@functools.lru_cache(maxsize=32)
-def _make_env_body_pattern(env_name: str) -> re.Pattern[str]:
-    """Compile and cache the regex for extracting an environment body."""
-    return re.compile(
-        r"\\begin\{"
-        + re.escape(env_name)
-        + r"\}(?:\[[^\]]*\])*(?:\{[^}]*\})*\s*(.*?)\s*\\end\{"
-        + re.escape(env_name)
-        + r"\}",
-        re.DOTALL,
-    )
-
-
-def _extract_env_body_raw(raw_latex: str, env_name: str) -> str:
-    """Extract the body between \\begin{env} and \\end{env} from raw LaTeX."""
-    match = _make_env_body_pattern(env_name).search(raw_latex)
-    if match:
-        return match.group(1)
-    return raw_latex
-
-
-def _parse_column_alignments(col_spec: str) -> list[str]:
-    """Parse LaTeX column spec like '|l|c|r|' into alignment list."""
-    alignments = []
-    for ch in col_spec:
-        if ch == "l":
-            alignments.append("left")
-        elif ch == "c":
-            alignments.append("center")
-        elif ch == "r":
-            alignments.append("right")
-    return alignments
-
-
-_MULTICOLUMN_PATTERN = re.compile(r"\\multicolumn\s*\{(\d+)\}\s*\{[^}]*\}\s*\{(.*)\}", re.DOTALL)
-
-
-def _split_cells(row: str) -> list[str]:
-    """Split a tabular row on ``&``, ignoring escaped ``\\&`` and braced groups."""
-    cells: list[str] = []
-    depth = 0
-    start = 0
-    i = 0
-    while i < len(row):
-        ch = row[i]
-        if ch == "\\":
-            i += 2
-            continue
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth = max(0, depth - 1)
-        elif ch == "&" and depth == 0:
-            cells.append(row[start:i])
-            start = i + 1
-        i += 1
-    cells.append(row[start:])
-    return cells
-
-
-def _blockquote(text: str) -> str:
-    """Render ``text`` as a Markdown blockquote block."""
-    lines = text.strip().split("\n")
-    return "\n\n" + "\n".join(f"> {line}" if line.strip() else ">" for line in lines) + "\n\n"
-
-
-def _strip_math_labels(math: str) -> str:
-    """Remove ``\\label{...}``, ``\\nonumber`` and ``\\notag`` from math source."""
-    math = re.sub(r"\\label\s*\{[^}]*\}", "", math)
-    return re.sub(r"\\(?:nonumber|notag)\b", "", math)

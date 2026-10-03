@@ -244,7 +244,7 @@ Uses openpyxl to read Excel workbooks in data-only mode (computed values, not fo
 
 ### LaTeX Import
 
-**Module:** `src/leafpress/importer/converter_tex.py`
+**Module:** `src/leafpress/importer/converter_tex.py`, with `tex_spec.py` (macro/environment tables and the pylatexenc context), `tex_nodes.py` (argument extraction and tabular parsing), `tex_symbols.py`, and `tex_includes.py`
 
 Uses pylatexenc to parse LaTeX source into an AST, then walks the tree to produce Markdown. Before parsing, `importer/tex_includes.expand_includes()` inlines `\input`/`\include`/`\subfile`/`\import`. Includes must stay inside the document directory, commented-out lines are ignored, and cycles are detected. Beamer overlay specs are also stripped at this stage.
 
@@ -252,6 +252,7 @@ Uses pylatexenc to parse LaTeX source into an AST, then walks the tree to produc
 - **Text**: `importer/tex_symbols.py` converts accents (`\"o` → ö), symbol macros (`\&`, `\ss`, `\ldots`), ligatures (`---`, `--`, TeX quotes, `~`), and siunitx quantities
 - **Math**: display environments become `$$...$$`; numbered rows get `\tag{n}`, `\label`/`\nonumber` are stripped, and `align*` is wrapped in `aligned`
 - **Cross-references**: `\ref`/`\eqref`/`\autoref`/`\cref`/`\nameref` are emitted as placeholders and resolved after the whole document is walked, so forward references work
+- **Macros** are dispatched by name: headings, formatting, accents, and symbols come from tables; every other supported macro has an entry in `_build_macro_handlers()`. Add a new macro there
 - **Lists**, **code blocks**, **links**, and **footnotes** map to their Markdown equivalents
 - **Tables** (`tabular`) become pipe tables; cells are converted, and `\multicolumn` content is kept in the first spanned column
 - **Figures** use `\caption` as alt text plus a numbered caption line; `subfigure`/`\subfloat` panels get `(a)`, `(b)`
@@ -279,7 +280,7 @@ Shared by the DOCX, PPTX, and LaTeX importers. `ImageHandler` manages an output 
 | **Desktop UI** | `ui/app.py` | PyQt6 menu bar / tray app with convert and import windows |
 | **Orchestration** | `pipeline.py` | Coordinates all stages of conversion |
 | **Input** | `source.py`, `project.py` | Source resolution, project auto-detection |
-| **Import** | `importer/dispatch.py`, `importer/base.py`, `importer/converter.py`, `importer/converter_pptx.py`, `importer/converter_xlsx.py`, `importer/converter_tex.py`, `importer/tex_symbols.py`, `importer/tex_includes.py`, `importer/image_handler.py` | DOCX/PPTX/XLSX/LaTeX to Markdown conversion |
+| **Import** | `importer/dispatch.py`, `importer/base.py`, `importer/converter.py`, `importer/converter_pptx.py`, `importer/converter_xlsx.py`, `importer/converter_tex.py`, `importer/tex_spec.py`, `importer/tex_nodes.py`, `importer/tex_symbols.py`, `importer/tex_includes.py`, `importer/image_handler.py` | DOCX/PPTX/XLSX/LaTeX to Markdown conversion |
 | **Config** | `config.py`, `exceptions.py` | Branding schema, validation, env overrides |
 | **Parsing** | `mkdocs_parser.py`, `zensical_parser.py` | Site config (mkdocs.yml / zensical.toml) and nav parsing |
 | **Security** | `asset_policy.py`, `pdf/url_fetcher.py`, `downloads.py`, `sanitize.py` | File confinement, restricted fetching, bounded downloads, HTML sanitizing |
