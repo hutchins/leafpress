@@ -179,15 +179,24 @@ LaTeX documents are converted using a native parser ([pylatexenc](https://github
 
 | Feature | How it's handled |
 |---------|-----------------|
-| Headings | `\section` → `##`, `\subsection` → `###`, `\subsubsection` → `####`, etc. |
-| Bold / italic / code | `\textbf` → `**bold**`, `\textit` / `\emph` → `*italic*`, `\texttt` → `` `code` `` |
+| Multi-file projects | `\input`, `\include`, `\subfile`, `\import`, `\subimport` are inlined. Paths resolve like LaTeX's (relative to the main file; `\subimport` relative to the including file) and must stay inside the main file's directory. Commented-out includes are ignored, and cycles and missing files produce warnings |
+| Headings | `\chapter` → `#`, `\section` → `##`, … `\paragraph` → `#####`, `\subparagraph` → `######` |
+| Bold / italic / code | `\textbf` → `**bold**`, `\textit` / `\emph` → `*italic*`, `\texttt` → `` `code` `` (dashes and quotes inside stay literal) |
+| Accents and symbols | `\"o` → ö, `\'e` → é, `\c{c}` → ç, `\v{s}` → š, `\ss` → ß, `\&` / `\%` → & / %, `\ldots` → …, and similar |
+| Typography | `---` → —, `--` → –, ` ``quotes'' ` → “quotes”, `~` → space |
 | Lists | `itemize` → bullets, `enumerate` → numbered, with nesting support |
-| Math | Inline `$...$` and display `$$...$$` / `\[...\]` / `equation` / `align` passed through for MathJax/KaTeX |
+| Math | Inline `$...$` and display math become `$$...$$` for MathJax/KaTeX. Numbered `equation`/`align`/`gather` rows get `\tag{n}`, starred forms use `aligned`/`gathered`, and `\label`, `\nonumber`, `\notag` are removed |
+| Cross-references | `\ref`, `\eqref`, `\autoref`, `\cref`/`\Cref`, and `\nameref` resolve to section, figure, table, theorem, and equation numbers (e.g. "Section 2.1", "(3)", "Figure 1a"), including forward references. Undefined labels (and `\pageref`) stay as `[ref:key]`, with one warning listing them |
 | Images | `\includegraphics` resolved relative to `.tex` file, copied to `assets/`. Paths outside the `.tex` file's directory (absolute, `..`, or via symlinks) are skipped with a warning |
-| Tables | `tabular` → pipe-style Markdown tables with column alignment |
+| Figures | `\caption` becomes the image alt text plus a numbered `*Figure n: caption*` line |
+| Sub-figures | `subfigure` (subcaption) and `\subfloat` (subfig) render each panel with an `(a)`, `(b)`, … caption |
+| Tables | `tabular`/`tabular*`/`tabularx` → pipe tables with column alignment. Cell contents are converted (formatting, math, `\&`), and `table` captions become `*Table n: caption*` |
+| `\multicolumn` | Content is kept in the first spanned column and the rest are left empty, since Markdown tables can't span columns. A warning is shown once |
+| Theorems and proofs | `theorem`, `lemma`, `definition`, … (plus any `\newtheorem`, including shared counters and `\newtheorem*`) → numbered blockquotes like **Theorem 1 (Note).** `proof` ends with ∎ |
+| `siunitx` | `\SI`/`\qty`, `\si`/`\unit`, `\num`, `\ang`, `\SIrange`/`\qtyrange`/`\numrange`: `\SI{3e8}{\metre\per\second}` → 3 × 10⁸ m·s⁻¹ |
+| Beamer | Each `frame` becomes a heading (from `{title}` or `\frametitle`) followed by its content. Overlay specs (`<2->`, `[<+->]`) and `\pause` are dropped; `\only`/`\visible`/`\uncover` content is kept and `\invisible` content removed. `block` → titled blockquote, `\alert` → bold, `\note` → "Note:" blockquote |
 | Links | `\href{url}{text}` → Markdown links, `\url{url}` → angle-bracket URLs |
 | Code blocks | `verbatim`, `lstlisting`, `minted` → fenced code blocks (with language detection) |
-| Figures | `\caption` text used as image alt text |
 | Title / author | `\title` and `\author` rendered at top of document |
 | Blockquotes | `abstract`, `quote`, `quotation` → blockquotes |
 | Footnotes | `\footnote` → Markdown footnote syntax |
@@ -196,20 +205,14 @@ LaTeX documents are converted using a native parser ([pylatexenc](https://github
 
 | Feature | Reason |
 |---------|--------|
-| **`\input` / `\include`** | Multi-file LaTeX projects are not supported — only the specified `.tex` file is converted. |
 | **Custom macros** | `\newcommand` / `\def` definitions are skipped with a warning. Usages of custom macros appear as raw text. |
 | **TikZ / PGF diagrams** | `tikzpicture` and `pgfpicture` environments are skipped with a warning. |
-| **Beamer** | Beamer-specific environments (`frame`) and overlay commands (`\pause`, `\only<>`) are not converted. |
-| **Cross-references** | `\ref` and `\cite` produce placeholder text like `[ref:label]` and `[key]` — not resolved to numbers or bibliography entries. |
 | **Bibliography** | `.bib` files are not parsed. `\cite`, `\citet`, `\citep` commands produce bracketed keys. |
+| **`\pageref`** | There are no pages in Markdown, so page references stay as `[ref:key]`. |
+| **Column spans** | `\multicolumn` content is kept, but the span itself can't be represented in a pipe table. |
+| **Beamer overlays** | Slides are flattened: every overlay step's content (except `\invisible`) appears once. |
+| **URL imports** | A `.tex` file imported from a URL can't `\input` sibling files, since only that file is downloaded. |
 | **EPS/PDF images** | Only raster image formats (PNG, JPG, SVG, etc.) are copied. EPS and PDF images produce a warning. |
-| **Theorem-like environments** | `theorem`, `lemma`, `proof`, `corollary`, `definition`, and other custom environments render their body as plain text with a warning. |
-| **`\paragraph` headings** | Registered as a heading level but may not render with `#####` prefix due to parser argument handling. |
-| **`\multicolumn` in tables** | Column spanning is not represented — cells render but span information is lost. |
-| **`\subfigure` / `\subcaption`** | Sub-figure environments are not supported — arguments render as plain text. |
-| **Accented characters** | LaTeX accent commands (`\"o`, `\'{e}`, `\~{n}`) are not converted to Unicode — they appear as raw LaTeX. |
-| **`siunitx` package** | `\SI`, `\si`, `\num` commands are not converted — they appear as raw text. |
-| **`\label` inside math** | Labels within math environments are passed through verbatim in the `$$` block. |
 
 !!! tip
     For best results with math, ensure your Markdown renderer supports MathJax or KaTeX.
