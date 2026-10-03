@@ -12,6 +12,7 @@
 
 ### Internal
 
+- LaTeX importer: macro conversion is a dispatch table instead of a 120-line `if` chain. Macro/environment tables moved to `importer/tex_spec.py` and node/tabular helpers to `importer/tex_nodes.py`. Output is unchanged, checked against every LaTeX input in the test suite
 - `pipeline.py`: one table of output formats replaces six copy-pasted blocks, single-project and monorepo mode share one page-render loop, and `convert()` is split into small steps. `convert()` takes an optional `console`
 - Renderer error messages come from one rule table in `render_errors.py` instead of five near-identical functions
 
