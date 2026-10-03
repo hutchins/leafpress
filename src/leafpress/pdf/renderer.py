@@ -10,7 +10,8 @@ from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
 from weasyprint import CSS, HTML
 
-from leafpress.base_renderer import replace_checkboxes, resolve_logo_uri
+from leafpress.asset_policy import AssetPolicy
+from leafpress.base_renderer import build_asset_policy, replace_checkboxes, resolve_logo_uri
 from leafpress.config import BrandingConfig
 from leafpress.exceptions import RenderError
 from leafpress.git_info import GitVersion
@@ -28,10 +29,12 @@ class PdfRenderer:
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
         self._jinja = Environment(
             loader=PackageLoader("leafpress.pdf", "templates"),
             autoescape=True,
@@ -92,17 +95,22 @@ class PdfRenderer:
         combined = "\n".join(sections_html)
         combined = replace_checkboxes(combined)
 
-        # Render with WeasyPrint
+        # Render with WeasyPrint. The restricted fetcher keeps document content
+        # from pulling in local files outside the project or internal URLs.
+        from leafpress.pdf.url_fetcher import RestrictedURLFetcher
+
         full_html = self._wrap_document(combined)
+        fetcher = RestrictedURLFetcher(self._asset_policy)
         html_doc = HTML(
             string=full_html,
             base_url=str(self._mkdocs_cfg.docs_dir),
+            url_fetcher=fetcher,
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             html_doc.write_pdf(
                 str(output_path),
-                stylesheets=[CSS(string=css_string)],
+                stylesheets=[CSS(string=css_string, url_fetcher=fetcher)],
             )
         except Exception as exc:
             raise RenderError(self._format_pdf_error(exc)) from exc

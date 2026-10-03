@@ -33,6 +33,17 @@ def generate_pdf_css(
     return f"{base_css}\n\n{page_css}\n\n{color_css}\n\n{watermark_css}"
 
 
+def _css_string_escape(value: str) -> str:
+    """Escape text for use inside a double-quoted CSS string.
+
+    Backslashes must be escaped before quotes, otherwise an input ending in a
+    backslash can terminate the string early and inject CSS rules.
+    """
+    value = value.replace("\\", "\\\\").replace('"', '\\"')
+    # Newlines are not allowed in CSS strings; use the CSS escape for LF.
+    return value.replace("\r", "").replace("\n", "\\A ")
+
+
 def _build_page_rules(
     branding: BrandingConfig | None,
     git_info: GitVersion | None,
@@ -91,10 +102,10 @@ def _build_page_rules(
     footer_parts.append("Made with LeafPress · leafpress.dev")
     footer_center = " - ".join(footer_parts)
 
-    # Escape quotes for CSS content strings
-    top_left = top_left.replace('"', '\\"')
-    top_right = top_right.replace('"', '\\"')
-    footer_center = footer_center.replace('"', '\\"')
+    # Escape for CSS content strings (values may come from an untrusted leafpress.yml)
+    top_left = _css_string_escape(top_left)
+    top_right = _css_string_escape(top_right)
+    footer_center = _css_string_escape(footer_center)
 
     # In monorepo mode, show "Project Name — Chapter Name" in the top-right
     # header. The chapter name updates via CSS string-set on .chapter-title.

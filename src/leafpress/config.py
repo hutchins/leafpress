@@ -40,6 +40,17 @@ class DocxOptions(BaseModel):
     template_path: Path | None = None
 
 
+def _normalize_hex_color(v: str) -> str:
+    """Validate a 6-digit hex color and return it as lowercase ``#rrggbb``.
+
+    Colors are interpolated into generated CSS, so anything else is rejected.
+    """
+    stripped = v.lstrip("#")
+    if len(stripped) != 6 or not all(c in "0123456789abcdefABCDEF" for c in stripped):
+        raise ValueError(f"Invalid hex color: {v!r} (expected 6-digit hex, e.g. #1a73e8)")
+    return f"#{stripped.lower()}"
+
+
 class WatermarkConfig(BaseModel):
     """Watermark overlay configuration."""
 
@@ -47,6 +58,11 @@ class WatermarkConfig(BaseModel):
     color: str = "#cccccc"
     opacity: float = Field(default=0.15, ge=0.0, le=1.0)
     angle: int = Field(default=-45, ge=-90, le=90)
+
+    @field_validator("color")
+    @classmethod
+    def validate_hex_color(cls, v: str) -> str:
+        return _normalize_hex_color(v)
 
 
 class DiagramSource(BaseModel):
@@ -148,10 +164,7 @@ class BrandingConfig(BaseModel):
     @field_validator("primary_color", "accent_color")
     @classmethod
     def validate_hex_color(cls, v: str) -> str:
-        stripped = v.lstrip("#")
-        if len(stripped) != 6 or not all(c in "0123456789abcdefABCDEF" for c in stripped):
-            raise ValueError(f"Invalid hex color: {v!r} (expected 6-digit hex, e.g. #1a73e8)")
-        return f"#{stripped.lower()}"
+        return _normalize_hex_color(v)
 
     @field_validator("logo_path")
     @classmethod

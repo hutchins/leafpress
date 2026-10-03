@@ -12,15 +12,20 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
+from leafpress.asset_policy import AssetPolicy, file_uri_to_path
+
 logger = logging.getLogger(__name__)
 
 
 class HtmlToDocxConverter:
     """Converts HTML fragments into python-docx document elements."""
 
-    def __init__(self, doc: Document, docs_dir: Path) -> None:
+    def __init__(
+        self, doc: Document, docs_dir: Path, asset_policy: AssetPolicy | None = None
+    ) -> None:
         self._doc = doc
         self._docs_dir = docs_dir
+        self._asset_policy = asset_policy or AssetPolicy([docs_dir])
 
     def convert(self, html: str) -> None:
         """Convert an HTML fragment and append to the document."""
@@ -190,10 +195,10 @@ class HtmlToDocxConverter:
             return
 
         # Resolve file:// URIs back to paths
-        if src.startswith("file://"):
-            image_path = Path(src.removeprefix("file://"))
-        else:
-            image_path = self._docs_dir / src
+        image_path = file_uri_to_path(src) if src.startswith("file:") else self._docs_dir / src
+        if image_path is None or not self._asset_policy.allows(image_path):
+            logger.warning("Skipping image outside the project: %r", src)
+            return
 
         if image_path.exists():
             try:

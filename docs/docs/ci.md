@@ -129,7 +129,9 @@ env:
 
 ## `.env` file support
 
-leafpress automatically loads a `.env` file from the project root before applying config. This is useful for local development; in CI, use shell env vars directly (they take priority over `.env`).
+leafpress automatically loads a `.env` file from the project root before applying config. This is useful for local development. In CI, use shell env vars directly; they take priority over `.env`.
+
+Only `LEAFPRESS_*` keys are read from `.env`. Other variables in the file are ignored. A `.env` inside a repository cloned from a git URL is never loaded (see [Remote Sources](remote-sources.md#converting-untrusted-repositories)).
 
 ```bash
 # .env (do not commit secrets)

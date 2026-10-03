@@ -8,7 +8,7 @@ import logging
 import tempfile
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 from jinja2 import Environment, PackageLoader
 from rich.console import Console
 from rich.progress import (
@@ -19,6 +19,8 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from leafpress.asset_policy import AssetPolicy, is_within
+from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig, ProjectEntry, config_from_env, load_config
 from leafpress.exceptions import LeafpressError, RenderError, SourceError
 from leafpress.git_info import extract_git_info
@@ -29,6 +31,7 @@ from leafpress.mkdocs_parser import (
     bump_nav_levels,
     flatten_nav,
     parse_mkdocs_config,
+    resolve_page_path,
 )
 from leafpress.source import resolve_source
 
@@ -198,9 +201,13 @@ def convert(
     _pkg_logger.addHandler(_log_handler)
     _pkg_logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
-    with resolve_source(source, branch) as project_dir:
-        # Load .env from project dir (shell env takes priority via override=False)
-        load_dotenv(project_dir / ".env", override=False)
+    resolved_source = resolve_source(source, branch)
+    # A cloned repo is someone else's content: don't trust its .env or let its
+    # leafpress.yml point monorepo projects at local directories outside it.
+    untrusted_source = resolved_source.is_temporary
+    with resolved_source as project_dir:
+        if not untrusted_source:
+            _load_project_env(project_dir / ".env")
 
         # Load branding config (before mkdocs.yml so monorepo mode can skip it)
         branding: BrandingConfig | None = None
@@ -290,6 +297,11 @@ def convert(
 
         # Initialize temp dir for mermaid images
         mermaid_dir = Path(tempfile.mkdtemp(prefix="leafpress-mermaid-"))
+        # Local files that document content may embed (monorepo projects are
+        # added as they are resolved)
+        asset_policy = build_asset_policy(
+            mkdocs_cfg, branding, extra_roots=[project_dir, mermaid_dir]
+        )
 
         # Monorepo mode: collect pages from multiple projects
         if branding and branding.projects:
@@ -300,6 +312,8 @@ def convert(
                 mermaid_dir,
                 branding,
                 console,
+                asset_policy=asset_policy,
+                untrusted_source=untrusted_source,
             )
             console.print(
                 f"  [green]Projects:[/green] {len(branding.projects)} ({page_count} documents)\n"
@@ -310,6 +324,7 @@ def convert(
                 extensions=mkdocs_cfg.markdown_extensions,
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_dir,
+                project_root=mkdocs_cfg.config_path.parent,
             )
             for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:
@@ -323,6 +338,8 @@ def convert(
                         f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
                         f"\n    Error: {err_msg}{hint}"
                     )
+            for warning in renderer.config_warnings:
+                console.print(f"  [yellow]⚠[/yellow] {warning}")
 
             pages = flatten_nav(mkdocs_cfg.nav_items)
             page_count = sum(1 for p in pages if p.path is not None)
@@ -343,7 +360,14 @@ def convert(
                     if item.path is None:
                         html_pages.append((item, ""))
                         continue
-                    md_file = mkdocs_cfg.docs_dir / item.path
+                    md_file = resolve_page_path(mkdocs_cfg.docs_dir, item.path)
+                    if md_file is None:
+                        console.print(
+                            f"  [yellow]Warning:[/yellow] Skipping page outside docs_dir: "
+                            f"{item.path}"
+                        )
+                        progress.update(task, advance=1)
+                        continue
                     if not md_file.exists():
                         console.print(f"  [yellow]Warning:[/yellow] File not found: {item.path}")
                         progress.update(task, advance=1)
@@ -401,7 +425,9 @@ def convert(
 
             pdf_path = output_dir / f"{safe_name}.pdf"
             with console.status("[bold blue]Generating PDF..."):
-                pdf_renderer = PdfRenderer(branding, git_info, mkdocs_cfg)
+                pdf_renderer = PdfRenderer(
+                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
+                )
                 pdf_renderer.render(
                     html_pages,
                     pdf_path,
@@ -417,7 +443,9 @@ def convert(
 
             docx_path = output_dir / f"{safe_name}.docx"
             with console.status("[bold blue]Generating DOCX..."):
-                docx_renderer = DocxRenderer(branding, git_info, mkdocs_cfg)
+                docx_renderer = DocxRenderer(
+                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
+                )
                 try:
                     docx_renderer.render(
                         html_pages,
@@ -459,7 +487,9 @@ def convert(
 
             odt_path = output_dir / f"{safe_name}.odt"
             with console.status("[bold blue]Generating ODT..."):
-                odt_renderer = OdtRenderer(branding, git_info, mkdocs_cfg)
+                odt_renderer = OdtRenderer(
+                    branding, git_info, mkdocs_cfg, asset_policy=asset_policy
+                )
                 try:
                     odt_renderer.render(
                         html_pages,
@@ -533,12 +563,30 @@ def _safe_filename(name: str) -> str:
     return "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip()
 
 
+def _load_project_env(env_file: Path) -> None:
+    """Load ``LEAFPRESS_*`` settings from a project's ``.env`` file.
+
+    Only leafpress settings are read, so a ``.env`` can't set variables such as
+    ``GIT_SSH_COMMAND`` that change how git or other tools behave. Values
+    already set in the shell take priority.
+    """
+    import os
+
+    if not env_file.is_file():
+        return
+    for key, value in dotenv_values(env_file).items():
+        if key.startswith("LEAFPRESS_") and value is not None and key not in os.environ:
+            os.environ[key] = value
+
+
 def _collect_monorepo_pages(
     projects: list[ProjectEntry],
     config_dir: Path,
     mermaid_output_dir: Path,
     branding: BrandingConfig,
     con: Console,
+    asset_policy: AssetPolicy | None = None,
+    untrusted_source: bool = False,
 ) -> tuple[list[tuple[NavItem, str]], int]:
     """Parse and render pages from multiple MkDocs projects.
 
@@ -559,12 +607,18 @@ def _collect_monorepo_pages(
                 source_label = entry.url
             else:
                 project_dir = (config_dir / entry.path).resolve()
+                if untrusted_source and not is_within(project_dir, config_dir):
+                    raise SourceError(
+                        f"Monorepo project path escapes the cloned repository: {entry.path}"
+                    )
                 if not project_dir.is_dir():
                     raise SourceError(f"Monorepo project directory not found: {project_dir}")
                 source_label = entry.path
 
             mkdocs_file = _find_mkdocs_config(project_dir)
             mkdocs_cfg = parse_mkdocs_config(mkdocs_file)
+            if asset_policy is not None:
+                asset_policy.add_root(project_dir)
 
             # Detect per-project version (no walk-up to avoid parent manifests)
             from leafpress.package_version import detect_package_version
@@ -589,6 +643,7 @@ def _collect_monorepo_pages(
                 extensions=mkdocs_cfg.markdown_extensions,
                 docs_dir=mkdocs_cfg.docs_dir,
                 mermaid_output_dir=mermaid_output_dir,
+                project_root=mkdocs_cfg.config_path.parent,
             )
             for ext, ok, err_msg in renderer.extension_load_results:
                 if ok:
@@ -602,6 +657,8 @@ def _collect_monorepo_pages(
                         f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
                         f"\n    Error: {err_msg}{hint}"
                     )
+            for warning in renderer.config_warnings:
+                con.print(f"  [yellow]⚠[/yellow] {warning}")
             flat_nav = flatten_nav(mkdocs_cfg.nav_items)
             bumped = bump_nav_levels(flat_nav)
 
@@ -610,7 +667,13 @@ def _collect_monorepo_pages(
                 if item.path is None:
                     all_pages.append((item, ""))
                     continue
-                md_file = mkdocs_cfg.docs_dir / item.path
+                md_file = resolve_page_path(mkdocs_cfg.docs_dir, item.path)
+                if md_file is None:
+                    con.print(
+                        f"  [yellow]Warning:[/yellow] Skipping page outside docs_dir:"
+                        f" {item.path} (in {mkdocs_cfg.site_name})"
+                    )
+                    continue
                 if not md_file.exists():
                     con.print(
                         f"  [yellow]Warning:[/yellow] File not found:"

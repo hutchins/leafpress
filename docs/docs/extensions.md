@@ -103,8 +103,23 @@ If an extension fails to load, LeafPress shows a warning with the error details 
 
 1. LeafPress reads the `markdown_extensions` key from `mkdocs.yml`
 2. Each extension is validated — unavailable extensions are skipped with a warning that includes the error message and, for missing packages, an install suggestion
-3. Extension configs (e.g., `pymdownx.highlight` options) are passed through
+3. Extension configs (e.g., `pymdownx.highlight` options) are passed through, except for the file-reading extensions below
 4. The `meta`, `toc`, and `tables` extensions are always enabled as a baseline
+5. Class references (`module:ClassName`) are loaded only if the class is a Markdown `Extension`
+
+### File-reading extensions
+
+Some extensions read files named in the Markdown. leafpress confines them to the project directory (the directory containing `mkdocs.yml`), so an untrusted repository can't include files from elsewhere on your machine:
+
+| Extension | Enforced settings |
+|-----------|-------------------|
+| `pymdownx.snippets` | `base_path` entries are resolved relative to the project directory, and entries outside it are ignored. The default is the project directory. `restrict_base_path: true`, `url_download: false` |
+| `pymdownx.b64` | `base_path` is resolved relative to the project directory. `root_path` is the project directory. `restrict_path: true` |
+
+leafpress prints a warning when it overrides one of these settings from `mkdocs.yml`.
+
+!!! note
+    Relative `base_path` values now resolve from the project directory, the same way MkDocs does, rather than from the directory you ran leafpress in.
 
 ## Troubleshooting extension failures
 

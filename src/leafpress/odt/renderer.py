@@ -26,6 +26,8 @@ from odf.style import (
 from odf.table import Table, TableCell, TableColumn, TableRow
 from odf.text import H, P, Span
 
+from leafpress.asset_policy import AssetPolicy, file_uri_to_path
+from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -41,10 +43,12 @@ class OdtRenderer:
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None:
         self._branding = branding
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
+        self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
 
     def render(
         self,
@@ -402,10 +406,14 @@ class OdtRenderer:
             doc.text.addElement(p)
         elif tag == "img":
             src = element.get("src", "")
-            if src.startswith("file://"):
-                image_path = Path(src.removeprefix("file://"))
-                if image_path.exists():
+            image_path = file_uri_to_path(src)
+            if image_path is not None and image_path.exists():
+                # addPicture embeds raw bytes without checking the file is an
+                # image, so the path must be confined to the project.
+                if self._asset_policy.allows(image_path):
                     self._add_image(doc, image_path)
+                else:
+                    logger.warning("Skipping image outside the project: %r", src)
         elif tag in ("div", "section", "article", "details"):
             for child in element.children:
                 if isinstance(child, Tag):

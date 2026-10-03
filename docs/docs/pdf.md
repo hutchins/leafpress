@@ -69,6 +69,17 @@ leafpress renders the same Markdown extensions configured in `mkdocs.yml`:
 - Strikethrough, superscript, subscript
 - Definition lists, footnotes
 
+## External resources
+
+WeasyPrint loads images, stylesheets, and attachments referenced by the rendered HTML. leafpress routes every load through a restricted fetcher:
+
+- `data:` URIs are allowed.
+- `file://` paths are allowed only inside the project directory, the Mermaid image directory, or the configured logo file.
+- `http://` and `https://` URLs are allowed only when the host resolves to a public address. Loopback, private (RFC 1918), link-local addresses (including the `169.254.169.254` cloud metadata endpoint) and other reserved addresses are blocked. Redirects are followed manually, up to 5 hops, and each hop is checked. Responses are capped at 50 MB.
+- All other schemes are blocked.
+
+Blocked resources are skipped with a WeasyPrint warning, and the rest of the document still renders.
+
 ## System dependencies
 
 WeasyPrint requires native libraries. See [Installation](installation.md#weasyprint-system-dependencies) for platform-specific setup.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import re
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import Any
 
 import markdown
 from markupsafe import Markup
+
+from leafpress.asset_policy import AssetPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +86,24 @@ _SUPERFENCES_CONFIG = {
 }
 
 
+def _is_extension_class_ref(ext: str) -> bool:
+    """Check that a ``module:ClassName`` extension reference names an Extension.
+
+    Python-Markdown instantiates ``module:ClassName`` references with the
+    configured options as keyword arguments, so mkdocs.yml could otherwise make
+    it construct arbitrary classes (e.g. ``subprocess:Popen``). Plain module
+    names are loaded via their ``makeExtension`` factory and are left alone.
+    """
+    if ":" not in ext:
+        return True
+    module_name, class_name = ext.split(":", 1)
+    try:
+        cls = getattr(importlib.import_module(module_name), class_name)
+    except (ImportError, AttributeError, ValueError):
+        return False
+    return isinstance(cls, type) and issubclass(cls, markdown.Extension)
+
+
 class MarkdownRenderer:
     """Converts Markdown content to HTML using MkDocs-compatible extensions."""
 
@@ -91,8 +112,14 @@ class MarkdownRenderer:
         extensions: list[str | dict[str, Any]],
         docs_dir: Path,
         mermaid_output_dir: Path | None = None,
+        project_root: Path | None = None,
     ) -> None:
         self._docs_dir = docs_dir
+        # Directory that content may reference files from (the mkdocs.yml
+        # directory). Anything outside it is treated as untrusted access.
+        self._project_root = (project_root or docs_dir.parent).resolve()
+        self._asset_policy = AssetPolicy([self._project_root, docs_dir])
+        self.config_warnings: list[str] = []
         self._mermaid_output_dir = mermaid_output_dir
         self._extension_names: list[str] = []
         self._extension_configs: dict[str, dict[str, Any]] = {}
@@ -135,6 +162,11 @@ class MarkdownRenderer:
         # Try loading each extension; skip those that fail
         valid_extensions: list[str] = []
         for ext in all_extensions:
+            if not _is_extension_class_ref(ext):
+                self.extension_load_results.append(
+                    (ext, False, "not a Markdown Extension class; refusing to load")
+                )
+                continue
             try:
                 markdown.Markdown(extensions=[ext])
                 valid_extensions.append(ext)
@@ -154,11 +186,66 @@ class MarkdownRenderer:
         sf_cfg["custom_fences"] = fences
         configs["pymdownx.superfences"] = sf_cfg
 
+        for ext in valid_extensions:
+            module_name = ext.split(":", 1)[0]
+            if module_name == "pymdownx.snippets":
+                configs[ext] = self._sanitize_snippets_config(configs.get(ext, {}))
+            elif module_name == "pymdownx.b64":
+                configs[ext] = self._sanitize_b64_config(configs.get(ext, {}))
+
         return markdown.Markdown(
             extensions=valid_extensions,
             extension_configs=configs,
             output_format="html",
         )
+
+    def _confine_base_paths(self, raw: Any, ext_name: str) -> list[str]:
+        """Resolve base paths against the project root, dropping any outside it."""
+        entries = raw if isinstance(raw, list) else [raw] if raw else []
+        confined: list[str] = []
+        for entry in entries:
+            if not isinstance(entry, str):
+                continue
+            candidate = (self._project_root / entry).resolve()
+            if candidate.is_relative_to(self._project_root):
+                confined.append(str(candidate))
+            else:
+                self.config_warnings.append(
+                    f"{ext_name}: ignoring base_path outside the project: {entry}"
+                )
+        return confined or [str(self._project_root)]
+
+    def _sanitize_snippets_config(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Keep pymdownx.snippets from including files outside the project or URLs.
+
+        Relative base paths are resolved against the project root (as MkDocs
+        does) rather than the current working directory.
+        """
+        config = dict(config)
+        config["base_path"] = self._confine_base_paths(
+            config.get("base_path", ["."]), "pymdownx.snippets"
+        )
+        if config.get("restrict_base_path") is False:
+            self.config_warnings.append(
+                "pymdownx.snippets: restrict_base_path: false is not supported; forcing true"
+            )
+        config["restrict_base_path"] = True
+        if config.get("url_download"):
+            self.config_warnings.append(
+                "pymdownx.snippets: url_download is disabled for security; "
+                "remote snippets will not be included"
+            )
+        config["url_download"] = False
+        return config
+
+    def _sanitize_b64_config(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Keep pymdownx.b64 from inlining images from outside the project."""
+        config = dict(config)
+        base = self._confine_base_paths(config.get("base_path", "."), "pymdownx.b64")[0]
+        config["base_path"] = base
+        config["root_path"] = str(self._project_root)
+        config["restrict_path"] = True
+        return config
 
     def render(self, md_content: str, source_path: Path) -> tuple[str, list[str]]:
         """Convert a single Markdown string to HTML.
@@ -188,11 +275,22 @@ class MarkdownRenderer:
             quote = match.group(2)
             path = match.group(3)
 
+            # Absolute file:// URIs (from raw HTML) must stay inside the project.
+            # Links are left alone; only embedded resources (src) are read.
+            if path.startswith("file:"):
+                if attr == "href" or self._asset_policy.allows_uri(path):
+                    return match.group(0)
+                return self._blocked(source_path, path)
+
             # Skip absolute URLs and anchors
-            if path.startswith(("http://", "https://", "file://", "#", "mailto:")):
+            if path.startswith(("http://", "https://", "#", "mailto:", "data:")):
                 return match.group(0)
 
             resolved = (source_dir / path).resolve()
+            if not self._asset_policy.allows(resolved):
+                if attr == "href":
+                    return match.group(0)
+                return self._blocked(source_path, path)
             if resolved.exists():
                 return f"{attr}={quote}{resolved.as_uri()}{quote}"
             # Track images that could not be resolved
@@ -202,11 +300,16 @@ class MarkdownRenderer:
 
         # Match src="..." and href="..." (but not external URLs)
         html = re.sub(
-            r'(src|href)=(["\'])((?!https?://|file://|#|mailto:)[^"\']+)\2',
+            r'(src|href)=(["\'])((?!https?://|#|mailto:)[^"\']+)\2',
             _rewrite_src,
             html,
         )
         return html
+
+    def _blocked(self, source_path: Path, path: str) -> str:
+        """Blank out an embedded resource outside the project and record it."""
+        self.unresolved_assets.append((str(source_path), f"{path} (blocked: outside project)"))
+        return 'src=""'
 
     def _resolve_emoji_shortcodes(self, html: str) -> str:
         """Replace unresolved :material-*: and other emoji shortcodes.

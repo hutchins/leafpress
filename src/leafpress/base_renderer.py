@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Protocol
 
+from leafpress.asset_policy import AssetPolicy
 from leafpress.config import BrandingConfig
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
@@ -77,3 +79,25 @@ def resolve_logo_uri(branding: BrandingConfig | None) -> str:
             return logo
         return Path(logo).resolve().as_uri()
     return ""
+
+
+def build_asset_policy(
+    mkdocs_cfg: MkDocsConfig,
+    branding: BrandingConfig | None,
+    extra_roots: Iterable[Path] = (),
+) -> AssetPolicy:
+    """Build the default local-file allowlist for rendering a project.
+
+    Allows the mkdocs project directory, its docs_dir, any ``extra_roots``
+    (e.g. the mermaid image temp dir or monorepo project dirs), and the
+    configured logo file.
+    """
+    files: list[Path] = []
+    if (
+        branding
+        and branding.logo_path
+        and not branding.logo_path.startswith(("http://", "https://"))
+    ):
+        files.append(Path(branding.logo_path))
+    roots = [mkdocs_cfg.config_path.parent, mkdocs_cfg.docs_dir, *extra_roots]
+    return AssetPolicy(roots, files)
