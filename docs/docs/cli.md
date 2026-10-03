@@ -52,7 +52,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--cover-page` / `--no-cover-page` | `--cover-page` | Include a cover page |
 | `--toc` / `--no-toc` | `--toc` | Include a table of contents |
 | `--open` | `false` | Open the generated file(s) after conversion |
-| `--local-time` | `false` | Use local timezone for cover page date instead of UTC |
+| `--local-time` | `false` | Use the local timezone instead of UTC for the cover date, footer generation date, and Markdown front matter. Also `LEAFPRESS_LOCAL_TIME=true` |
 | `--watermark`, `-w` | _(none)_ | Watermark text overlay (e.g. `"DRAFT"`, `"CONFIDENTIAL"`) in PDF, DOCX, HTML, ODT, and EPUB. Markdown export has no watermark |
 | `--footer-date` / `--no-footer-date` | _(config)_ | Include document generation date in footer |
 | `--sanitize-html` / `--no-sanitize-html` | _(auto)_ | Strip scripts, event handlers, and other active content from page HTML. The default is on for git URL sources and otherwise follows `sanitize_html` in `leafpress.yml` |
@@ -373,7 +373,7 @@ When `SOURCE` is omitted from `convert` or `info`, leafpress automatically searc
 
 1. **Git repo root** — if you're inside a git repository, leafpress checks the repo root for a site config
 2. **Git root / `docs/`** — checks a `docs/` subdirectory of the repo root
-3. **Current directory** — falls back to CWD if not in a git repo
+3. **Current directory** — the directory you ran leafpress in (if not already checked)
 4. **CWD / `docs/`** — checks a `docs/` subdirectory of CWD
 
 The first directory containing `mkdocs.yml`, `mkdocs.yaml`, or `zensical.toml` is used. If a directory has both `mkdocs.yml` and `zensical.toml`, `mkdocs.yml` wins; pass `--mkdocs-config zensical.toml` to use the Zensical config (see [Zensical Projects](zensical.md)).

@@ -39,7 +39,7 @@ The ODT output includes:
 | Code blocks | Yes |
 | Lists (bullet, numbered) | Yes |
 | Blockquotes | Yes |
-| Images (local files) | Yes (raster formats; sized to keep their aspect ratio, max 5.5in wide) |
+| Images (local files) | Yes (raster formats and SVG; sized to keep their aspect ratio, max 5.5in wide) |
 | Admonitions | Yes |
 | Mermaid diagrams | Yes |
 | Annotations | Yes |
@@ -59,7 +59,7 @@ leafpress convert . -f odt \
 
 ## Limitations
 
-- **SVG images are not supported** — `odfpy` only handles raster formats (PNG, JPEG). SVG logos are skipped with a warning; use PNG or JPEG for full compatibility
+- **SVG images** are embedded as SVG and sized from their `viewBox`. LibreOffice renders them, but some other ODT viewers may not; use PNG or JPEG for maximum compatibility
 
 ## Compatibility
 

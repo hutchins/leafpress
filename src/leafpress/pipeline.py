@@ -31,6 +31,7 @@ from leafpress.config import (
     MermaidConfig,
     ProjectEntry,
     config_from_env,
+    env_bool,
     load_config,
     resolve_mermaid_config,
 )
@@ -250,6 +251,8 @@ def convert(
     # Attach a handler that routes leafpress logger warnings to the console.
     # This surfaces logger.warning() calls from renderers (SVG logo skip,
     # extension failures, etc.) that would otherwise be invisible.
+    # --local-time wins; otherwise LEAFPRESS_LOCAL_TIME=true turns it on
+    local_time = local_time or env_bool("LEAFPRESS_LOCAL_TIME") is True
     log_level = _resolve_log_level(verbose, console)
     _log_handler = _ConsoleWarningHandler(console)
     _log_handler.setLevel(log_level)
@@ -293,7 +296,7 @@ def convert(
         # explicit -c file and LEAFPRESS_* env vars come from the operator.
         repo_config_untrusted = untrusted_source and config_path is None
         if branding is not None and repo_config_untrusted:
-            branding = _confine_untrusted_logo(branding, project_dir, console)
+            branding = _confine_untrusted_paths(branding, project_dir, console)
 
         # Parse mkdocs.yml (not required in monorepo mode)
         is_monorepo = branding is not None and bool(branding.projects)
@@ -393,8 +396,8 @@ def convert(
         )
 
         # Monorepo mode: collect pages from multiple projects
-        if branding and branding.projects:
-            config_dir = (config_path or project_dir).parent if config_path else project_dir
+        if is_monorepo:
+            config_dir = config_path.parent if config_path else project_dir
             html_pages, page_count = _collect_monorepo_pages(
                 branding.projects,
                 config_dir,
@@ -430,7 +433,7 @@ def convert(
                 else:
                     hint = ""
                     if "No module named" in err_msg:
-                        pkg = ext.split(".")[0]
+                        pkg = _pip_package_for(ext)
                         hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
                     console.print(
                         f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
@@ -480,7 +483,7 @@ def convert(
                         else:
                             console.print(f"  [green]✓ {w}[/green]")
                     all_unresolved.extend(renderer.unresolved_assets)
-                    html_pages.append((item, html))
+                    html_pages.append((dataclasses.replace(item, source_file=md_file), html))
                     progress.update(task, advance=1)
 
             # Warn about missing assets discovered during rendering
@@ -492,13 +495,8 @@ def convert(
 
         # Generate outputs
         output_dir.mkdir(parents=True, exist_ok=True)
-        if mkdocs_cfg:
-            site_name = mkdocs_cfg.site_name
-        elif branding:
-            site_name = branding.project_name
-        else:
-            site_name = "output"
-        safe_name = _safe_filename(site_name)
+        # mkdocs_cfg is always set by now (synthesized in monorepo mode)
+        safe_name = _safe_filename(mkdocs_cfg.site_name)
 
         if format in ("pdf", "both", "all"):
             try:
@@ -670,24 +668,55 @@ def _safe_filename(name: str) -> str:
     return "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip()
 
 
-def _confine_untrusted_logo(
+def _confine_untrusted_paths(
     branding: BrandingConfig, project_dir: Path, con: Console
 ) -> BrandingConfig:
-    """Drop a local logo from an untrusted repo config if it lies outside the repo.
+    """Drop local files named by an untrusted repo config that lie outside the repo.
 
-    Otherwise a cloned repo could name any readable file (``~/.ssh/id_rsa``,
-    ``/proc/self/environ``) as its logo and have it embedded in the output.
-    A logo set via ``LEAFPRESS_LOGO_PATH`` comes from the operator and is kept.
+    Otherwise a cloned repo could pull any readable local file into the
+    output: a key or ``/proc/self/environ`` as its ``logo_path``, or one of
+    your own Word documents as ``docx.template_path`` (a template's body is
+    kept). A logo set via ``LEAFPRESS_LOGO_PATH`` comes from the operator and
+    is kept.
     """
     logo = branding.logo_path
-    if not logo or logo.startswith(("http://", "https://")):
-        return branding
-    if os.environ.get("LEAFPRESS_LOGO_PATH") or is_within(Path(logo), project_dir):
-        return branding
-    con.print(
-        f"  [yellow]⚠[/yellow] Ignoring logo_path outside the cloned repository: {escape(logo)}"
-    )
-    return branding.model_copy(update={"logo_path": None})
+    if (
+        logo
+        and not logo.startswith(("http://", "https://"))
+        and not os.environ.get("LEAFPRESS_LOGO_PATH")
+        and not is_within(Path(logo), project_dir)
+    ):
+        con.print(
+            f"  [yellow]⚠[/yellow] Ignoring logo_path outside the cloned repository: {escape(logo)}"
+        )
+        branding = branding.model_copy(update={"logo_path": None})
+    template = branding.docx.template_path
+    if template and not is_within(Path(template), project_dir):
+        con.print(
+            "  [yellow]⚠[/yellow] Ignoring docx.template_path outside the cloned repository: "
+            f"{escape(str(template))}"
+        )
+        branding = branding.model_copy(
+            update={"docx": branding.docx.model_copy(update={"template_path": None})}
+        )
+    return branding
+
+
+# Module prefix -> PyPI package, where they differ
+_EXTENSION_PACKAGES = {
+    "pymdownx": "pymdown-extensions",
+    "material": "mkdocs-material",
+    "mdx_truly_sane_lists": "mdx-truly-sane-lists",
+    "markdown_include": "markdown-include",
+    "plantuml_markdown": "plantuml-markdown",
+    "zensical": "zensical",
+}
+
+
+def _pip_package_for(extension: str) -> str:
+    """Best guess at the PyPI package providing a Markdown extension module."""
+    module = extension.split(":", 1)[0].split(".")[0]
+    return _EXTENSION_PACKAGES.get(module, module.replace("_", "-"))
 
 
 def _git_url_host(url: str) -> str:
@@ -825,7 +854,7 @@ def _collect_monorepo_pages(
                 else:
                     hint = ""
                     if "No module named" in err_msg:
-                        pkg = ext.split(".")[0]
+                        pkg = _pip_package_for(ext)
                         hint = f"\n    Tip: pip install {pkg}  (or uv pip install {pkg})"
                     con.print(
                         f"  [yellow]⚠[/yellow] Skipping unavailable extension: {ext}"
@@ -864,7 +893,7 @@ def _collect_monorepo_pages(
                     else:
                         con.print(f"  [green]✓ {w}[/green]")
                 all_unresolved.extend(renderer.unresolved_assets)
-                all_pages.append((item, html))
+                all_pages.append((dataclasses.replace(item, source_file=md_file), html))
                 total_pages += 1
 
             # Warn about missing assets in this project

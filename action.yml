@@ -10,7 +10,7 @@ inputs:
     description: Output directory for generated files
     default: "dist"
   format:
-    description: "Output format: pdf, docx, html, odt, epub, both (pdf+docx), or all"
+    description: "Output format: pdf, docx, html, odt, epub, markdown, both (pdf+docx), or all"
     default: "pdf"
   config:
     description: Path to leafpress.yml branding config (optional — uses auto-detection or LEAFPRESS_* env vars)

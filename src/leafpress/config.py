@@ -378,6 +378,13 @@ def load_config(config_path: Path) -> BrandingConfig:
                 raw["logo_path"] = str(expanded)
             else:
                 raw["logo_path"] = str(config_path.parent.resolve() / expanded)
+        # docx.template_path is relative to leafpress.yml too (not the cwd)
+        docx_raw = raw.get("docx")
+        if isinstance(docx_raw, dict) and docx_raw.get("template_path"):
+            template = Path(str(docx_raw["template_path"])).expanduser()
+            if not template.is_absolute():
+                template = config_path.parent.resolve() / template
+            docx_raw["template_path"] = str(template)
         return _apply_env_overrides(BrandingConfig(**raw))
     except yaml.YAMLError as e:
         mark = getattr(e, "problem_mark", None)
@@ -444,6 +451,12 @@ pdf:
 #   color: "#cccccc"
 #   opacity: 0.15           # 0.0 to 1.0
 #   angle: -45              # -90 to 90
+
+# mermaid:
+#   enabled: true           # false keeps diagrams as code (nothing is sent)
+#   server: https://mermaid.ink  # or a self-hosted mermaid.ink
+
+# sanitize_html: false      # strip scripts/event handlers (always on for git URL sources)
 
 # diagrams:
 #   lucidchart_token: null  # or set LEAFPRESS_LUCIDCHART_TOKEN env var

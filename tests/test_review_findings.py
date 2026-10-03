@@ -626,3 +626,115 @@ def test_pom_xml_entity_expansion_rejected(tmp_path: Path) -> None:
     assert detect_package_version(tmp_path, walk_up=False) is None  # refused, not expanded
     (tmp_path / "pom.xml").write_text("<project><version>1.2.3</version></project>")
     assert detect_package_version(tmp_path, walk_up=False) == "1.2.3"
+
+
+# ===========================================================================
+# Refactoring review
+# ===========================================================================
+
+
+def test_monorepo_markdown_export_includes_project_pages(tmp_path: Path) -> None:
+    top = tmp_path / "mono"
+    (top / "sub" / "docs").mkdir(parents=True)
+    (top / "sub" / "mkdocs.yml").write_text("site_name: Sub\n")
+    (top / "sub" / "docs" / "index.md").write_text("# Sub page\n\nUNIQUE-SUB-CONTENT\n")
+    (top / "leafpress.yml").write_text("company_name: A\nproject_name: Mono\nprojects:\n  - sub\n")
+    convert(str(top), tmp_path / "o", format="markdown", mermaid=False)
+    assert "UNIQUE-SUB-CONTENT" in next((tmp_path / "o").glob("*.md")).read_text()
+
+
+def test_docx_non_image_logo_skipped(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from leafpress.config import BrandingConfig
+    from leafpress.docx.renderer import DocxRenderer
+    from leafpress.mkdocs_parser import MkDocsConfig
+
+    fake = tmp_path / "logo.png"
+    fake.write_text("not an image")
+    (tmp_path / "docs").mkdir()
+    cfg = MkDocsConfig("T", tmp_path / "docs", [], [], None, [], tmp_path / "mkdocs.yml")
+    renderer = DocxRenderer(
+        BrandingConfig(company_name="A", project_name="B", logo_path=str(fake)), None, cfg
+    )
+    with caplog.at_level(logging.WARNING):
+        assert renderer._get_logo_stream() is None
+    assert "not a readable image" in caplog.text
+
+
+def test_all_renderers_match_base_renderer_contract() -> None:
+    import inspect
+
+    from leafpress.docx.renderer import DocxRenderer
+    from leafpress.epub.renderer import EpubRenderer
+    from leafpress.html.renderer import HtmlRenderer
+    from leafpress.odt.renderer import OdtRenderer
+
+    renderers = [DocxRenderer, EpubRenderer, HtmlRenderer, OdtRenderer]
+    try:
+        from leafpress.pdf.renderer import PdfRenderer
+
+        renderers.append(PdfRenderer)
+    except (ImportError, OSError):
+        pass
+    for cls in renderers:
+        params = inspect.signature(cls.__init__).parameters
+        assert {"branding", "git_info", "mkdocs_cfg", "asset_policy"} <= set(params), cls
+        assert "render" in vars(cls), cls
+
+
+# ===========================================================================
+# Docs review: code issues
+# ===========================================================================
+
+
+def _make_docx(path: Path, text: str) -> None:
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph(text)
+    doc.save(str(path))
+
+
+def test_untrusted_docx_template_outside_clone_ignored(repo: Path, tmp_path: Path) -> None:
+    from leafpress import pipeline
+
+    _make_docx(tmp_path / "private.docx", SECRET)
+    (repo / "leafpress.yml").write_text(
+        f"company_name: A\nproject_name: B\ndocx:\n  template_path: {tmp_path / 'private.docx'}\n"
+    )
+    with patch.object(pipeline, "resolve_source", return_value=_Clone(repo)):
+        convert("https://example.com/r.git", tmp_path / "o", format="docx", mermaid=False)
+    with zipfile.ZipFile(next((tmp_path / "o").glob("*.docx"))) as z:
+        assert SECRET not in z.read("word/document.xml").decode()
+
+
+def test_docx_template_path_relative_to_config(tmp_path: Path, monkeypatch) -> None:
+    from leafpress.config import load_config
+
+    (tmp_path / "cfg").mkdir()
+    _make_docx(tmp_path / "cfg" / "template.docx", "x")
+    (tmp_path / "cfg" / "leafpress.yml").write_text(
+        "company_name: A\nproject_name: B\ndocx:\n  template_path: template.docx\n"
+    )
+    monkeypatch.chdir(tmp_path)  # not the config's directory
+    cfg = load_config(tmp_path / "cfg" / "leafpress.yml")
+    assert Path(cfg.docx.template_path) == (tmp_path / "cfg" / "template.docx").resolve()
+
+
+def test_local_time_env_var(repo: Path, tmp_path: Path, monkeypatch) -> None:
+
+    seen: dict[str, bool] = {}
+    from leafpress.markdown_export import renderer as md_export
+
+    original = md_export.MarkdownExportRenderer.render
+
+    def spy(self, *args, **kwargs):
+        seen["local_time"] = kwargs.get("local_time")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(md_export.MarkdownExportRenderer, "render", spy)
+    monkeypatch.setenv("LEAFPRESS_LOCAL_TIME", "true")
+    convert(str(repo), tmp_path / "o", format="markdown", mermaid=False)
+    assert seen["local_time"] is True
+    monkeypatch.setenv("LEAFPRESS_LOCAL_TIME", "false")
+    convert(str(repo), tmp_path / "o2", format="markdown", mermaid=False)
+    assert seen["local_time"] is False

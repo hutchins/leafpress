@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,11 +27,6 @@ def _python_name_constructor(loader: yaml.Loader, node: yaml.Node) -> str:
     return f"!!python/name:{node.value}"
 
 
-def _python_object_constructor(loader: yaml.Loader, node: yaml.Node) -> str:
-    """Convert !!python/object: tags to a string placeholder."""
-    return f"!!python/object:{node.value}"
-
-
 _MkDocsLoader.add_constructor("tag:yaml.org,2002:python/name:", _python_name_constructor)
 _MkDocsLoader.add_multi_constructor(
     "tag:yaml.org,2002:python/name:", lambda loader, suffix, node: f"!!python/name:{node.value}"
@@ -48,6 +44,10 @@ class NavItem:
     path: Path | None = None
     children: list[NavItem] = field(default_factory=list)
     level: int = 0
+    # Absolute path of the rendered .md file, set by the pipeline. Paths are
+    # relative to each project's own docs_dir, which in monorepo mode isn't
+    # the top-level one, so renderers that re-read sources need this.
+    source_file: Path | None = None
 
 
 @dataclass
@@ -245,12 +245,4 @@ def flatten_nav(items: list[NavItem]) -> list[NavItem]:
 
 def bump_nav_levels(items: list[NavItem], increment: int = 1) -> list[NavItem]:
     """Return new NavItems with levels incremented (for monorepo chapter nesting)."""
-    return [
-        NavItem(
-            title=item.title,
-            path=item.path,
-            children=item.children,
-            level=item.level + increment,
-        )
-        for item in items
-    ]
+    return [dataclasses.replace(item, level=item.level + increment) for item in items]

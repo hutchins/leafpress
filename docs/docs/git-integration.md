@@ -6,7 +6,7 @@ LeafPress automatically reads git metadata from the project directory and embeds
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| Tag | Most recent annotated git tag | `v1.2.0` |
+| Tag | Most recent git tag reachable from HEAD (annotated or lightweight, via `git describe --tags`) | `v1.2.0` |
 | Branch | Current branch name | `main` |
 | Commit hash | Short (7-char) commit SHA | `a1b2c3d` |
 | Commit date | Date of the HEAD commit | `2026-03-08` |
@@ -16,11 +16,12 @@ LeafPress automatically reads git metadata from the project directory and embeds
 
 LeafPress formats git info into a human-readable version string:
 
-- **Tagged release:** `v1.2.0`
-- **Untagged commit:** `main@a1b2c3d`
-- **Dirty working tree:** appends `-dirty`
+- **On a tag:** `v1.2.0 (a1b2c3d, 2026-03-08)`
+- **Commits after a tag:** `v1.2.0+3 (a1b2c3d, 2026-03-08)` (3 commits past `v1.2.0`)
+- **No tags:** `main@a1b2c3d (2026-03-08)`
+- **Uncommitted changes:** ` [dirty]` is appended
 
-This string appears on the cover page and in the footer (if `include_tag` or `include_commit` is enabled).
+When a package version is detected and differs from the tag, ` · package: 1.2.1` is added. This string appears on the cover page. Footers build their own version field from the individual `footer.include_*` settings (see [Branding → Footer](branding.md#footer)).
 
 ## Footer fields
 

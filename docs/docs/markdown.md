@@ -50,6 +50,6 @@ leafpress convert . -f markdown \
 
 - **LLM context** — feed an entire documentation site to a language model as a single file
 - **Wiki paste** — drop into Confluence, Notion, GitHub wiki, or any Markdown-compatible platform
-- **Offline sharing** — email or message a single self-contained document
+- **Offline sharing** — email or message a single document (page text is copied as-is, so relative image links still point at the original files)
 - **Archival** — snapshot all docs in a portable, version-controllable text format
 - **Content review** — read through all documentation in one place without navigating between pages

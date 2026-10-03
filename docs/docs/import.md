@@ -111,7 +111,7 @@ leafpress import deck.pptx --no-notes
 
 ### Limitations
 
-The following PowerPoint features are **not currently supported** and will be silently skipped during import:
+The following PowerPoint features are **not currently supported**. They are skipped, and charts, media, and embedded (OLE) objects also produce a warning:
 
 | Feature | Reason |
 |---------|--------|
@@ -212,7 +212,7 @@ LaTeX documents are converted using a native parser ([pylatexenc](https://github
 | **Column spans** | `\multicolumn` content is kept, but the span itself can't be represented in a pipe table. |
 | **Beamer overlays** | Slides are flattened: every overlay step's content (except `\invisible`) appears once. |
 | **URL imports** | A `.tex` file imported from a URL can't `\input` sibling files, since only that file is downloaded. |
-| **EPS/PDF images** | Only raster image formats (PNG, JPG, SVG, etc.) are copied. EPS and PDF images produce a warning. |
+| **EPS/PDF images** | Only image formats that Markdown viewers can display (PNG, JPEG, GIF, SVG, etc.) are copied. EPS and PDF images produce a warning. |
 
 !!! tip
     For best results with math, ensure your Markdown renderer supports MathJax or KaTeX.

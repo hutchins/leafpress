@@ -121,7 +121,7 @@ diagrams:
 ```
 
 !!! warning "Keep tokens out of version control"
-    Use the `LEAFPRESS_LUCIDCHART_TOKEN` environment variable or a `.env` file (added to `.gitignore`) instead of hardcoding tokens in config files.
+    Use the `LEAFPRESS_LUCIDCHART_TOKEN` environment variable (for example a CI secret, or `export` it in your shell) instead of hardcoding tokens in config files. A project's `.env` file is only read by `leafpress convert`, not by `fetch-diagrams`.
 
 ### Document IDs
 

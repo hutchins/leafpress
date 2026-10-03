@@ -158,5 +158,5 @@ class PdfRenderer:
         return (
             f"PDF rendering failed: {exc_name}: {exc_msg}\n"
             f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  If this persists, please report it at https://github.com/leafpress/leafpress/issues"
+            f"  If this persists, please report it at https://github.com/hutchins/leafpress/issues"
         )

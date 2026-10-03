@@ -25,7 +25,7 @@ Convert MkDocs (and [Zensical](https://leafpress.dev/zensical/)) sites to PDF, W
 - **Actionable error messages** — rendering failures show specific fixes (missing libraries, unsupported image formats)
 - **`leafpress doctor`** — diagnose your environment and optional dependencies
 - **Desktop UI** — macOS/Linux/Windows menu bar app
-- **CI-friendly** — a [GitHub Action](https://leafpress.dev/ci/), a [Docker image](https://leafpress.dev/docker/), and configuration entirely via `LEAFPRESS_*` environment variables
+- **CI-friendly** — a [GitHub Action](https://leafpress.dev/ci/), a [Docker image](https://leafpress.dev/docker/) you build from the repo, and configuration entirely via `LEAFPRESS_*` environment variables
 
 ## Installation
 
@@ -55,7 +55,7 @@ WeasyPrint requires system libraries on Linux — see [Installation docs](https:
 # Generate a starter branding config
 leafpress init
 
-# Convert to PDF (auto-detects project in current directory)
+# Convert to PDF (auto-detects project in current directory; needs leafpress[pdf])
 leafpress convert
 
 # Convert to PDF + DOCX with branding
@@ -199,7 +199,8 @@ See [Configuration](https://leafpress.dev/configuration/) for every option.
 
 ```bash
 uv sync --group dev
-make setup-hooks          # pre-commit: ruff + ty
+brew install gitleaks     # used by the pre-commit hook
+make setup-hooks          # pre-commit: gitleaks, ruff (incl. security rules), ty
 uv run pytest tests/ -q
 uv run ruff check . && uv run ruff format --check .
 uvx ty check

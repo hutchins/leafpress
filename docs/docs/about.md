@@ -17,7 +17,7 @@ The consolidated Markdown export (`-f markdown`) goes the other direction — co
 - **Zero lock-in** — Your source stays as standard Markdown in MkDocs. LeafPress is a build tool, not a new authoring format.
 - **Automation first** — Designed for CI/CD pipelines, GitHub Actions, and Docker. Generate documents on every push or release.
 - **Batteries included** — Cover pages, TOC, git metadata, watermarks, and branding all work out of the box with minimal configuration.
-- **Safe by default** — Content from repositories you don't control is confined. It can't read files outside the project, reach internal hosts, or inject scripts into generated documents. See [Converting untrusted repositories](remote-sources.md#converting-untrusted-repositories).
+- **Safe by default** — Content from repositories you don't control is confined. It can't read files outside the project or reach internal hosts, and for repositories converted from a git URL, scripts are stripped from generated documents (`--sanitize-html` does the same for local folders). See [Converting untrusted repositories](remote-sources.md#converting-untrusted-repositories).
 
 ## Author
 

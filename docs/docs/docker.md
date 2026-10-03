@@ -28,7 +28,7 @@ docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/work leafpress convert /wo
 
 The image also includes an unprivileged `leafpress` user (`--user leafpress`) for cases where no host directory needs to be written. Git version info works with any UID: the image marks mounted repositories as a git `safe.directory`.
 
-Base images are pinned by digest, so rebuilding the same commit produces the same image.
+Base images are pinned by digest, so rebuilds start from the same Python and uv layers. System packages from `apt-get` aren't pinned, so two builds of the same commit can still differ slightly.
 
 ### Choose an output format
 

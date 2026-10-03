@@ -46,28 +46,6 @@ _MATERIAL_ICON_MAP: dict[str, str] = {
 # Regex to match any remaining :shortcode: patterns (unresolved emoji)
 _SHORTCODE_PATTERN = re.compile(r":[\w+-]+:")
 
-# Known safe pymdown-extensions mappings
-PYMDOWNX_EXTENSIONS = {
-    "pymdownx.highlight",
-    "pymdownx.inlinehilite",
-    "pymdownx.superfences",
-    "pymdownx.tabbed",
-    "pymdownx.details",
-    "pymdownx.tasklist",
-    "pymdownx.emoji",
-    "pymdownx.arithmatex",
-    "pymdownx.critic",
-    "pymdownx.caret",
-    "pymdownx.keys",
-    "pymdownx.mark",
-    "pymdownx.tilde",
-    "pymdownx.smartsymbols",
-    "pymdownx.betterem",
-    "pymdownx.magiclink",
-    "pymdownx.snippets",
-    "pymdownx.striphtml",
-}
-
 
 def _mermaid_fence_format(
     source: str,

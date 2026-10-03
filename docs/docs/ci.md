@@ -42,7 +42,7 @@ The action handles Python setup and WeasyPrint system dependencies automatically
 |-------|---------|-------------|
 | `source` | `.` | Path to MkDocs project directory |
 | `output` | `dist` | Output directory |
-| `format` | `pdf` | `pdf`, `docx`, `html`, `odt`, `epub`, `both` (pdf+docx), or `all` |
+| `format` | `pdf` | `pdf`, `docx`, `html`, `odt`, `epub`, `markdown`, `both` (pdf+docx), or `all` |
 | `config` | _(auto-detect)_ | Path to `leafpress.yml` |
 | `cover_page` | `true` | Include cover page |
 | `toc` | `true` | Include table of contents |
@@ -77,7 +77,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install leafpress
-        run: pip install leafpress
+        run: pip install 'leafpress[pdf]'
 
       - name: Convert docs to PDF
         env:
@@ -128,7 +128,7 @@ Set `LEAFPRESS_*` variables to configure branding without a YAML file. If both `
 | `LEAFPRESS_MERMAID_SERVER` | `mermaid.server` | Base URL of a self-hosted mermaid.ink-compatible server |
 | `LEAFPRESS_SANITIZE_HTML` | `sanitize_html` | `true` or `false`: strip scripts and event handlers from page HTML. Useful for CI builds of pull requests from contributors |
 
-**Priority:** shell env > `.env` file > `leafpress.yml` > built-in defaults
+**Priority:** CLI flags > shell env > `.env` file > `leafpress.yml` > built-in defaults
 
 Env vars override YAML values when both are present, so you can keep a `leafpress.yml` for local use and let CI inject secrets (like logo URLs or company names) without modifying the file.
 
@@ -210,7 +210,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install leafpress
-        run: pip install leafpress
+        run: pip install 'leafpress[pdf]'
 
       - name: Convert docs
         env:
@@ -248,7 +248,7 @@ generate-docs:
     LEAFPRESS_PRIMARY_COLOR: "#1a73e8"
   before_script:
     - apt-get update && apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
-    - pip install leafpress
+    - pip install 'leafpress[pdf]'
   script:
     - leafpress convert . -f all -o dist/
   artifacts:
@@ -271,7 +271,7 @@ generate-docs:
     GIT_DEPTH: 0  # full history for git version info
   before_script:
     - apt-get update && apt-get install -y libpango-1.0-0 libharfbuzz0b libpangoft2-1.0-0 libfontconfig1
-    - pip install leafpress
+    - pip install 'leafpress[pdf]'
   script:
     - leafpress convert . -f all -o dist/
   artifacts:
@@ -319,7 +319,7 @@ See [Diagrams](diagrams.md) for full configuration details.
 leafpress runs anywhere Python is available. The general steps are:
 
 1. Install system dependencies (Pango and friends — see [Installation](installation.md#weasyprint-system-dependencies))
-2. Install leafpress: `pip install leafpress`
+2. Install leafpress with PDF support: `pip install 'leafpress[pdf]'`
 3. Set `LEAFPRESS_*` environment variables for branding
 4. Run `leafpress convert . -f <format> -o dist/`
 

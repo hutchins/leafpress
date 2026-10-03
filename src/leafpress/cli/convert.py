@@ -29,7 +29,7 @@ def convert(
         OutputFormat.pdf,
         "--format",
         "-f",
-        help="Output format: pdf, docx, html, odt, epub, both (pdf+docx), or all.",
+        help="Output format: pdf, docx, html, odt, epub, markdown, both (pdf+docx), or all.",
     ),
     config: Path | None = typer.Option(
         None,
