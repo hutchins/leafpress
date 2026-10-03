@@ -390,3 +390,169 @@ def test_project_env_file_not_embedded_via_img_or_attachment(repo: Path, tmp_pat
     assert not any(SECRET in p for p in _embedded_payloads(html))
     for pdf in out.glob("*.pdf"):
         assert b"/EmbeddedFile" not in pdf.read_bytes()
+
+
+# ===========================================================================
+# Second review round
+# ===========================================================================
+
+
+class TestMonorepoEntryConfinement:
+    def test_url_must_be_a_git_url(self) -> None:
+        from pydantic import ValidationError
+
+        from leafpress.config import ProjectEntry
+
+        with pytest.raises(ValidationError, match="must be a git URL"):
+            ProjectEntry(url="/home/ci/private-docs")
+        assert ProjectEntry(url="https://github.com/o/r.git").url
+        assert ProjectEntry(url="git@github.com:o/r.git").url
+
+    def test_untrusted_root_cannot_escape(self, tmp_path: Path) -> None:
+        from rich.console import Console
+
+        from leafpress.config import BrandingConfig, ProjectEntry
+        from leafpress.pipeline import _collect_monorepo_pages
+
+        clone = tmp_path / "clone"
+        (clone / "sub" / "docs").mkdir(parents=True)
+        (clone / "sub" / "mkdocs.yml").write_text("site_name: Sub\n")
+        branding = BrandingConfig(company_name="A", project_name="B")
+        with pytest.raises(SourceError, match="root escapes"):
+            _collect_monorepo_pages(
+                [ProjectEntry(path="sub", root="../../outside")],
+                clone,
+                tmp_path / "m",
+                branding,
+                Console(quiet=True),
+                untrusted_source=True,
+            )
+
+
+def test_import_worker_survives_opener_failure(tmp_path: Path) -> None:
+    pytest.importorskip("PyQt6.QtWidgets")
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt6.QtWidgets import QApplication
+
+    from leafpress.ui.app import ImportWorker
+
+    _app = QApplication.instance() or QApplication([])
+    src = tmp_path / "paper.tex"
+    src.write_text("\\documentclass{article}\\begin{document}Hi\\end{document}")
+    worker = ImportWorker(
+        files=[src],
+        output_dir=tmp_path / "o",
+        extract_images=False,
+        include_notes=True,
+        open_after=True,
+    )
+    finished: list[tuple[bool, str]] = []
+    logs: list[str] = []
+    worker.finished.connect(lambda ok, msg: finished.append((ok, msg)))
+    worker.log.connect(logs.append)
+    with patch("leafpress.ui.app.open_file", side_effect=FileNotFoundError("xdg-open")):
+        worker.run()
+    assert finished == [(True, "Imported 1 of 1 file(s).")]
+    assert any("Could not open paper.md" in line for line in logs)
+
+
+class TestImageDetection:
+    def test_decompression_bomb_is_not_an_image(self, tmp_path: Path) -> None:
+        import struct
+        import zlib
+
+        from leafpress.base_renderer import is_image_file
+
+        def chunk(kind: bytes, data: bytes) -> bytes:
+            body = kind + data
+            return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+        # A tiny PNG that declares 30000 x 30000 pixels
+        bomb = tmp_path / "bomb.png"
+        bomb.write_bytes(
+            b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", 30000, 30000, 8, 2, 0, 0, 0))
+            + chunk(b"IEND", b"")
+        )
+        assert is_image_file(bomb) is False
+
+    def test_more_formats_and_long_svg_prolog(self, tmp_path: Path) -> None:
+        from PIL import Image
+
+        from leafpress.base_renderer import is_image_file
+
+        Image.new("RGB", (4, 4)).save(tmp_path / "pic.tiff")
+        Image.new("RGB", (16, 16)).save(tmp_path / "icon.ico")
+        Image.new("RGB", (4, 4)).save(tmp_path / "noext", format="PNG")
+        long_svg = tmp_path / "illustrator.svg"
+        long_svg.write_text("<?xml version='1.0'?>\n<!--" + "x" * 8000 + "-->\n<svg></svg>")
+        for name in ("pic.tiff", "icon.ico", "noext", "illustrator.svg"):
+            assert is_image_file(tmp_path / name), name
+        (tmp_path / "text.svg").write_text("not svg at all")
+        assert not is_image_file(tmp_path / "text.svg")
+
+    def test_result_cached_but_invalidated_on_change(self, tmp_path: Path) -> None:
+        import os
+
+        from leafpress import base_renderer
+
+        f = tmp_path / "x.png"
+        f.write_text("not yet")
+        assert not base_renderer.is_image_file(f)
+        f.write_bytes(PNG)
+        os.utime(f, ns=(f.stat().st_atime_ns, f.stat().st_mtime_ns + 1_000_000))
+        assert base_renderer.is_image_file(f)
+        hits = base_renderer._is_image_cached.cache_info().hits
+        base_renderer.is_image_file(f)
+        assert base_renderer._is_image_cached.cache_info().hits == hits + 1
+
+
+class TestSvgSizing:
+    @pytest.mark.parametrize(
+        ("attrs", "expected"),
+        [
+            ('viewBox="0 0 100px 50px"', (100.0, 50.0)),  # units used to crash
+            ('stroke-width="2" width="400" height="300"', (400.0, 300.0)),  # not stroke-width
+            ('viewBox="0,0,80,40"', (80.0, 40.0)),
+            ('width="100%" height="100%"', (528.0, 396.0)),  # unusable -> default
+        ],
+    )
+    def test_svg_size(self, tmp_path: Path, attrs: str, expected: tuple[float, float]) -> None:
+        from leafpress.odt.renderer import _image_pixel_size
+
+        svg = tmp_path / "a.svg"
+        svg.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" {attrs}><rect/></svg>')
+        assert _image_pixel_size(svg) == expected
+
+
+@pytest.mark.parametrize("addr", ["::7f00:1", "::ffff:0:7f00:1", "::ffff:0:a00:1"])
+def test_more_ipv6_wrapped_forms_not_public(addr: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from leafpress.asset_policy import is_public_host
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a: [(0, 0, 0, "", (addr, 0))])
+    assert not is_public_host("wrapped.example")
+
+
+def test_project_env_does_not_leak_into_later_runs(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    monkeypatch.delenv("LEAFPRESS_MERMAID_SERVER", raising=False)
+    monkeypatch.delenv("LEAFPRESS_COMPANY_NAME", raising=False)
+    (repo / ".env").write_text(
+        "LEAFPRESS_MERMAID_SERVER=http://10.0.0.5\nLEAFPRESS_COMPANY_NAME=FromEnv\n"
+    )
+    convert(str(repo), tmp_path / "o", format="markdown", mermaid=False)
+    assert "LEAFPRESS_MERMAID_SERVER" not in os.environ
+    assert "LEAFPRESS_COMPANY_NAME" not in os.environ
+
+
+def test_project_env_applies_during_run(repo: Path, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("LEAFPRESS_PROJECT_NAME", raising=False)
+    monkeypatch.delenv("LEAFPRESS_COMPANY_NAME", raising=False)
+    (repo / ".env").write_text("LEAFPRESS_COMPANY_NAME=Acme\nLEAFPRESS_PROJECT_NAME=FromDotenv\n")
+    convert(str(repo), tmp_path / "o", format="markdown", mermaid=False)
+    assert "FromDotenv" in next((tmp_path / "o").glob("*.md")).read_text()

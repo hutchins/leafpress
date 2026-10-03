@@ -154,47 +154,22 @@ def test_odt_local_time(
     assert odt_path.exists()
 
 
-# --- _is_svg ---
+# --- SVG logo ---
 
 
-class TestIsSvg:
-    def test_svg_extension(self) -> None:
-        assert OdtRenderer._is_svg("assets/logo.svg") is True
+def test_odt_svg_logo_embedded(tmp_path: Path, tmp_output: Path) -> None:
+    """An SVG logo is embedded on the cover (sized from its viewBox)."""
+    import zipfile
 
-    def test_svg_uppercase(self) -> None:
-        assert OdtRenderer._is_svg("Logo.SVG") is True
+    from leafpress.config import BrandingConfig
+    from leafpress.mkdocs_parser import MkDocsConfig
 
-    def test_png_not_svg(self) -> None:
-        assert OdtRenderer._is_svg("assets/logo.png") is False
-
-    def test_svg_url_with_query(self) -> None:
-        assert OdtRenderer._is_svg("https://cdn.example.com/logo.svg?v=3") is True
-
-    def test_non_svg_url(self) -> None:
-        assert OdtRenderer._is_svg("https://cdn.example.com/logo.jpg") is False
-
-
-# --- SVG logo skip ---
-
-
-def test_odt_svg_logo_skipped_with_warning(
-    html_pages,
-    sample_branding_config: Path,
-    tmp_output: Path,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """SVG logo_path should be skipped with a warning, not crash."""
-    import logging
-
-    pages, mkdocs_cfg = html_pages
-    branding = load_config(sample_branding_config)
-    branding.logo_path = "assets/logo.svg"
-
-    odt_path = tmp_output / "svg_skip.odt"
-    odt_renderer = OdtRenderer(branding, None, mkdocs_cfg)
-
-    with caplog.at_level(logging.WARNING):
-        odt_renderer.render(pages, odt_path)
-
-    assert odt_path.exists()
-    assert any("SVG logos are not supported in ODT" in r.message for r in caplog.records)
+    logo = tmp_path / "logo.svg"
+    logo.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect/></svg>')
+    (tmp_path / "docs").mkdir()
+    cfg = MkDocsConfig("T", tmp_path / "docs", [], [], None, [], tmp_path / "mkdocs.yml")
+    branding = BrandingConfig(company_name="A", project_name="B", logo_path=str(logo))
+    odt_path = tmp_output / "svg_logo.odt"
+    OdtRenderer(branding, None, cfg).render([], odt_path)
+    with zipfile.ZipFile(odt_path) as z:
+        assert any(n.startswith("Pictures/") and n.endswith(".svg") for n in z.namelist())

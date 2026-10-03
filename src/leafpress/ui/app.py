@@ -427,7 +427,11 @@ class ImportWorker(QThread):
             self.log.emit("Done!\n" + "\n".join(str(p) for p in results))
         if self._open_after:
             for p in results:
-                open_file(p)
+                try:
+                    open_file(p)
+                except OSError as exc:
+                    # e.g. no xdg-open on Linux, or no file association on Windows
+                    self.log.emit(f"  Could not open {p.name}: {exc}")
         summary = f"Imported {len(results)} of {len(self._files)} file(s)."
         if failures:
             self.finished.emit(False, summary + "\n\nFailed:\n" + "\n".join(failures))

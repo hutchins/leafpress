@@ -101,6 +101,9 @@ def is_public_host(host: str) -> bool:
 
 
 _NAT64_PREFIX = ipaddress.IPv6Network("64:ff9b::/96")
+# SIIT IPv4-translated addresses (RFC 2765) and deprecated IPv4-compatible ones
+_SIIT_PREFIX = ipaddress.IPv6Network("::ffff:0:0:0/96")
+_IPV4_COMPATIBLE_PREFIX = ipaddress.IPv6Network("::/96")
 
 
 def _embedded_ipv4(
@@ -109,14 +112,16 @@ def _embedded_ipv4(
     """Return the IPv4 address an IPv6 address tunnels to, if any.
 
     ``64:ff9b::7f00:1`` (NAT64) reaches 127.0.0.1 but Python reports it as
-    global, so IPv4-mapped, NAT64, 6to4, and Teredo addresses are checked by
-    the IPv4 address they carry.
+    global, so IPv4-mapped, IPv4-compatible, SIIT, NAT64, 6to4, and Teredo
+    addresses are checked by the IPv4 address they carry.
     """
     if isinstance(addr, ipaddress.IPv4Address):
         return addr
     if addr.ipv4_mapped is not None:
         return addr.ipv4_mapped
-    if addr in _NAT64_PREFIX:
+    if addr in _NAT64_PREFIX or addr in _SIIT_PREFIX:
+        return ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+    if addr in _IPV4_COMPATIBLE_PREFIX and int(addr) > 1:  # not :: or ::1
         return ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
     if addr.sixtofour is not None:
         return addr.sixtofour

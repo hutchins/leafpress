@@ -267,24 +267,12 @@ class OdtRenderer:
         master.addElement(footer_content)
         doc.masterstyles.addElement(master)
 
-    @staticmethod
-    def _is_svg(path: str) -> bool:
-        """Check if a path or URL points to an SVG file."""
-        clean = path.split("?")[0].split("#")[0]
-        return clean.lower().endswith(".svg")
-
     def _add_cover_page(self, doc: OpenDocumentText) -> None:
         """Add a branded cover page."""
         # Logo
         if self._branding and self._branding.logo_path:
             logo_path = self._branding.logo_path
-            if self._is_svg(logo_path):
-                logger.warning(
-                    "SVG logos are not supported in ODT output (odfpy only "
-                    "supports raster images like PNG/JPEG). Skipping logo: %s",
-                    logo_path,
-                )
-            elif not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
+            if not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
                 frame = self._image_frame(doc, Path(logo_path).resolve().as_uri())
                 if frame is not None:
                     p = P(stylename="Normal")
@@ -598,28 +586,51 @@ def _image_pixel_size(path: Path) -> tuple[float, float] | None:
     """Pixel size of a raster image or SVG, or None if it isn't a usable image.
 
     SVGs can't be measured by Pillow, so their size comes from the root
-    element's ``viewBox`` (or plain numeric ``width``/``height``), with a 4:3
-    default when neither is present.
+    element's ``viewBox`` (or numeric ``width``/``height``), with a 4:3
+    default when neither is usable.
     """
     from leafpress.base_renderer import is_image_file
 
     if not is_image_file(path):
         return None
-    if path.suffix.lower() == ".svg":
-        head = path.read_text(encoding="utf-8", errors="replace")[:4096]
-        root = re.search(r"<svg\b[^>]*>", head, re.IGNORECASE)
-        attrs = root.group(0) if root else ""
-        view_box = re.search(r'viewBox\s*=\s*["\']([^"\']+)["\']', attrs)
-        if view_box:
-            numbers = [float(n) for n in re.split(r"[\s,]+", view_box.group(1).strip()) if n]
-            if len(numbers) == 4 and numbers[2] > 0 and numbers[3] > 0:
-                return numbers[2], numbers[3]
-        dims = [
-            re.search(rf'\b{name}\s*=\s*["\']([\d.]+)(?:px)?["\']', attrs)
-            for name in ("width", "height")
-        ]
-        if dims[0] and dims[1]:
-            return float(dims[0].group(1)), float(dims[1].group(1))
+    if path.suffix.lower() in (".svg", ".svgz"):
+        return _svg_size(path)
+    try:
+        with PILImage.open(path) as im:
+            return float(im.size[0]), float(im.size[1])
+    except Exception:
+        return None
+
+
+_SVG_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def _svg_size(path: Path) -> tuple[float, float]:
+    import gzip
+
+    try:
+        opener = gzip.open if path.suffix.lower() == ".svgz" else open
+        with opener(path, "rb") as f:
+            text = f.read(1024 * 1024).decode("utf-8", errors="replace")
+    except (OSError, EOFError):
         return _SVG_DEFAULT_SIZE
-    with PILImage.open(path) as im:
-        return float(im.size[0]), float(im.size[1])
+    root = re.search(r"<svg\b[^>]*>", text, re.IGNORECASE)
+    attrs = root.group(0) if root else ""
+    # (?<![\w-]) so stroke-width / data-width don't match width
+    view_box = re.search(r'(?<![\w-])viewBox\s*=\s*["\']([^"\']+)["\']', attrs)
+    if view_box:
+        numbers = [float(n) for n in _SVG_NUMBER.findall(view_box.group(1))]
+        if len(numbers) == 4 and numbers[2] > 0 and numbers[3] > 0:
+            return numbers[2], numbers[3]
+
+    def dimension(name: str) -> float | None:
+        match = re.search(rf'(?<![\w-]){name}\s*=\s*["\']\s*([\d.]+)\s*(?:px)?\s*["\']', attrs)
+        try:
+            return float(match.group(1)) if match else None
+        except ValueError:
+            return None
+
+    width, height = dimension("width"), dimension("height")
+    if width and height:
+        return width, height
+    return _SVG_DEFAULT_SIZE

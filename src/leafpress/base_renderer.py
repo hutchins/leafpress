@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import base64
+import functools
+import gzip
 import mimetypes
 import re
+import stat
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Protocol
@@ -86,22 +89,54 @@ def resolve_logo_uri(branding: BrandingConfig | None) -> str:
     return ""
 
 
-_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"}
+_SVG_SUFFIXES = {".svg", ".svgz"}
+# SVGs can start with a long XML prolog, DOCTYPE, or license comment
+_SVG_SNIFF_BYTES = 1024 * 1024
 
 
 def is_image_file(path: Path) -> bool:
-    """True if ``path`` is an existing image file (checked by content, not just name)."""
-    if path.suffix.lower() not in _IMAGE_SUFFIXES or not path.is_file():
+    """True if ``path`` is an existing image file, judged by content rather than name.
+
+    Raster images are anything Pillow can open and verify (PNG, JPEG, GIF,
+    WebP, TIFF, ICO, ... with or without an extension); SVGs are ``.svg`` /
+    ``.svgz`` files containing an ``<svg`` element. Results are cached per
+    (path, modification time, size), since every renderer asks about the
+    same files.
+    """
+    try:
+        resolved = path.resolve()
+        info = resolved.stat()
+    except (OSError, RuntimeError):
         return False
-    if path.suffix.lower() == ".svg":
-        with path.open("rb") as f:
-            return b"<svg" in f.read(4096).lower()
-    from PIL import Image, UnidentifiedImageError
+    if not stat.S_ISREG(info.st_mode):
+        return False
+    return _is_image_cached(str(resolved), info.st_mtime_ns, info.st_size)
+
+
+@functools.lru_cache(maxsize=2048)
+def _is_image_cached(path_str: str, mtime_ns: int, size: int) -> bool:
+    path = Path(path_str)
+    suffix = path.suffix.lower()
+    if suffix in _SVG_SUFFIXES:
+        try:
+            if suffix == ".svgz":
+                with gzip.open(path, "rb") as f:
+                    head = f.read(_SVG_SNIFF_BYTES)
+            else:
+                with path.open("rb") as f:
+                    head = f.read(_SVG_SNIFF_BYTES)
+        except (OSError, EOFError):
+            return False
+        return b"<svg" in head.lower()
+
+    from PIL import Image
 
     try:
         with Image.open(path) as img:
             img.verify()
-    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+    except Exception:
+        # Not an image, corrupt, or a decompression bomb (DecompressionBombError
+        # subclasses Exception directly): never treat it as embeddable.
         return False
     return True
 

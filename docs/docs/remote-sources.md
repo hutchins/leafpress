@@ -87,7 +87,8 @@ A repository you convert controls its `mkdocs.yml`, `leafpress.yml`, and Markdow
 - **Raw HTML is sanitized.** Scripts, event handlers (`onerror=`), `javascript:` links, iframes, forms, and resource-loading inline CSS are removed from page HTML. The normal MkDocs/Material markup is kept: admonitions, tabs, details, tables, task lists, footnotes, and highlighted code. This matters most for HTML and EPUB output, which would otherwise carry active content wherever they're published.
     - Sanitizing is automatic for git URL sources and monorepo `url:` projects, and a cloned repository's own `leafpress.yml` can't turn it off.
     - For local sources you don't fully trust, such as a CI checkout of a pull request, enable it with `--sanitize-html`, `LEAFPRESS_SANITIZE_HTML=true`, or `sanitize_html: true`.
-- **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` must stay inside that repository.
+- **Monorepo `projects[].url`** must be a git URL. A local directory belongs in `path:`, which gets the containment check.
+- **Monorepo `projects[].path`** entries in a cloned repository's `leafpress.yml` (and `root:`) must stay inside that repository.
 
 Diagram fetching (`fetch-diagrams`) and the Mermaid renderer still make network requests. Only enable them for repositories you trust.
 

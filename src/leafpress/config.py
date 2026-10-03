@@ -139,6 +139,15 @@ class ProjectEntry(BaseModel):
             raise ValueError("Project entry must have either 'path' or 'url'")
         if self.path and self.url:
             raise ValueError("Project entry cannot have both 'path' and 'url'")
+        # A non-git 'url' would be treated as a local directory and skip the
+        # containment check that 'path' gets, so require a real git URL.
+        from leafpress.source import GIT_URL_PATTERN
+
+        if self.url and not GIT_URL_PATTERN.match(self.url):
+            raise ValueError(
+                f"Project 'url' must be a git URL (https://, ssh://, git://, git@); "
+                f"use 'path' for a local directory: {self.url!r}"
+            )
         return self
 
 

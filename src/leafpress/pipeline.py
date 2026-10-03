@@ -268,7 +268,10 @@ def convert(
         untrusted_source = resolved_source.is_temporary
         project_dir = cleanup.enter_context(resolved_source)
         if not untrusted_source:
-            _load_project_env(project_dir / ".env")
+            # Removed again when this run ends, so a long-lived process (the
+            # desktop UI) doesn't carry one project's settings into the next
+            loaded_env = _load_project_env(project_dir / ".env")
+            cleanup.callback(_unset_env, loaded_env)
 
         # Load branding config (before mkdocs.yml so monorepo mode can skip it)
         branding: BrandingConfig | None = None
@@ -685,18 +688,30 @@ def _confine_untrusted_logo(
     return branding.model_copy(update={"logo_path": None})
 
 
-def _load_project_env(env_file: Path) -> None:
+def _load_project_env(env_file: Path) -> list[str]:
     """Load ``LEAFPRESS_*`` settings from a project's ``.env`` file.
 
     Only leafpress settings are read, so a ``.env`` can't set variables such as
     ``GIT_SSH_COMMAND`` that change how git or other tools behave. Values
     already set in the shell take priority.
+
+    Returns:
+        The variable names that were set, so the caller can remove them.
     """
     if not env_file.is_file():
-        return
+        return []
+    loaded: list[str] = []
     for key, value in dotenv_values(env_file).items():
         if key.startswith("LEAFPRESS_") and value is not None and key not in os.environ:
             os.environ[key] = value
+            loaded.append(key)
+    return loaded
+
+
+def _unset_env(keys: list[str]) -> None:
+    """Remove environment variables set by :func:`_load_project_env`."""
+    for key in keys:
+        os.environ.pop(key, None)
 
 
 def _collect_monorepo_pages(
@@ -761,6 +776,10 @@ def _collect_monorepo_pages(
             from leafpress.package_version import detect_package_version
 
             package_root = (config_dir / entry.root).resolve() if entry.root else project_dir
+            if untrusted_source and not is_within(package_root, config_dir):
+                raise SourceError(
+                    f"Monorepo project root escapes the cloned repository: {entry.root}"
+                )
             project_version = detect_package_version(package_root, walk_up=False)
 
             version_suffix = f" v{project_version}" if project_version else ""
