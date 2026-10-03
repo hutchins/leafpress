@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ebooklib import epub
 from jinja2 import Environment, PackageLoader
-from markupsafe import escape
+from markupsafe import Markup, escape
 
 from leafpress.asset_policy import AssetPolicy
 from leafpress.base_renderer import (
@@ -188,7 +188,9 @@ class EpubRenderer:
         if self._branding is None or self._branding.footer.include_render_date:
             footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
         footer_parts.append("Made with LeafPress")
-        footer_text = " &middot; ".join(footer_parts)
+        # Markup.join escapes each part: custom_text comes from leafpress.yml
+        # (possibly an untrusted repo's) and the branch name from git
+        footer_text = Markup(" &middot; ").join(footer_parts)
 
         footer_chapter = epub.EpubHtml(
             title="About this document",

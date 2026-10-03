@@ -1,13 +1,33 @@
 #!/usr/bin/env bash
-set -e
+# Pre-commit checks for leafpress. Enable once per clone with:
+#   make setup-hooks        (or: git config core.hooksPath .githooks)
+#
+# 1. gitleaks   - secrets in the staged changes
+# 2. ruff check - lint, including the bandit-style security rules (S)
+# 3. ruff format --check
+# 4. ty check   - type check (same pinned version as CI)
+#
+# Skip in an emergency with `git commit --no-verify` (CI runs the same checks).
+set -euo pipefail
 
-echo "Running ruff check..."
-uv run ruff check src/ tests/
+# Keep in sync with the "Type check" step in .github/workflows/ci.yml
+TY_VERSION="0.0.84"
+
+echo "Scanning staged changes for secrets (gitleaks)..."
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "gitleaks is not installed. Install it with 'brew install gitleaks'"
+    echo "(or see https://github.com/gitleaks/gitleaks#installing), then commit again."
+    exit 1
+fi
+gitleaks git --pre-commit --staged --redact --no-banner --log-level warn .
+
+echo "Running ruff check (lint + bandit-style security rules)..."
+uv run ruff check .
 
 echo "Running ruff format check..."
-uv run ruff format --check src/ tests/
+uv run ruff format --check .
 
 echo "Running ty type check..."
-uv run ty check || true
+uvx "ty@${TY_VERSION}" check
 
-echo "All checks passed."
+echo "All pre-commit checks passed."

@@ -10,7 +10,8 @@ Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/hutchins/leafpress.git
 cd leafpress
 uv sync --group dev
-make setup-hooks   # pre-commit: ruff check, ruff format --check, ty
+make setup-hooks   # pre-commit hook: gitleaks, ruff (incl. security rules), ty
+brew install gitleaks   # needed by the hook (or see github.com/gitleaks/gitleaks)
 ```
 
 ### WeasyPrint system dependencies (Linux/macOS)
@@ -34,10 +35,22 @@ export DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib
 ```bash
 make tests                 # lint + type check + full test suite
 uv run pytest tests/ -q    # tests only
-uv run ruff check .        # lint
+uv run ruff check .        # lint, including ruff's bandit-style security rules (S)
 uv run ruff format --check .
-uvx ty check               # type check (CI pins the ty version)
+uvx ty@0.0.84 check        # type check (same pinned version as CI and the hook)
+make secrets               # gitleaks scan of the full git history
 ```
+
+### Pre-commit hook
+
+`make setup-hooks` points git at `.githooks/`, whose `pre-commit` hook runs:
+
+1. **gitleaks** on the staged changes. It blocks commits that contain secrets.
+2. **`ruff check .`**, including the `S` rules (ruff's port of bandit). Tests are exempt from rules that don't apply to them, such as `assert`. If a security warning is a false positive in `src/`, add a `# noqa: Sxxx` with a short reason, not a blanket ignore.
+3. **`ruff format --check .`**
+4. **`ty check`**, at the version pinned in CI.
+
+CI runs the same checks, including a full-history gitleaks scan, so `git commit --no-verify` only postpones a failure.
 
 CI also runs `pip-audit` against the lockfile. After changing dependencies, check locally with:
 

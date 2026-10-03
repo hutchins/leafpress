@@ -18,9 +18,10 @@ def open_file(path: Path) -> None:
     if sys.platform == "win32":
         # Opens via the shell association without spawning cmd.exe, so file
         # names can't be interpreted as shell syntax.
-        os.startfile(path)
+        os.startfile(path)  # noqa: S606 - the point: open with the default app, no shell
         return
+    # Fixed argv (no shell), the system opener resolved from PATH by design
     if platform.system() == "Darwin":
-        subprocess.run(["open", str(path)], check=False)
+        subprocess.run(["open", str(path)], check=False)  # noqa: S603, S607
     else:
-        subprocess.run(["xdg-open", str(path)], check=False)
+        subprocess.run(["xdg-open", str(path)], check=False)  # noqa: S603, S607
