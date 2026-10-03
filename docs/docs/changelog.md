@@ -30,6 +30,13 @@
 
 ### Improvements
 
+- **Experimental Zensical support.** `zensical.toml` projects convert like MkDocs ones.
+    - Reads `site_name`, `docs_dir`, `nav`, and `markdown_extensions` from `[project]`.
+    - Dotted extension tables are flattened back to extension names.
+    - TOML 1.1 syntax is supported via `tomli`, a new dependency.
+    - When both files exist, `mkdocs.yml` still wins; `--mkdocs-config zensical.toml` overrides.
+    - See [Zensical Projects](zensical.md).
+- External-link entries in `nav` (e.g. `Book: https://…`) are skipped instead of producing a "File not found" warning
 - **LaTeX import overhaul**, clearing every item in the LaTeX TODO list:
     - Multi-file projects (`\input`, `\include`, `\subfile`, `\import`) are inlined, confined to the document directory, with cycle detection
     - Theorem-like environments and `\newtheorem` (shared counters, starred forms) render as numbered blockquotes; `proof` ends with ∎

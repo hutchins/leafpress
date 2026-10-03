@@ -47,7 +47,7 @@ leafpress convert [SOURCE] [OPTIONS]
 | `--output`, `-o` | `output/` | Output directory for generated files |
 | `--format`, `-f` | `pdf` | Output format: `pdf`, `docx`, `html`, `odt`, `epub`, `markdown`, `both` (pdf+docx), or `all` |
 | `--config`, `-c` | _(auto-detect)_ | Path to `leafpress.yml` branding config |
-| `--mkdocs-config` | _(auto-detect)_ | Override path to `mkdocs.yml` |
+| `--mkdocs-config` | _(auto-detect)_ | Override path to `mkdocs.yml`, or `zensical.toml` ([experimental](zensical.md)) |
 | `--branch`, `-b` | _(default branch)_ | Git branch to clone (remote sources only) |
 | `--cover-page` / `--no-cover-page` | `--cover-page` | Include a cover page |
 | `--toc` / `--no-toc` | `--toc` | Include a table of contents |
