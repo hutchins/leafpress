@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import os
 import platform
 import subprocess
@@ -22,7 +23,7 @@ from leafpress import __version__
 from leafpress.config import DEFAULT_CONFIG_TEMPLATE
 from leafpress.exceptions import LeafpressError
 from leafpress.git_info import extract_git_info
-from leafpress.importer.base import ImportResult
+from leafpress.importer.base import ImportResult, resolve_output_path
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.source import resolve_source
 
@@ -489,17 +490,33 @@ def import_file(
         )
         raise typer.Exit(code=1)
 
-    errors = 0
+    outcomes: list[_ImportOutcome] = []
+    # Output .md path -> source that produced it, to catch same-name inputs
+    # (a/report.docx, b/report.docx) overwriting each other in one -o dir
+    written: dict[Path, str] = {}
+
     for source in sources:
+        is_url = source.startswith(("http://", "https://"))
+        # A URL is downloaded to a temp dir that is deleted afterwards, so its
+        # default output (next to the input) must be the current directory
+        effective_output = output if output is not None or not is_url else Path.cwd()
         try:
             with _resolve_import_source(source) as file:
+                target = resolve_output_path(file, effective_output).resolve()
+                if target in written:
+                    raise LeafpressError(
+                        f"Output {target.name} would overwrite the import of "
+                        f"{written[target]}; import these separately or use different -o paths"
+                    )
                 result = _import_single_file(
                     file,
-                    output=output,
+                    output=effective_output,
                     extract_images=extract_images,
                     code_styles=code_styles,
                     include_notes=include_notes,
                 )
+            written[target] = source
+            outcomes.append(_ImportOutcome(source, result=result))
             console.print(f"\n[bold green]Done![/bold green] {result.markdown_path}")
             if result.images:
                 console.print(f"  [green]Images:[/green] {len(result.images)} extracted to assets/")
@@ -513,12 +530,55 @@ def import_file(
                     console.print(f"    [dim]… and {n - shown} more[/dim]")
 
         except LeafpressError as e:
-            console.print(f"\n[bold red]Error:[/bold red] {escape(str(e))}")
-            errors += 1
+            outcomes.append(_ImportOutcome(source, error=str(e)))
+            console.print(f"\n[bold red]Error:[/bold red] {escape(source)}: {escape(str(e))}")
+        except Exception as e:
+            # Keep going: one malformed file shouldn't abort the whole batch
+            outcomes.append(_ImportOutcome(source, error=f"{type(e).__name__}: {e}"))
+            console.print(
+                f"\n[bold red]Error:[/bold red] {escape(source)}: unexpected "
+                f"{type(e).__name__}: {escape(str(e))}"
+            )
 
-    if errors:
-        console.print(f"\n[yellow]{errors} file(s) failed to import.[/yellow]")
+    if len(outcomes) > 1:
+        console.print()
+        console.print(_import_summary_table(outcomes))
+
+    failed = sum(1 for o in outcomes if o.error is not None)
+    if failed:
+        console.print(f"\n[yellow]{failed} of {len(outcomes)} file(s) failed to import.[/yellow]")
         raise typer.Exit(code=1)
+
+
+@dataclasses.dataclass
+class _ImportOutcome:
+    """Result of importing one source in a batch: either a result or an error."""
+
+    source: str
+    result: ImportResult | None = None
+    error: str | None = None
+
+
+def _import_summary_table(outcomes: list[_ImportOutcome]) -> Table:
+    """Build a per-file summary table for multi-file imports."""
+    table = Table(title="Import summary")
+    table.add_column("Source", overflow="fold")
+    table.add_column("Status")
+    table.add_column("Output / error", overflow="fold")
+    table.add_column("Images", justify="right")
+    table.add_column("Warnings", justify="right")
+    for o in outcomes:
+        if o.result is not None:
+            table.add_row(
+                escape(o.source),
+                "[green]ok[/green]",
+                escape(str(o.result.markdown_path)),
+                str(len(o.result.images)),
+                str(len(o.result.warnings)),
+            )
+        else:
+            table.add_row(escape(o.source), "[red]failed[/red]", escape(o.error or ""), "-", "-")
+    return table
 
 
 _SUPPORTED_IMPORT_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".tex"}

@@ -38,6 +38,15 @@
 
 ### Fixes
 
+- **Batch `import`:**
+    - A failed file no longer aborts the batch, and errors now name the file that failed.
+    - A per-file summary table is shown after multi-file imports.
+    - Two inputs with the same name no longer silently overwrite each other's output.
+    - URL imports without `-o` are written to the current directory. They were previously written into the download's temp directory and deleted.
+- **`fetch-diagrams`:**
+    - Downloads run in parallel (up to 4 at a time).
+    - All failures are reported together instead of stopping at the first.
+    - Duplicate `dest` paths and a missing Lucidchart token are caught before any request is made.
 - **HTML output is now actually self-contained.** Local images and mermaid diagrams are embedded as `data:` URIs. Previously they were `file://` links that only worked on the machine that built the file
 - **EPUB images now display.** They are packaged inside the EPUB instead of linked with `file://`, which e-readers can't open. Chapter titles are now escaped
 - **ODT now embeds images.** Images inside paragraphs (all normal Markdown images) were silently dropped. Images now also keep their aspect ratio instead of being forced to 4×2 inches
