@@ -158,10 +158,17 @@ All renderers conform to the `BaseRenderer` protocol, which defines the common c
 |--------|---------|---------|
 | `replace_checkboxes(html)` | Replaces `<input type="checkbox">` elements with unicode symbols (☑/☐) for print-friendly output | PDF, HTML, EPUB |
 | `make_anchor_id(title)` | Converts a title string to a URL-safe anchor ID | HTML, EPUB |
-| `resolve_logo_uri(branding)` | Returns the logo as a `file://` URI or HTTP URL, or empty string | PDF, HTML |
 | `build_asset_policy(mkdocs_cfg, branding, extra_roots)` | Default local-file allowlist: the project, `docs_dir`, extra roots (e.g. the mermaid dir), and the logo file | PDF, DOCX, HTML, ODT, EPUB |
 | `rewrite_local_images(html, policy, replace)` | Rewrites `<img src="file://...">` references to allowed files, and blanks references outside the policy | HTML (data URIs), EPUB (packaged items) |
 | `image_data_uri(path)` / `image_mime_type(path)` | Encodes a local image as a `data:` URI / guesses its MIME type | HTML, EPUB |
+
+Two more modules hold what every renderer shows the same way:
+
+| Helper | Purpose | Used by |
+|--------|---------|---------|
+| `document_meta.footer_parts(branding, git_info, now)` | The footer's pieces in order (custom text, repo URL, version field, render date, credit); join with `FOOTER_SEPARATOR` after escaping for the format | All but Markdown export |
+| `document_meta.CoverFields.build(branding, site_name, now)` | Cover text with branding fallbacks; `template_context()` feeds the `cover.html.j2` templates | PDF, HTML, EPUB |
+| `logo.load_logo(branding)` | Loads the logo once as bytes and MIME type: local files must be real images, remote ones come from public hosts only (size-capped). Returns None, with a warning, when there is nothing usable | All but Markdown export |
 
 #### Format-Specific Renderers
 
@@ -185,7 +192,7 @@ leafpress often renders content from repositories the operator doesn't control. 
 | `asset_policy.py` | `AssetPolicy` allowlist of local roots and files (symlinks resolved), `file_uri_to_path()`, `is_within()`, and `is_public_host()` / `is_public_http_url()`. The host check blocks loopback, private, link-local, and reserved addresses, including IPv4 wrapped in IPv6 (NAT64, 6to4, Teredo, IPv4-mapped). DNS rebinding is a documented limitation |
 | `base_renderer.is_image_file()` | Content check (Pillow, or an `<svg` sniff). Only real images are embedded or fetched from disk, and only an image can be allowlisted as the logo |
 | `pdf/url_fetcher.py` | `RestrictedURLFetcher` for WeasyPrint: `data:` URIs, policy-allowed local images, and public http(s) via `downloads.fetch()` |
-| `downloads.py` | `fetch()` / `download()` for every HTTP request (PDF resources, diagrams, Lucidchart, mermaid, DOCX logo, `import` from URL): http(s) only, streamed with a size cap, redirects re-validated hop by hop, credentials dropped on cross-origin redirects, and an optional public-host requirement |
+| `downloads.py` | `fetch()` / `download()` for every HTTP request (PDF resources, diagrams, Lucidchart, mermaid, remote logos, `import` from URL): http(s) only, streamed with a size cap, redirects re-validated hop by hop, credentials dropped on cross-origin redirects, and an optional public-host requirement |
 | `pipeline.py` (config trust) | A leafpress.yml auto-detected inside a cloned repo is untrusted: `_confine_untrusted_paths()` drops a local `logo_path` or `docx.template_path` outside the repo, and `mermaid.server` must be public. Operator `-c` configs and env vars stay trusted |
 | `sanitize.py` | `sanitize_html()` (nh3 allowlist tuned to MkDocs/Material output) and `should_sanitize()` precedence: CLI flag, then env var, then always on for cloned sources, then config |
 | `source.py` | `redact_url()` removes `user:token@` from anything printed or rendered |
@@ -285,7 +292,7 @@ Shared by the DOCX, PPTX, and LaTeX importers. `ImageHandler` manages an output 
 | **Security** | `asset_policy.py`, `pdf/url_fetcher.py`, `downloads.py`, `sanitize.py` | File confinement, restricted fetching, bounded downloads, HTML sanitizing |
 | **Rendering** | `markdown_renderer.py` | Markdown-to-HTML conversion |
 | **Post-processing** | `mermaid.py`, `annotations.py`, `diagrams.py` | Mermaid rendering, annotations, external diagram fetching |
-| **Renderer base** | `base_renderer.py` | Renderer protocol and shared helpers (checkboxes, anchors, logo URIs, asset policy, image embedding) |
+| **Renderer base** | `base_renderer.py`, `document_meta.py`, `logo.py` | Renderer protocol and shared helpers (checkboxes, anchors, asset policy, image embedding), footer and cover fields, logo loading |
 | **Output** | `pdf/`, `html/`, `docx/`, `odt/`, `epub/`, `markdown_export/` | Format-specific renderers and templates |
 | **Metadata** | `git_info.py`, `package_version.py` | Git version extraction, package version detection |
 | **Diagnostics** | `doctor.py` | Environment health checks |
@@ -294,7 +301,7 @@ Shared by the DOCX, PPTX, and LaTeX importers. `ImageHandler` manages an output 
 
 To add a new output format (e.g., LaTeX):
 
-1. **Create a renderer module** at `src/leafpress/{format}/renderer.py` with a class that satisfies the `BaseRenderer` protocol defined in `src/leafpress/base_renderer.py`. The class must accept `(branding, git_info, mkdocs_cfg)` and implement a `render()` method that produces the output file. Use shared helpers from `base_renderer` (e.g., `replace_checkboxes`, `make_anchor_id`, `resolve_logo_uri`) rather than reimplementing common logic.
+1. **Create a renderer module** at `src/leafpress/{format}/renderer.py` with a class that satisfies the `BaseRenderer` protocol defined in `src/leafpress/base_renderer.py`. The class must accept `(branding, git_info, mkdocs_cfg)` and implement a `render()` method that produces the output file. Use shared helpers from `base_renderer` (e.g., `replace_checkboxes`, `make_anchor_id`), `document_meta.footer_parts` / `CoverFields`, and `logo.load_logo` rather than reimplementing common logic.
 
 2. **Register in `pipeline.py`** — add an `_OutputFormat` entry to `_OUTPUT_FORMATS`: its label, file extension, the `--format` values that select it (include `"all"`), and a loader that imports your renderer class. Set `takes_asset_policy=False` only if the renderer never reads local files. The pipeline constructs the renderer, calls `render()`, and turns unexpected exceptions into a `RenderError`.
 

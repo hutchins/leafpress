@@ -4,6 +4,9 @@
 
 ### Changed
 
+- **One footer for every format.** HTML, EPUB, and ODT now honor `footer.include_tag`, `include_commit`, `include_date`, `include_branch`, and `repo_url`, and use the same layout as PDF and DOCX (parts joined by ` - `, ending with `Made with LeafPress · leafpress.dev`). Previously they ignored those settings and showed the full version string. See [Branding → Footer](branding.md#footer)
+- **EPUB now includes the logo** on its cover page; it used to be dropped
+- **Logos are embedded everywhere.** A remote `logo_path` is downloaded once (public hosts only, 10 MB cap) and embedded in HTML, PDF, DOCX, ODT, and EPUB, so a remote logo now works in ODT too, and HTML output no longer loads it from the web when opened. A logo that can't be fetched is skipped with a warning instead of failing a DOCX build
 - The desktop app's log now shows the pipeline's own output (detected config, extensions, skipped pages, missing images, files written) instead of only "Converting…" and "Done!"
 - A crash inside any output renderer is now reported with a format-specific explanation. PDF and Markdown export previously surfaced it as an "Unexpected error"
 

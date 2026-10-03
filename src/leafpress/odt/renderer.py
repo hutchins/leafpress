@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -31,7 +31,9 @@ from PIL import Image as PILImage
 from leafpress.asset_policy import AssetPolicy, file_uri_to_path
 from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import FOOTER_SEPARATOR, footer_parts, render_time
 from leafpress.git_info import GitVersion
+from leafpress.logo import Logo, load_logo
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
 logger = logging.getLogger(__name__)
@@ -247,18 +249,11 @@ class OdtRenderer:
 
         # Footer with branding
         footer_content = Footer()
-        footer_parts: list[str] = []
-        if self._branding and self._branding.footer.custom_text:
-            footer_parts.append(self._branding.footer.custom_text)
-        if self._git_info:
-            footer_parts.append(self._git_info.format_version_string())
-        if self._branding is None or self._branding.footer.include_render_date:
-            now = datetime.now() if self._local_time else datetime.now(UTC)
-            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
-        footer_parts.append("Made with LeafPress")
-
         footer_para = P(stylename="Footer")
-        footer_para.addText(" \u00b7 ".join(footer_parts))
+        now = render_time(self._local_time)
+        footer_para.addText(
+            FOOTER_SEPARATOR.join(footer_parts(self._branding, self._git_info, now))
+        )
         footer_content.addElement(footer_para)
 
         doc.automaticstyles.addElement(layout)
@@ -270,14 +265,13 @@ class OdtRenderer:
     def _add_cover_page(self, doc: OpenDocumentText) -> None:
         """Add a branded cover page."""
         # Logo
-        if self._branding and self._branding.logo_path:
-            logo_path = self._branding.logo_path
-            if not logo_path.startswith(("http://", "https://")) and Path(logo_path).exists():
-                frame = self._image_frame(doc, Path(logo_path).resolve().as_uri())
-                if frame is not None:
-                    p = P(stylename="Normal")
-                    p.addElement(frame)
-                    doc.text.addElement(p)
+        logo = load_logo(self._branding)
+        if logo is not None:
+            frame = self._logo_frame(doc, logo)
+            if frame is not None:
+                p = P(stylename="Normal")
+                p.addElement(frame)
+                doc.text.addElement(p)
 
         # Company
         if self._branding and self._branding.company_name:
@@ -317,7 +311,7 @@ class OdtRenderer:
 
         # Date
         p = P(stylename="CoverMeta")
-        now = datetime.now() if self._local_time else datetime.now(UTC)
+        now = render_time(self._local_time)
         p.addText(now.strftime("%B %d, %Y"))
         doc.text.addElement(p)
 
@@ -524,6 +518,25 @@ class OdtRenderer:
             return None
         px_width, px_height = size
 
+        return self._picture_frame(doc, doc.addPicture(str(image_path)), px_width, px_height)
+
+    def _logo_frame(self, doc: OpenDocumentText, logo: Logo) -> Frame | None:
+        """Build a picture frame for the cover logo (already validated by load_logo)."""
+        if logo.is_svg:
+            size = _svg_size_from_text(logo.data[: 1024 * 1024].decode("utf-8", errors="replace"))
+        else:
+            try:
+                with PILImage.open(io.BytesIO(logo.data)) as im:
+                    size = float(im.size[0]), float(im.size[1])
+            except Exception:
+                return None
+        href = doc.addPictureFromString(logo.data, logo.mime_type)
+        return self._picture_frame(doc, href, *size)
+
+    def _picture_frame(
+        self, doc: OpenDocumentText, href: str, px_width: float, px_height: float
+    ) -> Frame:
+        """An inline frame for an embedded picture, max 5.5in wide at 96 dpi."""
         width_in = min(5.5, px_width / 96)
         height_in = width_in * px_height / px_width if px_width else width_in
 
@@ -545,7 +558,6 @@ class OdtRenderer:
             height=f"{height_in:.2f}in",
             anchortype="as-char",
         )
-        href = doc.addPicture(str(image_path))
         frame.addElement(Image(href=href))
         return frame
 
@@ -614,6 +626,11 @@ def _svg_size(path: Path) -> tuple[float, float]:
             text = f.read(1024 * 1024).decode("utf-8", errors="replace")
     except (OSError, EOFError):
         return _SVG_DEFAULT_SIZE
+    return _svg_size_from_text(text)
+
+
+def _svg_size_from_text(text: str) -> tuple[float, float]:
+    """Size from the root ``<svg>``'s viewBox or numeric width/height (4:3 default)."""
     root = re.search(r"<svg\b[^>]*>", text, re.IGNORECASE)
     attrs = root.group(0) if root else ""
     # (?<![\w-]) so stroke-width / data-width don't match width

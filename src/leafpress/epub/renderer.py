@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 
 from ebooklib import epub
 from jinja2 import Environment, PackageLoader
-from markupsafe import Markup, escape
+from markupsafe import escape
 
 from leafpress.asset_policy import AssetPolicy
 from leafpress.base_renderer import (
@@ -20,7 +19,9 @@ from leafpress.base_renderer import (
     rewrite_local_images,
 )
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import FOOTER_SEPARATOR, CoverFields, footer_parts, render_time
 from leafpress.git_info import GitVersion
+from leafpress.logo import load_logo
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
 
@@ -79,22 +80,29 @@ class EpubRenderer:
 
         spine: list[str | epub.EpubHtml] = ["nav"]
         toc_items: list[epub.Link | tuple[epub.Section, list]] = []
-        now = datetime.now() if local_time else datetime.now(UTC)
+        now = render_time(local_time)
 
         # Cover page chapter
         if cover_page:
             cover_tmpl = self._jinja.get_template("cover.html.j2")
+            cover = CoverFields.build(self._branding, self._mkdocs_cfg.site_name, now)
+            # The logo is packaged in the EPUB; cover.xhtml sits at the root
+            logo = load_logo(self._branding)
+            logo_src = ""
+            if logo is not None:
+                logo_src = f"images/logo{logo.extension}"
+                book.add_item(
+                    epub.EpubItem(
+                        uid="img_logo",
+                        file_name=logo_src,
+                        media_type=logo.mime_type,
+                        content=logo.data,
+                    )
+                )
             cover_html = cover_tmpl.render(
-                company_name=(self._branding.company_name if self._branding else ""),
-                project_name=site_name,
-                subtitle=self._branding.subtitle if self._branding else "",
-                logo_path="",  # skip logo in EPUB (no embedded data URI needed)
+                **cover.template_context(),
+                logo_path=logo_src,
                 git_info=self._git_info,
-                author=self._branding.author if self._branding else "",
-                author_email=self._branding.author_email if self._branding else "",
-                document_owner=self._branding.document_owner if self._branding else "",
-                review_cycle=self._branding.review_cycle if self._branding else "",
-                date=now.strftime("%B %d, %Y"),
             )
             cover_chapter = epub.EpubHtml(
                 title="Cover",
@@ -179,18 +187,11 @@ class EpubRenderer:
             for ch in current_section_items:
                 toc_items.append(epub.Link(ch.file_name, ch.title, ch.file_name.replace(".", "_")))
 
-        # Footer chapter
-        footer_parts: list[str] = []
-        if self._branding and self._branding.footer.custom_text:
-            footer_parts.append(self._branding.footer.custom_text)
-        if self._git_info:
-            footer_parts.append(self._git_info.format_version_string())
-        if self._branding is None or self._branding.footer.include_render_date:
-            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
-        footer_parts.append("Made with LeafPress")
-        # Markup.join escapes each part: custom_text comes from leafpress.yml
-        # (possibly an untrusted repo's) and the branch name from git
-        footer_text = Markup(" &middot; ").join(footer_parts)
+        # Footer chapter. Markup.join escapes each part: custom_text comes from
+        # leafpress.yml (possibly an untrusted repo's) and the branch name from git
+        footer_text = escape(FOOTER_SEPARATOR).join(
+            footer_parts(self._branding, self._git_info, now)
+        )
 
         footer_chapter = epub.EpubHtml(
             title="About this document",

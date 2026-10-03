@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 from docx import Document
@@ -14,17 +13,16 @@ from docx.oxml.ns import nsmap, qn
 from docx.shared import Inches, Pt, RGBColor
 
 from leafpress.asset_policy import AssetPolicy
-from leafpress.base_renderer import build_asset_policy, is_image_file
+from leafpress.base_renderer import build_asset_policy
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import FOOTER_SEPARATOR, footer_parts, render_time
 from leafpress.docx.html_converter import HtmlToDocxConverter
 from leafpress.docx.styles import apply_branding_styles
-from leafpress.downloads import download
 from leafpress.git_info import GitVersion
+from leafpress.logo import Logo, load_logo
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
 logger = logging.getLogger(__name__)
-
-_MAX_LOGO_BYTES = 10 * 1024 * 1024
 
 # Register VML and Office namespaces for watermark support (must be after docx imports)
 nsmap["v"] = "urn:schemas-microsoft-com:vml"
@@ -45,6 +43,9 @@ class DocxRenderer:
         self._git_info = git_info
         self._mkdocs_cfg = mkdocs_cfg
         self._asset_policy = asset_policy or build_asset_policy(mkdocs_cfg, branding)
+        # Loaded on first use; the logo appears in the header and on the cover
+        self._logo: Logo | None = None
+        self._logo_loaded = False
 
     def render(
         self,
@@ -121,33 +122,9 @@ class DocxRenderer:
         paragraph = footer.paragraphs[0]
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        footer_parts: list[str] = []
-        if self._branding and self._branding.footer.custom_text:
-            footer_parts.append(self._branding.footer.custom_text)
-        if self._branding and self._branding.footer.repo_url:
-            footer_parts.append(self._branding.footer.repo_url)
-        if self._git_info:
-            version_parts: list[str] = []
-            gi = self._git_info
-            footer = self._branding.footer if self._branding else None
-            if (footer is None or footer.include_tag) and gi.tag:
-                dist = gi.tag_distance
-                version_parts.append(f"{gi.tag}+{dist}" if dist and dist > 0 else gi.tag)
-            if footer is None or footer.include_commit:
-                version_parts.append(gi.commit_hash)
-            if footer is None or footer.include_date:
-                version_parts.append(gi.commit_date.strftime("%Y-%m-%d"))
-            if footer and footer.include_branch:
-                version_parts.append(gi.branch)
-            if version_parts:
-                footer_parts.append(" | ".join(version_parts))
-
-        if self._branding is None or self._branding.footer.include_render_date:
-            now = datetime.now() if self._local_time else datetime.now(UTC)
-            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
-
-        footer_parts.append("Made with LeafPress · leafpress.dev")
-        run = paragraph.add_run(" - ".join(footer_parts))
+        now = render_time(self._local_time)
+        parts = footer_parts(self._branding, self._git_info, now)
+        run = paragraph.add_run(FOOTER_SEPARATOR.join(parts))
         run.font.size = Pt(7)
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
@@ -233,7 +210,7 @@ class DocxRenderer:
 
         para = doc.add_paragraph()
         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        now = datetime.now() if self._local_time else datetime.now(UTC)
+        now = render_time(self._local_time)
         run = para.add_run(now.strftime("%B %d, %Y"))
         run.font.size = Pt(10)
         run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
@@ -241,38 +218,19 @@ class DocxRenderer:
         doc.add_page_break()
 
     def _get_logo_stream(self) -> io.BytesIO | None:
-        """Return logo image bytes as a stream, fetching from URL if needed."""
-        if not self._branding or not self._branding.logo_path:
-            return None
-        logo = self._branding.logo_path
-        if self._is_svg(logo):
-            logger.warning(
-                "SVG logos are not supported in DOCX output (python-docx only "
-                "supports raster images like PNG/JPEG). Skipping logo: %s",
-                logo,
-            )
-            return None
-        if logo.startswith(("http://", "https://")):
-            # logo_path may come from an untrusted leafpress.yml, so refuse
-            # internal hosts (same rule as the PDF fetcher).
-            body, _ = download(
-                logo, max_bytes=_MAX_LOGO_BYTES, timeout=30, require_public_host=True
-            )
-            return io.BytesIO(body)
-        path = Path(logo)
-        if not path.exists():
-            return None
-        if not is_image_file(path):
-            logger.warning("Logo is not a readable image, skipping: %s", logo)
-            return None
-        return io.BytesIO(path.read_bytes())
-
-    @staticmethod
-    def _is_svg(path: str) -> bool:
-        """Check if a path or URL points to an SVG file."""
-        # Strip query string / fragment for URL paths
-        clean = path.split("?")[0].split("#")[0]
-        return clean.lower().endswith(".svg")
+        """A fresh stream of the logo bytes, or None if there is no usable raster logo."""
+        if not self._logo_loaded:
+            self._logo_loaded = True
+            logo = load_logo(self._branding)
+            if logo is not None and logo.is_svg:
+                logger.warning(
+                    "SVG logos are not supported in DOCX output (python-docx only "
+                    "supports raster images like PNG/JPEG). Skipping logo: %s",
+                    self._branding.logo_path if self._branding else "",
+                )
+                logo = None
+            self._logo = logo
+        return io.BytesIO(self._logo.data) if self._logo else None
 
     def _add_toc_placeholder(self, doc: Document) -> None:
         """Insert a Word TOC field code.

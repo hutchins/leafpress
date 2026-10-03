@@ -40,7 +40,7 @@ footer:
   include_branch: false         # show branch name (default: false)
   include_render_date: false    # append generation date to footer
   custom_text: "Confidential"   # optional static footer text
-  repo_url: "https://github.com/org/repo"  # link in footer
+  repo_url: "https://github.com/org/repo"  # shown in footer
 
 # PDF-specific options
 pdf:
@@ -95,7 +95,7 @@ diagrams:
 |-------|------|---------|-------------|
 | `company_name` | string | — | Company or organization name (required) |
 | `project_name` | string | — | Project or document title (required) |
-| `logo_path` | string | `null` | Path to logo image or `https://` URL (PNG/JPEG recommended; SVG works in PDF/HTML/ODT but not DOCX) |
+| `logo_path` | string | `null` | Path to logo image or `https://` URL (PNG/JPEG recommended; SVG works in PDF/HTML/EPUB/ODT but not DOCX) |
 | `subtitle` | string | `null` | Subtitle shown on cover page |
 | `author` | string | `null` | Author name |
 | `author_email` | string | `null` | Author email |
@@ -116,7 +116,7 @@ diagrams:
 | `include_branch` | bool | `false` | Include branch name |
 | `include_render_date` | bool | `false` | Append document generation date to footer |
 | `custom_text` | string | `null` | Static text appended to footer |
-| `repo_url` | string | `null` | Repository URL linked in footer |
+| `repo_url` | string | `null` | Repository URL shown in the footer |
 
 ### `pdf` fields
 

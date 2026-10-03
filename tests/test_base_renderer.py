@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from leafpress.base_renderer import make_anchor_id, replace_checkboxes, resolve_logo_uri
+from leafpress.base_renderer import make_anchor_id, replace_checkboxes
 
 # --- replace_checkboxes ---
 
@@ -117,52 +115,3 @@ class TestMakeAnchorId:
 
     def test_empty_string(self) -> None:
         assert make_anchor_id("") == ""
-
-
-# --- resolve_logo_uri ---
-
-
-class TestResolveLogoUri:
-    def test_none_branding(self) -> None:
-        assert resolve_logo_uri(None) == ""
-
-    def test_no_logo_path(self) -> None:
-        """Branding with empty logo_path returns empty string."""
-        from leafpress.config import BrandingConfig
-
-        branding = BrandingConfig(project_name="Test", company_name="Co", logo_path="")
-        assert resolve_logo_uri(branding) == ""
-
-    def test_http_url_returned_as_is(self) -> None:
-        from leafpress.config import BrandingConfig
-
-        branding = BrandingConfig(
-            project_name="Test",
-            company_name="Co",
-            logo_path="https://example.com/logo.png",
-        )
-        assert resolve_logo_uri(branding) == "https://example.com/logo.png"
-
-    def test_https_url_returned_as_is(self) -> None:
-        from leafpress.config import BrandingConfig
-
-        branding = BrandingConfig(
-            project_name="Test",
-            company_name="Co",
-            logo_path="https://cdn.example.com/logo.svg",
-        )
-        assert resolve_logo_uri(branding) == "https://cdn.example.com/logo.svg"
-
-    def test_local_path_converted_to_file_uri(self, tmp_path: Path) -> None:
-        from leafpress.config import BrandingConfig
-
-        logo = tmp_path / "logo.png"
-        logo.write_bytes(b"fake png")
-        branding = BrandingConfig(
-            project_name="Test",
-            company_name="Co",
-            logo_path=str(logo),
-        )
-        result = resolve_logo_uri(branding)
-        assert result.startswith("file://")
-        assert "logo.png" in result

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from leafpress.asset_policy import AssetPolicy
 from leafpress.base_renderer import (
@@ -14,11 +13,12 @@ from leafpress.base_renderer import (
     image_data_uri,
     make_anchor_id,
     replace_checkboxes,
-    resolve_logo_uri,
     rewrite_local_images,
 )
 from leafpress.config import BrandingConfig
+from leafpress.document_meta import FOOTER_SEPARATOR, CoverFields, footer_parts, render_time
 from leafpress.git_info import GitVersion
+from leafpress.logo import load_logo
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 
 
@@ -53,25 +53,18 @@ class HtmlRenderer:
         from leafpress.html.styles import generate_html_css
 
         css = generate_html_css(self._branding)
-        now = datetime.now() if local_time else datetime.now(UTC)
+        now = render_time(local_time)
 
         # Build cover HTML
         cover_html = ""
         if cover_page:
             cover_tmpl = self._jinja.get_template("cover.html.j2")
+            cover = CoverFields.build(self._branding, self._mkdocs_cfg.site_name, now)
+            logo = load_logo(self._branding)
             cover_html = cover_tmpl.render(
-                company_name=(self._branding.company_name if self._branding else ""),
-                project_name=(
-                    self._branding.project_name if self._branding else self._mkdocs_cfg.site_name
-                ),
-                subtitle=self._branding.subtitle if self._branding else "",
-                logo_path=resolve_logo_uri(self._branding),
+                **cover.template_context(),
+                logo_path=logo.data_uri() if logo else "",
                 git_info=self._git_info,
-                author=self._branding.author if self._branding else "",
-                author_email=self._branding.author_email if self._branding else "",
-                document_owner=self._branding.document_owner if self._branding else "",
-                review_cycle=self._branding.review_cycle if self._branding else "",
-                date=now.strftime("%B %d, %Y"),
             )
 
         # Build TOC HTML
@@ -95,24 +88,15 @@ class HtmlRenderer:
                 )
             )
 
-        # Build footer
-        footer_parts: list[str] = []
-        if self._branding and self._branding.footer.custom_text:
-            footer_parts.append(self._branding.footer.custom_text)
-        if self._git_info:
-            footer_parts.append(self._git_info.format_version_string())
-        if self._branding is None or self._branding.footer.include_render_date:
-            footer_parts.append(f"Generated {now.strftime('%Y-%m-%d')}")
-        footer_parts.append("Made with LeafPress")
-        # Markup.join escapes each part: custom_text comes from leafpress.yml
-        # (possibly an untrusted repo's) and the branch name from git
-        footer_text = Markup(" &middot; ").join(footer_parts)
+        # Build footer. Markup.join escapes each part: custom_text comes from
+        # leafpress.yml (possibly an untrusted repo's) and the branch name from git
+        footer_text = escape(FOOTER_SEPARATOR).join(
+            footer_parts(self._branding, self._git_info, now)
+        )
 
         # Build watermark HTML
         watermark_html = ""
         if self._branding and self._branding.watermark.text:
-            from markupsafe import escape
-
             watermark_html = (
                 f'<div class="lp-watermark">{escape(self._branding.watermark.text)}</div>'
             )
@@ -135,7 +119,8 @@ class HtmlRenderer:
 
         # Post-process checkboxes
         full_html = replace_checkboxes(full_html)
-        # Embed local images (content, mermaid, logo) so the file is portable
+        # Embed local images (content, mermaid) so the file is portable; the logo
+        # is already a data: URI
         full_html = rewrite_local_images(full_html, self._asset_policy, image_data_uri)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)

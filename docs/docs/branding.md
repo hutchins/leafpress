@@ -22,10 +22,12 @@ logo_path: "https://example.com/logo.png"
 
 Supported formats: PNG, SVG, JPEG.
 
-The logo appears on the cover page. It is scaled to fit within the header area.
+The logo appears on the cover page of every format (and in the DOCX page header). It is scaled to fit within the header area.
+
+The logo is embedded in each output file, so documents stay self-contained: a remote logo is downloaded once at build time (public hosts only, up to 10 MB) rather than linked. A logo that is missing, isn't a real image, or can't be downloaded is skipped with a warning, and the conversion carries on.
 
 !!! warning "SVG logo compatibility"
-    SVG logos render in **PDF** (via Cairo/librsvg), **HTML** (native browser support), and **ODT** (embedded as SVG). **DOCX** only supports raster images, so an SVG logo is skipped there with a warning. For full format compatibility, use a PNG or JPEG logo.
+    SVG logos render in **PDF** (via Cairo/librsvg), **HTML** (native browser support), **EPUB**, and **ODT** (embedded as SVG). **DOCX** only supports raster images, so an SVG logo is skipped there with a warning. For full format compatibility, use a PNG or JPEG logo.
 
 ## Colors
 
@@ -55,7 +57,7 @@ Git version info (tag, commit, branch) is also shown on the cover page if the pr
 
 ## Footer
 
-The footer appears on every page in PDF and DOCX, and once at the end of HTML, EPUB, and ODT output:
+The footer appears on every page in PDF, DOCX, and ODT, at the end of HTML output, and as a closing chapter in EPUB:
 
 ```yaml
 footer:
@@ -68,7 +70,7 @@ footer:
   repo_url: "https://github.com/org/repo"  # linked repository URL
 ```
 
-In **PDF and DOCX** the footer is assembled in this order, joined by ` - `:
+Every format assembles the footer the same way, in this order, joined by ` - `:
 
 1. `custom_text`
 2. `repo_url`
@@ -87,8 +89,6 @@ With `include_render_date: true`:
 ```
 Confidential - https://github.com/org/repo - v1.2.0 | a1b2c3d | 2026-03-08 - Generated 2026-03-11 - Made with LeafPress · leafpress.dev
 ```
-
-**HTML, EPUB, and ODT** use a simpler footer: `custom_text`, then the full [version string](git-integration.md#version-string), then the generation date, then `Made with LeafPress`. In these formats the `include_tag`, `include_commit`, `include_date`, `include_branch`, and `repo_url` settings currently have no effect.
 
 The render date can also be toggled via the CLI:
 

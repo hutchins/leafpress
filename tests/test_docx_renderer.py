@@ -136,32 +136,6 @@ def test_docx_local_time(
     assert docx_path.exists()
 
 
-# --- _is_svg ---
-
-
-class TestIsSvg:
-    def test_svg_extension(self) -> None:
-        assert DocxRenderer._is_svg("assets/logo.svg") is True
-
-    def test_svg_uppercase(self) -> None:
-        assert DocxRenderer._is_svg("assets/Logo.SVG") is True
-
-    def test_png_not_svg(self) -> None:
-        assert DocxRenderer._is_svg("assets/logo.png") is False
-
-    def test_svg_url(self) -> None:
-        assert DocxRenderer._is_svg("https://example.com/logo.svg") is True
-
-    def test_svg_url_with_query(self) -> None:
-        assert DocxRenderer._is_svg("https://example.com/logo.svg?v=2") is True
-
-    def test_svg_url_with_fragment(self) -> None:
-        assert DocxRenderer._is_svg("https://example.com/logo.svg#layer1") is True
-
-    def test_non_svg_url(self) -> None:
-        assert DocxRenderer._is_svg("https://example.com/logo.png") is False
-
-
 # --- SVG logo skip ---
 
 
@@ -176,7 +150,9 @@ def test_docx_svg_logo_skipped_with_warning(
 
     pages, mkdocs_cfg = html_pages
     branding = load_config(sample_branding_config)
-    branding.logo_path = "assets/logo.svg"
+    svg_logo = tmp_output / "logo.svg"
+    svg_logo.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>')
+    branding.logo_path = str(svg_logo)
 
     docx_path = tmp_output / "svg_skip.docx"
     docx_renderer = DocxRenderer(branding, None, mkdocs_cfg)

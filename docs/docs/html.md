@@ -58,9 +58,9 @@ leafpress convert . -f html \
 The HTML output uses your branding config for:
 
 - **Primary color** — headings, links, sidebar accent
-- **Logo** — displayed on cover page
+- **Logo** — embedded in the file and displayed on the cover page
 - **Company/project name** — cover page and sidebar header
-- **Footer** — git info, custom text
+- **Footer** — the same fields as every other format ([Branding → Footer](branding.md#footer))
 
 Colors are applied via CSS custom properties (`--lp-primary`), making it easy to further customize if needed.
 
