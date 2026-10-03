@@ -15,6 +15,18 @@
     - `module:ClassName` extension references must name a Markdown `Extension` subclass
     - Monorepo `projects[].path` in a cloned repository's `leafpress.yml` must stay inside that repository
     - PDF header and footer text is now correctly escaped in CSS, since a trailing backslash could previously break out of the string. `watermark.color` is now validated as a hex color
+- **Supply chain & CI**
+    - The GitHub Action now passes inputs through environment variables instead of interpolating `${{ inputs.* }}` into its shell script, which closes a script-injection route. It also installs leafpress from the action's own ref rather than whatever is newest on PyPI
+    - All workflow actions are pinned by commit SHA, checkouts no longer persist credentials, and the release job disables caching. CI runs with `contents: read` and now runs `pip-audit`
+    - Added Dependabot for GitHub Actions, uv, and Docker, with a 7-day cooldown
+    - Docker: base images are pinned by digest, mounted repos are marked git `safe.directory` (version info now works under any `--user`), and the image includes an unprivileged `leafpress` user. The docs recommend `--user "$(id -u):$(id -g)"`
+- **Downloads** (diagrams, Lucidchart, mermaid.ink, remote DOCX logos, `import` from URL) go through one helper
+    - http(s) only, streamed with size caps, and every redirect hop is re-validated
+    - Remote DOCX logos refuse private or internal hosts, matching the PDF fetcher
+- `fetch-diagrams`: `dest` must stay inside the project directory, which closes arbitrary file writes such as `dest: ../../.bashrc`. Lucidchart document IDs are validated
+- Credentials in git URLs (`https://user:TOKEN@…`) are redacted from clone messages, errors, and monorepo chapter cover pages
+- TeX import: `\includegraphics` paths outside the `.tex` file's directory are skipped
+- Windows "open file" no longer runs through `cmd.exe` (`shell=True`). It now uses `os.startfile`
 - Relative `pymdownx.snippets` `base_path` entries now resolve from the project directory, as MkDocs does, instead of the current working directory
 - Image `file://` URIs containing percent-encoded characters (e.g. spaces) now embed correctly in DOCX
 - Note: pymdown-extensions 12 rewrote BetterEm/Tilde/Caret/Mark emphasis parsing to be CommonMark compliant — mid-word `~~`, `^^`, and `==` are now allowed by default, and edge cases of nested emphasis may render slightly differently

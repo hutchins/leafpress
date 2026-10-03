@@ -18,6 +18,18 @@ Mount your project directory into the container:
 docker run --rm -v $(pwd):/work leafpress convert /work
 ```
 
+### Run as a non-root user (recommended)
+
+The image runs as root by default so it can write to mounted directories owned by any user. Running as your own UID is safer, especially when converting repositories you don't control. It also means the generated files are owned by you rather than root:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v $(pwd):/work leafpress convert /work
+```
+
+The image also includes an unprivileged `leafpress` user (`--user leafpress`) for cases where no host directory needs to be written. Git version info works with any UID: the image marks mounted repositories as a git `safe.directory`.
+
+Base images are pinned by digest, so rebuilding the same commit produces the same image.
+
 ### Choose an output format
 
 ```bash
@@ -69,12 +81,18 @@ jobs:
       - name: Build leafpress image
         run: docker build -t leafpress .
 
+      # Pass values through env: rather than writing ${{ ... }} inside run:,
+      # so they can't be interpreted as shell code.
       - name: Convert docs
+        env:
+          LEAFPRESS_COMPANY_NAME: ${{ vars.COMPANY_NAME }}
+          LEAFPRESS_PROJECT_NAME: ${{ github.event.repository.name }}
         run: |
           docker run --rm \
-            -e LEAFPRESS_COMPANY_NAME="${{ vars.COMPANY_NAME }}" \
-            -e LEAFPRESS_PROJECT_NAME="${{ github.event.repository.name }}" \
-            -v ${{ github.workspace }}:/work \
+            --user "$(id -u):$(id -g)" \
+            -e LEAFPRESS_COMPANY_NAME \
+            -e LEAFPRESS_PROJECT_NAME \
+            -v "$GITHUB_WORKSPACE:/work" \
             leafpress convert /work -f pdf -o /work/output
 
       - uses: actions/upload-artifact@v4

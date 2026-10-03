@@ -9,9 +9,9 @@ import logging
 import re
 from pathlib import Path
 
-import requests
 from bs4 import BeautifulSoup, Tag
 
+from leafpress.downloads import DownloadError, download
 from leafpress.exceptions import DiagramError
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _MERMAID_INK_PNG_BASE = "https://mermaid.ink/img"
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _MERMAID_INK_SVG_BASE = "https://mermaid.ink/svg"
+MAX_MERMAID_BYTES = 20 * 1024 * 1024
 
 
 def _is_valid_png(path: Path) -> bool:
@@ -96,17 +97,16 @@ def render_mermaid(source: str, dest: Path, timeout: int = 30) -> Path:
     url = f"{_MERMAID_INK_PNG_BASE}/{encoded}"
 
     try:
-        resp = requests.get(url, timeout=timeout)
-        resp.raise_for_status()
-    except requests.RequestException as e:
+        body, headers = download(url, max_bytes=MAX_MERMAID_BYTES, timeout=timeout)
+    except DownloadError as e:
         raise DiagramError(f"Failed to render mermaid diagram: {e}") from e
 
-    content_type = resp.headers.get("Content-Type", "")
+    content_type = headers.get("Content-Type", "")
     if "image" not in content_type:
         raise DiagramError(f"mermaid.ink returned unexpected content type '{content_type}'")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(resp.content)
+    dest.write_bytes(body)
     return dest
 
 
@@ -128,17 +128,16 @@ def render_mermaid_svg(source: str, dest: Path, timeout: int = 30) -> Path:
     url = f"{_MERMAID_INK_SVG_BASE}/{encoded}"
 
     try:
-        resp = requests.get(url, timeout=timeout)
-        resp.raise_for_status()
-    except requests.RequestException as e:
+        body, headers = download(url, max_bytes=MAX_MERMAID_BYTES, timeout=timeout)
+    except DownloadError as e:
         raise DiagramError(f"Failed to render mermaid SVG: {e}") from e
 
-    content_type = resp.headers.get("Content-Type", "")
+    content_type = headers.get("Content-Type", "")
     if "svg" not in content_type and "image" not in content_type:
         raise DiagramError(f"mermaid.ink returned unexpected content type '{content_type}'")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(resp.content)
+    dest.write_bytes(body)
     return dest
 
 

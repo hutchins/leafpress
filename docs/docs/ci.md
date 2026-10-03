@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: hutchins/leafpress@main
+      - uses: hutchins/leafpress@v0.8.3
         with:
           format: pdf
           output: dist
@@ -29,7 +29,12 @@ jobs:
           path: dist/
 ```
 
-The action handles Python setup and WeasyPrint system dependencies automatically.
+The action handles Python setup and WeasyPrint system dependencies automatically. It installs leafpress from the action's own checkout, so the version you run is exactly the ref you pin.
+
+!!! tip "Pin the action"
+    Pin to a release tag (`@v0.8.3`) or, for the strongest guarantee, a full commit SHA (`@<sha> # v0.8.3`) rather than `@main`. Dependabot's `github-actions` ecosystem will propose updates to either form.
+
+    If the workflow converts content from pull requests by other contributors, leafpress confines what that content can read (see [Remote Sources](remote-sources.md#converting-untrusted-repositories)). Still avoid exposing secrets to such runs.
 
 **Inputs:**
 

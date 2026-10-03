@@ -17,6 +17,8 @@ leafpress import *.docx *.pptx *.xlsx *.tex -o docs/
 
 See the [CLI Reference](cli.md#import) for all flags and examples.
 
+Files can also be imported from an `http://` or `https://` URL. Downloads are capped at 200 MB.
+
 ---
 
 ## Word Import (DOCX)
@@ -174,7 +176,7 @@ LaTeX documents are converted using a native parser ([pylatexenc](https://github
 | Bold / italic / code | `\textbf` → `**bold**`, `\textit` / `\emph` → `*italic*`, `\texttt` → `` `code` `` |
 | Lists | `itemize` → bullets, `enumerate` → numbered, with nesting support |
 | Math | Inline `$...$` and display `$$...$$` / `\[...\]` / `equation` / `align` passed through for MathJax/KaTeX |
-| Images | `\includegraphics` resolved relative to `.tex` file, copied to `assets/` |
+| Images | `\includegraphics` resolved relative to `.tex` file, copied to `assets/`. Paths outside the `.tex` file's directory (absolute, `..`, or via symlinks) are skipped with a warning |
 | Tables | `tabular` → pipe-style Markdown tables with column alignment |
 | Links | `\href{url}{text}` → Markdown links, `\url{url}` → angle-bracket URLs |
 | Code blocks | `verbatim`, `lstlisting`, `minted` → fenced code blocks (with language detection) |
