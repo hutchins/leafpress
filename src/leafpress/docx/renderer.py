@@ -14,7 +14,7 @@ from docx.oxml.ns import nsmap, qn
 from docx.shared import Inches, Pt, RGBColor
 
 from leafpress.asset_policy import AssetPolicy
-from leafpress.base_renderer import build_asset_policy
+from leafpress.base_renderer import build_asset_policy, is_image_file
 from leafpress.config import BrandingConfig
 from leafpress.docx.html_converter import HtmlToDocxConverter
 from leafpress.docx.styles import apply_branding_styles
@@ -260,9 +260,12 @@ class DocxRenderer:
             )
             return io.BytesIO(body)
         path = Path(logo)
-        if path.exists():
-            return io.BytesIO(path.read_bytes())
-        return None
+        if not path.exists():
+            return None
+        if not is_image_file(path):
+            logger.warning("Logo is not a readable image, skipping: %s", logo)
+            return None
+        return io.BytesIO(path.read_bytes())
 
     @staticmethod
     def _is_svg(path: str) -> bool:

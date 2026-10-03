@@ -26,6 +26,7 @@ class BaseRenderer(Protocol):
         branding: BrandingConfig | None,
         git_info: GitVersion | None,
         mkdocs_cfg: MkDocsConfig,
+        asset_policy: AssetPolicy | None = None,
     ) -> None: ...
 
     def render(

@@ -393,8 +393,8 @@ def convert(
         )
 
         # Monorepo mode: collect pages from multiple projects
-        if branding and branding.projects:
-            config_dir = (config_path or project_dir).parent if config_path else project_dir
+        if is_monorepo:
+            config_dir = config_path.parent if config_path else project_dir
             html_pages, page_count = _collect_monorepo_pages(
                 branding.projects,
                 config_dir,
@@ -480,7 +480,7 @@ def convert(
                         else:
                             console.print(f"  [green]✓ {w}[/green]")
                     all_unresolved.extend(renderer.unresolved_assets)
-                    html_pages.append((item, html))
+                    html_pages.append((dataclasses.replace(item, source_file=md_file), html))
                     progress.update(task, advance=1)
 
             # Warn about missing assets discovered during rendering
@@ -492,13 +492,8 @@ def convert(
 
         # Generate outputs
         output_dir.mkdir(parents=True, exist_ok=True)
-        if mkdocs_cfg:
-            site_name = mkdocs_cfg.site_name
-        elif branding:
-            site_name = branding.project_name
-        else:
-            site_name = "output"
-        safe_name = _safe_filename(site_name)
+        # mkdocs_cfg is always set by now (synthesized in monorepo mode)
+        safe_name = _safe_filename(mkdocs_cfg.site_name)
 
         if format in ("pdf", "both", "all"):
             try:
@@ -864,7 +859,7 @@ def _collect_monorepo_pages(
                     else:
                         con.print(f"  [green]✓ {w}[/green]")
                 all_unresolved.extend(renderer.unresolved_assets)
-                all_pages.append((item, html))
+                all_pages.append((dataclasses.replace(item, source_file=md_file), html))
                 total_pages += 1
 
             # Warn about missing assets in this project

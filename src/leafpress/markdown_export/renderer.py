@@ -49,7 +49,9 @@ class MarkdownExportRenderer:
                     parts.append(f"{'#' * level} {item.title}")
                 continue
 
-            md_file = resolve_page_path(self._mkdocs_cfg.docs_dir, item.path)
+            # Prefer the file the pipeline actually rendered (monorepo pages
+            # live under their own project's docs_dir)
+            md_file = item.source_file or resolve_page_path(self._mkdocs_cfg.docs_dir, item.path)
             if md_file is None or not md_file.exists():
                 continue
 
