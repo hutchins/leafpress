@@ -6,9 +6,11 @@ import contextlib
 import dataclasses
 import logging
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
 from jinja2 import Environment, PackageLoader
@@ -22,7 +24,7 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from leafpress.asset_policy import AssetPolicy, is_within
+from leafpress.asset_policy import AssetPolicy, is_public_host, is_within
 from leafpress.base_renderer import build_asset_policy
 from leafpress.config import (
     BrandingConfig,
@@ -688,6 +690,14 @@ def _confine_untrusted_logo(
     return branding.model_copy(update={"logo_path": None})
 
 
+def _git_url_host(url: str) -> str:
+    """Host of a git URL: ``https://h/...``, ``ssh://u@h:p/...``, or scp-style ``git@h:path``."""
+    if "://" in url:
+        return urlsplit(url).hostname or ""
+    match = re.match(r"^[^@/\s]+@([^:/\s]+):", url)
+    return match.group(1) if match else ""
+
+
 def _load_project_env(env_file: Path) -> list[str]:
     """Load ``LEAFPRESS_*`` settings from a project's ``.env`` file.
 
@@ -746,6 +756,11 @@ def _collect_monorepo_pages(
         for entry in projects:
             # Resolve project directory (local path or git clone)
             if entry.url:
+                if untrusted_source and not is_public_host(_git_url_host(entry.url)):
+                    raise SourceError(
+                        "Monorepo project url in a cloned repository must point to a "
+                        f"public host: {redact_url(entry.url)}"
+                    )
                 resolved = stack.enter_context(resolve_source(entry.url, entry.branch))
                 project_dir = resolved
                 # Shown in the console and on the chapter cover page

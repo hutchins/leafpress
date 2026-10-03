@@ -556,3 +556,39 @@ def test_project_env_applies_during_run(repo: Path, tmp_path: Path, monkeypatch)
     (repo / ".env").write_text("LEAFPRESS_COMPANY_NAME=Acme\nLEAFPRESS_PROJECT_NAME=FromDotenv\n")
     convert(str(repo), tmp_path / "o", format="markdown", mermaid=False)
     assert "FromDotenv" in next((tmp_path / "o").glob("*.md")).read_text()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://169.254.169.254/latest/meta-data.git",
+        "ssh://git@10.0.0.5:2222/org/repo.git",
+        "git@internal.corp:org/repo.git",
+    ],
+)
+def test_untrusted_monorepo_url_must_be_public(
+    url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from rich.console import Console
+
+    from leafpress import pipeline
+    from leafpress.config import BrandingConfig, ProjectEntry
+
+    def dns(host: str, *a: object) -> list[tuple[object, ...]]:
+        ip = {"internal.corp": "10.1.2.3"}.get(host, host)
+        return [(0, 0, 0, "", (ip, 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", dns)
+    with (
+        patch.object(pipeline, "resolve_source") as resolve,
+        pytest.raises(SourceError, match="public host"),
+    ):
+        pipeline._collect_monorepo_pages(
+            [ProjectEntry(url=url)],
+            tmp_path,
+            tmp_path / "m",
+            BrandingConfig(company_name="A", project_name="B"),
+            Console(quiet=True),
+            untrusted_source=True,
+        )
+    resolve.assert_not_called()  # nothing is cloned

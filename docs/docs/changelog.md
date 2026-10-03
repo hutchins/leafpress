@@ -11,7 +11,7 @@
     - A cloned repo's `mermaid.server` must be a public host; an operator-set `LEAFPRESS_MERMAID_SERVER` is still trusted.
     - The internal-host check now unwraps IPv4 addresses tunnelled in IPv6 (NAT64, 6to4, Teredo, IPv4-mapped). DNS rebinding is documented as a known limitation.
     - The PDF fetcher now uses the shared `requests`-based download helper instead of reimplementing redirects and size caps with urllib.
-    - **Monorepo `projects[].url` must be a git URL.** A local path there skipped the containment check that `path:` gets. `root:` is also confined for cloned repos.
+    - **Monorepo `projects[].url` must be a git URL.** A local path there skipped the containment check that `path:` gets. For cloned repos, the URL's host must also be public, and `root:` is confined.
     - A local project's `.env` settings are removed again after each conversion, so in the long-running desktop UI they no longer carry over into later runs. Previously they could switch off the untrusted-repo guards for a later git URL conversion.
     - The internal-host check also unwraps IPv4-compatible (`::a.b.c.d`) and SIIT (`::ffff:0:a.b.c.d`) addresses.
 - Upgraded all locked dependencies to clear known advisories (`pip-audit` now reports none), including GitPython 3.1.62 (option-smuggling / config-injection RCEs during clone), pymdown-extensions 12.1 (`snippets` path traversal, ReDoS), WeasyPrint 70.0 (`url_fetcher` bypass), lxml 6.1 (XXE via default entity resolution), Pillow 12.3 (image parser memory corruption), urllib3 2.8 / requests 2.34, soupsieve, idna, and pygments
