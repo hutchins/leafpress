@@ -103,7 +103,7 @@ Tests live in `tests/`, one file per module (`test_<module>.py`), plus a few cro
     - Check every path with `asset_policy.allows(path)` before reading it.
     - Page content may come from an untrusted repository.
     - `rewrite_local_images()` in `base_renderer.py` handles the common "embed `<img src="file://...">`" case.
-3. **Wire it into the pipeline.** In `pipeline.py`, pass `asset_policy=asset_policy`, and add the format to `OutputFormat` in `cli/app.py`.
+3. **Wire it into the pipeline.** Add an entry to `_OUTPUT_FORMATS` in `pipeline.py` (it passes `asset_policy` unless `takes_asset_policy=False`), and add the format to `OutputFormat` in `cli/app.py`.
 4. **Add tests and docs.** Add `tests/test_<format>_renderer.py` and a `docs/docs/<format>.md` page.
 
 ## Adding an import format (importer)

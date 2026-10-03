@@ -17,6 +17,7 @@ from leafpress.exceptions import RenderError
 from leafpress.git_info import GitVersion
 from leafpress.mkdocs_parser import MkDocsConfig, NavItem
 from leafpress.pdf.styles import generate_pdf_css
+from leafpress.render_errors import format_render_error
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ class PdfRenderer:
                 stylesheets=[CSS(string=css_string, url_fetcher=fetcher)],
             )
         except Exception as exc:
-            raise RenderError(self._format_pdf_error(exc)) from exc
+            raise RenderError(format_render_error("PDF", exc)) from exc
 
     def _wrap_document(self, body: str) -> str:
         """Wrap body content in a full HTML5 document."""
@@ -126,37 +127,4 @@ class PdfRenderer:
         return (
             '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n'
             f"<body>\n{watermark_div}\n{body}\n</body>\n</html>"
-        )
-
-    @staticmethod
-    def _format_pdf_error(exc: Exception) -> str:
-        """Produce a user-friendly error message for PDF rendering failures."""
-        exc_name = type(exc).__name__
-        exc_msg = str(exc)
-
-        if "UnrecognizedImageError" in exc_name or "unrecognized image" in exc_msg.lower():
-            return (
-                f"PDF rendering failed due to an unrecognized image format.\n"
-                f"  This often happens when an SVG image is used but the required\n"
-                f"  system libraries (librsvg / libcairo) are not installed.\n"
-                f"  Run 'leafpress doctor' to check your environment.\n"
-                f"  Tip: Convert SVG images to PNG, or install librsvg:\n"
-                f"    macOS:  brew install librsvg\n"
-                f"    Ubuntu: sudo apt install librsvg2-dev\n"
-                f"  Original error: {exc_name}: {exc_msg}"
-            )
-
-        if "image" in exc_msg.lower() or "image" in exc_name.lower():
-            return (
-                f"PDF rendering failed due to an image error.\n"
-                f"  Check that all images referenced in your docs exist and are in\n"
-                f"  a supported format (PNG, JPEG, GIF, or SVG with librsvg).\n"
-                f"  Run 'leafpress doctor' to check your environment.\n"
-                f"  Original error: {exc_name}: {exc_msg}"
-            )
-
-        return (
-            f"PDF rendering failed: {exc_name}: {exc_msg}\n"
-            f"  Run 'leafpress doctor' to check your environment.\n"
-            f"  If this persists, please report it at https://github.com/hutchins/leafpress/issues"
         )

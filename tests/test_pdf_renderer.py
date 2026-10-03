@@ -10,6 +10,7 @@ from leafpress.git_info import extract_git_info
 from leafpress.markdown_renderer import MarkdownRenderer
 from leafpress.mkdocs_parser import flatten_nav, parse_mkdocs_config
 from leafpress.pdf.renderer import PdfRenderer
+from leafpress.render_errors import format_render_error
 
 
 def test_pdf_generation(
@@ -72,7 +73,7 @@ def test_pdf_without_branding(
     assert pdf_path.stat().st_size > 0
 
 
-# --- _format_pdf_error ---
+# --- format_render_error("PDF", ...) ---
 
 
 class _FakeUnrecognizedImageError(Exception):
@@ -86,7 +87,7 @@ _FakeUnrecognizedImageError.__name__ = "UnrecognizedImageError"
 
 def test_format_pdf_error_unrecognized_image() -> None:
     exc = _FakeUnrecognizedImageError("bad image data")
-    msg = PdfRenderer._format_pdf_error(exc)
+    msg = format_render_error("PDF", exc)
     assert "unrecognized image format" in msg
     assert "librsvg" in msg
     assert "brew install" in msg
@@ -96,7 +97,7 @@ def test_format_pdf_error_unrecognized_image() -> None:
 
 def test_format_pdf_error_generic_image_error() -> None:
     exc = ValueError("Failed to load image at /path/to/broken.png")
-    msg = PdfRenderer._format_pdf_error(exc)
+    msg = format_render_error("PDF", exc)
     assert "image error" in msg
     assert "PNG, JPEG" in msg
     assert "leafpress doctor" in msg
@@ -104,7 +105,7 @@ def test_format_pdf_error_generic_image_error() -> None:
 
 def test_format_pdf_error_non_image_error() -> None:
     exc = RuntimeError("something completely different")
-    msg = PdfRenderer._format_pdf_error(exc)
+    msg = format_render_error("PDF", exc)
     assert "PDF rendering failed" in msg
     assert "RuntimeError" in msg
     assert "something completely different" in msg
