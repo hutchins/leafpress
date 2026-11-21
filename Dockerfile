@@ -2,7 +2,7 @@
 # tag can't silently change what we ship. Dependabot proposes digest updates.
 
 # Stage 1: Build
-FROM python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b AS builder
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -25,7 +25,7 @@ COPY src/ src/
 RUN uv sync --no-dev --no-editable --frozen --extra pdf
 
 # Stage 2: Runtime
-FROM python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
